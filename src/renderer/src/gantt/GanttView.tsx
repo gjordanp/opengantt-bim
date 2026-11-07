@@ -175,7 +175,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     const gantt = ganttRef.current
     if (!gantt) return
     gantt.clearAll()
-    gantt.parse({ data: project.tasks, links: project.links })
+    // The gantt keeps and mutates the objects it's given; hand it copies so the
+    // project data (and a remount in React StrictMode) always starts clean.
+    gantt.parse({ data: structuredClone(project.tasks), links: structuredClone(project.links) })
     runScheduleRef.current()
   }, [project])
 
