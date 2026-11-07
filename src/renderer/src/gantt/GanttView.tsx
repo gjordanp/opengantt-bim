@@ -188,6 +188,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       showCriticalRef.current && criticalRef.current.has(String(task.id)) ? 'critical-task' : ''
 
     gantt.init(host)
+    // The gantt only follows window resizes; its pane can also change size (BIM viewer).
+    const resizeObserver = new ResizeObserver(() => gantt.setSizes())
+    resizeObserver.observe(host)
     todayRef.current = new TodayLine(gantt)
     todayRef.current.mount()
     // Handy for poking at the instance from the devtools console while developing.

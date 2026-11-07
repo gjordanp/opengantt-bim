@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import GanttView, { type GanttHandle } from './gantt/GanttView'
+import BimViewer, { type BimViewerHandle } from './bim/BimViewer'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
 import type { ProjectData } from '@shared/model'
@@ -81,6 +82,9 @@ export default function App(): React.JSX.Element {
   const [saveState, setSaveState] = useState<SaveState>('idle')
 
   const ganttRef = useRef<GanttHandle>(null)
+  const bimRef = useRef<BimViewerHandle>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [bimOpen, setBimOpen] = useState(false)
   const [history, setHistory] = useState({ canUndo: false, canRedo: false })
   const latestRef = useRef<ProjectData | null>(null)
   const timerRef = useRef<number | undefined>(undefined)
@@ -254,6 +258,25 @@ export default function App(): React.JSX.Element {
         <button disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} title="Rehacer (Ctrl+Y)">
           Rehacer
         </button>
+        <button className={bimOpen ? 'active' : ''} onClick={() => setBimOpen((v) => !v)}>
+          BIM
+        </button>
+        {bimOpen && (
+          <>
+            <button onClick={() => fileInputRef.current?.click()}>Importar IFC…</button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".ifc"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file) void bimRef.current?.loadIfc(file)
+              }}
+            />
+          </>
+        )}
         <button className={calendarOpen ? 'active' : ''} onClick={() => setCalendarOpen((v) => !v)}>
           Calendario
         </button>
@@ -272,6 +295,8 @@ export default function App(): React.JSX.Element {
         {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
       </div>
       {calendarOpen && <CalendarPanel value={calendar} onChange={setCalendar} onClose={() => setCalendarOpen(false)} />}
+      <div className={`workspace${bimOpen ? ' with-bim' : ''}`}>
+        <div className="gantt-pane">
       <GanttView
         holidays={calendar.holidays}
         workWeek={calendar.workWeek}
@@ -284,6 +309,13 @@ export default function App(): React.JSX.Element {
         onScheduled={onScheduled}
         onChange={onChange}
       />
+        </div>
+        {bimOpen && (
+          <div className="bim-pane">
+            <BimViewer ref={bimRef} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

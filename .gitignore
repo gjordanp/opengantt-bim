@@ -11,3 +11,8 @@ graphify-out/
 
 # bundled MongoDB server binary (see npm run fetch:mongod)
 resources/mongod/
+
+# local IFC models used for testing (not redistributed)
+samples/
+
+src/renderer/public/wasm/
