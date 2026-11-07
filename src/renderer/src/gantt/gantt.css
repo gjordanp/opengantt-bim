@@ -4,14 +4,13 @@
   height: 100%;
 }
 
-/* Critical path highlight (see templates.task_class in GanttView). */
+/* Critical path highlight (see templates.task_class in GanttView); same look as the original app. */
 .gantt_task_line.critical-task {
-  background-color: #e5484d;
-  border-color: #b02a2f;
+  background: linear-gradient(to right, #ef4444, #f97316) !important;
 }
 
 .gantt_task_line.critical-task .gantt_task_progress {
-  background-color: #b02a2f;
+  background: rgba(0, 0, 0, 0.25) !important;
 }
 
 .today-line {

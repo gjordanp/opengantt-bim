@@ -8,6 +8,7 @@ import { TodayLine } from './todayLine'
 import { weekCalendar } from '@shared/scheduling'
 import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
+import './theme-light.css'
 import './gantt.css'
 
 const BASE_ROW_HEIGHT = 30
@@ -167,7 +168,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.config.scale_height = 50
     gantt.config.columns = [
       { name: 'text', label: 'Tarea', tree: true, width: 220, resize: true },
-      { name: 'start_date', label: 'Inicio', align: 'center', width: 90, resize: true },
+      { name: 'start_date', label: 'Inicio', align: 'center', width: 100, resize: true },
       { name: 'duration', label: 'Días', align: 'center', width: 60, resize: true },
       { name: 'location_surface', label: 'Superficie', align: 'center', width: 80, resize: true }
     ]

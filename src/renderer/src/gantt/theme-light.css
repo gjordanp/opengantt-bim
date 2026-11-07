@@ -1,0 +1,658 @@
+/* Copiado de opengantt (public/dhtmlxGantt/openganttstyle/gantt-theme-light.css).
+ * Cambio: se quitó la altura fija de filas para que la línea de balance pueda escalarlas. */
+/* 
+ * Estilos personalizados para el componente Gantt Chart
+ * Tema claro - estructura idéntica al tema oscuro con colores claros
+ */
+
+/* Contenedor principal del Gantt */
+.gantt_container {
+  background-color: #ffffff !important;
+  border: 0px solid #e2e8f0 !important;
+  height: 100% !important;
+}
+
+/* Áreas principales del grid y tareas */
+.gantt_grid,
+.gantt_task {
+  background-color: #ffffff !important;
+}
+
+/* Grid transitions for smooth collapse/expand */
+.gantt_grid {
+  transition: width 0.3s ease-in-out !important;
+}
+
+/* Additional transitions for grid components */
+.gantt_grid_scale,
+.gantt_grid_data {
+  transition: width 0.3s ease-in-out !important;
+}
+
+/* Ensure layout transitions work smoothly */
+.gantt_layout_root {
+  transition: all 0.3s ease-in-out !important;
+}
+
+/* Escalas de tiempo y cabeceras */
+.gantt_grid_scale,
+.gantt_task_scale {
+  background-color: #f8fafc !important;
+  color: #334155 !important;
+  font-size: 12px !important;
+  line-height: 30px !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Celdas del grid */
+.gantt_grid_data .gantt_cell {
+  border-right: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+  font-size: 12px !important;
+}
+
+/* Barras de tareas */
+.gantt_task_line {
+  /* background: linear-gradient(to right, #8b5cf6, #0ea5e9) !important; */
+  background: #0ea5e9 !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 4px !important;
+}
+
+/* Contenido de las tareas */
+.gantt_task_content {
+  color: white !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+/* Progreso de las tareas */
+.gantt_task_progress {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Tareas de tipo proyecto */
+/* .gantt_task_line.gantt_project {
+  background: linear-gradient(to right, #7c3aed, #0891b2) !important;
+} */
+
+.gantt_task_line.gantt_project {
+  background: #8b5cf6 !important;
+}
+
+/* Filas y celdas. La altura la fija el gantt (row_height): línea de balance la cambia por fila. */
+.gantt_row,
+.gantt_cell {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Filas impares */
+.gantt_grid_data .gantt_row.odd,
+.gantt_task_row.odd {
+  background-color: #f8fafc !important;
+}
+
+/* Filas pares */
+.gantt_grid_data .gantt_row,
+.gantt_task_row {
+  background-color: #ffffff !important;
+}
+
+/* Enlaces entre tareas */
+.gantt_link_line {
+  stroke: rgba(139, 92, 246, 0.8) !important;
+}
+
+.gantt_link_arrow {
+  fill: #8b5cf6 !important;
+  stroke: #8b5cf6 !important;
+}
+
+/* Tareas críticas */
+.gantt_critical_task .gantt_task_line {
+  background: linear-gradient(to right, #ef4444, #f97316) !important;
+  border-color: #e2e8f0 !important;
+}
+
+/* Iconos del árbol de tareas */
+.gantt_tree_icon {
+  background-image: none !important;
+}
+
+.gantt_tree_icon.gantt_folder_open:before,
+.gantt_tree_icon.gantt_folder_closed:before,
+.gantt_tree_icon.gantt_file:before {
+  color: #64748b;
+  font-size: 14px;
+  line-height: 28px;
+  display: inline-block;
+  /* width: 16px; */
+  text-align: center;
+}
+
+.gantt_tree_icon.gantt_file {
+  display: none;
+}
+
+.gantt_tree_icon.gantt_folder_open,
+.gantt_tree_icon.gantt_folder_closed {
+  display: none;
+}
+
+
+/* .gantt_tree_icon.gantt_folder_open,
+		.gantt_tree_icon.gantt_file,
+		.gantt_tree_icon.gantt_folder_closed {
+			display: none;
+		} */
+
+/* .gantt_tree_icon.gantt_open:before { 
+  content: "►"; 
+}
+
+.gantt_tree_icon.gantt_close:before { 
+  content: "▼";
+} */
+
+.gantt_tree_icon.gantt_open:before {
+  content: "►";
+}
+
+.gantt_tree_icon.gantt_close:before {
+  content: "▼";
+}
+
+.gantt_tree_icon.gantt_open {
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid;
+  transform: scale(var(--ggs, 1));
+  border-radius: 4px;
+  margin-top: auto;
+  margin-bottom: auto;
+  margin-right: 5px;
+  /* background-color: #334155; */
+}
+
+.gantt_tree_icon.gantt_open::after,
+.gantt_tree_icon.gantt_open::before {
+  content: "";
+  display: block;
+  box-sizing: border-box;
+  position: absolute;
+  width: 8px;
+  height: 2px;
+  /* background: #ffffff; */
+  background: currentColor;
+  border-radius: 5px;
+  top: 5px;
+  left: 2px;
+}
+
+.gantt_tree_icon.gantt_open::after {
+  width: 2px;
+  height: 8px;
+  top: 2px;
+  left: 5px;
+}
+
+
+/* Colapse proyect task */
+
+.gantt_tree_icon.gantt_close {
+  box-sizing: border-box;
+  position: relative;
+  display: block;
+  transform: scale(var(--ggs, 1));
+  width: 14px;
+  height: 14px;
+  border: 1px solid;
+  border-radius: 4px;
+  margin-top: auto;
+  margin-bottom: auto;
+  margin-right: 5px;
+  /* background-color: #334155; */
+}
+
+
+.gantt_tree_icon.gantt_close::before {
+  content: "";
+  display: block;
+  box-sizing: border-box;
+  position: absolute;
+  width: 8px;
+  height: 2px;
+  /* background: #ffffff; */
+  background: currentColor;
+  border-radius: 5px;
+  top: 5px;
+  left: 2px;
+}
+
+/* Efectos hover */
+.gantt_task_line:hover {
+  box-shadow: 0 0 5px rgba(139, 92, 246, 0.5) !important;
+}
+
+.gantt_grid_data .gantt_row:hover,
+.gantt_grid_data .gantt_row.odd:hover {
+  background-color: rgba(226, 232, 240, 0.6) !important;
+}
+
+/* Marcador de hoy */
+.gantt_today {
+  background-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+/* Bordes y líneas de división */
+.gantt_task_scale .gantt_scale_cell {
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.gantt_scale_cell {
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.gantt_scale_line {
+  border-top: 1px solid #e2e8f0 !important;
+}
+
+.gantt_layout_cell_border_bottom {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.gantt_rezizer_stick {
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.gantt_task_row {
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.gantt_task_bg .gantt_task_vgrid {
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.gantt_task_cell {
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+.gantt_grid_divider,
+.gantt_grid_border_right {
+  background-color: rgba(226, 232, 240, 0.4) !important;
+}
+
+.gantt_grid_column_resize_wrap .gantt_grid_column_resize {
+  background-color: rgba(226, 232, 240, 0.5) !important;
+}
+
+/* Números de fila */
+.gantt_grid_data .gantt_row_number {
+  text-align: center;
+  color: #64748b;
+  font-size: 11px;
+}
+
+/* Modo pantalla completa */
+.gantt_container.fullscreen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 40 !important;
+  background-color: #ffffff !important;
+}
+
+/* Selección de filas */
+.gantt_selected {
+  background-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+.gantt_critical_task {
+  background-color: #ff4757 !important;
+  border-color: #ff3742 !important;
+}
+
+.gantt_critical_task .gantt_task_progress {
+  background-color: #ff3742 !important;
+}
+
+.gantt_critical_link {
+  stroke: #ff4757 !important;
+  stroke-width: 2px !important;
+}
+
+.gantt_critical_link {
+  border-color: #ff4757 !important;
+}
+
+.weekend {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+.gantt_resizing {
+  background-color: transparent !important;
+}
+
+.gantt_row_project {
+  font-weight: bold;
+}
+
+/* ==============================================
+   ESTILOS DEL LIGHTBOX DE EDICIÓN DE TAREAS
+   ============================================== */
+
+/* Contenedor principal del lightbox */
+.gantt_cal_light {
+  background-color: #ffffff !important;
+  border: 1px solid rgba(139, 92, 246, 0.5) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.2) !important;
+  backdrop-filter: blur(20px) !important;
+  max-width: 600px !important;
+  padding: 0px !important;
+  height: max-content !important;
+}
+
+/* Título del lightbox */
+.gantt_cal_light .gantt_cal_ltitle {
+  background: linear-gradient(to right, #8b5cf6, #0ea5e9) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 18px !important;
+  padding: 20px !important;
+  border-radius: 16px 16px 0 0 !important;
+  border-bottom: 2px solid rgba(139, 92, 246, 0.5) !important;
+}
+
+/* Área del contenido */
+.gantt_cal_light .gantt_cal_larea {
+  background-color: #ffffff !important;
+  padding: 24px !important;
+  border-radius: 0 0 16px 16px !important;
+  height: max-content !important;
+}
+
+/* Secciones del formulario */
+.gantt_cal_light .gantt_cal_lsection {
+  margin-bottom: 16px !important;
+  padding: 0 !important;
+  height: 100% !important;
+}
+
+.gantt_cal_light .gantt_cal_lsection .gantt_cal_ltitle span {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  margin-bottom: 6px !important;
+  display: block !important;
+}
+
+/* Campos de entrada */
+.gantt_cal_light input[type="text"],
+.gantt_cal_light textarea,
+.gantt_cal_light select {
+  background-color: rgba(248, 250, 252, 0.8) !important;
+  border: 1px solid rgba(139, 92, 246, 0.5) !important;
+  border-radius: 10px !important;
+  color: #334155 !important;
+  padding: 12px !important;
+  font-size: 14px !important;
+  width: 100% !important;
+}
+
+/* Estados focus de los campos */
+.gantt_cal_light input[type="text"]:focus,
+.gantt_cal_light textarea:focus,
+.gantt_cal_light select:focus {
+  background-color: rgba(248, 250, 252, 1) !important;
+  border-color: rgba(139, 92, 246, 0.6) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Área de texto */
+.gantt_cal_light textarea {
+  resize: vertical !important;
+  min-height: 80px !important;
+}
+
+/* Campos de entrada específicos de secciones */
+.gantt_cal_light .gantt_cal_lsection input[type="text"] {
+  background-color: rgba(248, 250, 252, 0.9) !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #334155 !important;
+}
+
+/* Selectores */
+.gantt_cal_light .gantt_cal_lsection select {
+  appearance: none !important;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' fill='%23334155' viewBox='0 0 4 5'><path d='M2 0L0 2h4zm0 5L0 3h4z'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 12px !important;
+  padding-right: 40px !important;
+}
+
+/* Contenedor de botones */
+.gantt_cal_light .gantt_btn_set {
+  background-color: transparent !important;
+  border-top: 1px solid #e2e8f0 !important;
+  padding: 16px 20px !important;
+  margin: 0 -20px -20px -20px !important;
+  border-radius: 0 0 12px 12px !important;
+  display: flex !important;
+  gap: 8px !important;
+  justify-content: flex-end !important;
+}
+
+/* Botones individuales */
+.gantt_cal_light .gantt_btn_set div {
+  background: linear-gradient(to right, #8b5cf6, #0ea5e9) !important;
+  border: none !important;
+  border-radius: 10px !important;
+  color: white !important;
+  font-weight: 600 !important;
+  font-size: 16px !important;
+  padding: 12px 24px !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  min-width: 100px !important;
+  text-align: center !important;
+}
+
+.gantt_cal_light .gantt_btn_set div:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 20px rgba(139, 92, 246, 0.5) !important;
+}
+
+/* Botón cancelar */
+.gantt_cal_light .gantt_btn_set div[onclick*="cancel"] {
+  background: rgba(148, 163, 184, 0.4) !important;
+  color: #334155 !important;
+}
+
+.gantt_cal_light .gantt_btn_set div[onclick*="cancel"]:hover {
+  background: rgba(148, 163, 184, 0.6) !important;
+  color: #1e293b !important;
+  box-shadow: 0 6px 15px rgba(148, 163, 184, 0.4) !important;
+}
+
+/* Botón eliminar */
+.gantt_cal_light .gantt_btn_set div[onclick*="delete"] {
+  background: linear-gradient(to right, #ef4444, #dc2626) !important;
+  color: white !important;
+}
+
+.gantt_cal_light .gantt_btn_set div[onclick*="delete"]:hover {
+  background: linear-gradient(to right, #dc2626, #b91c1c) !important;
+  box-shadow: 0 6px 15px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* Botón guardar */
+.gantt_cal_light .gantt_btn_set div[onclick*="save"] {
+  background: linear-gradient(to right, #34d399, #10b981) !important;
+  color: white !important;
+}
+
+.gantt_cal_light .gantt_btn_set div[onclick*="save"]:hover {
+  background: linear-gradient(to right, #10b981, #059669) !important;
+  box-shadow: 0 6px 15px rgba(52, 211, 153, 0.4) !important;
+}
+
+/* Títulos de secciones */
+.gantt_cal_light .gantt_cal_lsection .gantt_cal_ltitle {
+  background: none !important;
+  color: #334155 !important;
+  font-weight: 500 !important;
+  padding: 0 !important;
+  margin-bottom: 6px !important;
+}
+
+/* Overlay del lightbox */
+.gantt_cal_cover {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* Opciones de selectores */
+.gantt_cal_light .gantt_cal_lsection select option {
+  background-color: #ffffff !important;
+  color: #334155 !important;
+}
+
+/* Estados de error */
+.gantt_cal_light .gantt_cal_lsection.error input,
+.gantt_cal_light .gantt_cal_lsection.error textarea,
+.gantt_cal_light .gantt_cal_lsection.error select {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+/* Selectores de tiempo */
+.gantt_cal_light .gantt_time {
+  background-color: rgba(248, 250, 252, 0.9) !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 8px !important;
+  color: #334155 !important;
+}
+
+.gantt_cal_light .gantt_time select {
+  background-color: transparent !important;
+  border: none !important;
+  color: #334155 !important;
+  padding: 4px !important;
+}
+
+/* Controles deslizantes */
+.gantt_cal_light input[type="range"] {
+  background: rgba(226, 232, 240, 0.3) !important;
+  border-radius: 4px !important;
+  height: 6px !important;
+  outline: none !important;
+}
+
+.gantt_cal_light input[type="range"]::-webkit-slider-thumb {
+  background: linear-gradient(to right, #8b5cf6, #0ea5e9) !important;
+  border-radius: 50% !important;
+  border: none !important;
+  height: 18px !important;
+  width: 18px !important;
+  cursor: pointer !important;
+}
+
+.gantt_cal_light input[type="range"]::-moz-range-thumb {
+  background: linear-gradient(to right, #8b5cf6, #0ea5e9) !important;
+  border-radius: 50% !important;
+  border: none !important;
+  height: 18px !important;
+  width: 18px !important;
+  cursor: pointer !important;
+}
+
+.custom-project {
+  position: absolute;
+  height: 6px;
+  color: #8b5cf6;
+  background-color: #8b5cf6;
+  border-radius: 3px 3px 0px 0px;
+}
+
+.custom-project div {
+  position: absolute;
+}
+
+.project-left,
+.project-right {
+  top: 6px;
+  background-color: transparent;
+  border-style: solid;
+  width: 0px;
+  height: 0px;
+}
+
+.project-left {
+  left: 0px;
+  border-width: 0px 0px 9px 8px;
+  border-top-color: transparent;
+  border-right-color: transparent !important;
+  border-bottom-color: transparent !important;
+  border-left-color: #8b5cf6 !important;
+}
+
+.project-right {
+  right: 0px;
+  border-width: 0px 8px 9px 0px;
+  border-top-color: transparent;
+  border-right-color: #8b5cf6;
+  border-bottom-color: transparent !important;
+  border-left-color: transparent;
+}
+
+.project-line {
+  font-weight: bold;
+}
+
+
+/* .gantt_grid_data .gantt_cell {
+			border-right: 1px solid #ECECEC;
+		}
+
+		.gantt_grid_data .gantt_cell.gantt_last_cell {
+			border-right: none;
+		}
+
+		.gantt_tree_icon.gantt_folder_open,
+		.gantt_tree_icon.gantt_file,
+		.gantt_tree_icon.gantt_folder_closed {
+			display: none;
+		}
+
+		.gantt_task .gantt_task_scale .gantt_scale_cell, .gantt_grid_scale .gantt_grid_head_cell {
+			color: #5C5C5C;
+		} */
+
+/* .gantt_row, .gantt_cell {
+			border-color: #cecece;
+		}
+
+		.gantt_grid_scale .gantt_grid_head_cell {
+			border-right: 1px solid #cecece !important;
+		}
+
+		.gantt_grid_scale .gantt_grid_head_cell.gantt_last_cell {
+			border-right: none !important;
+		} */
+
+/* .gantt_task_row, .gantt_task_cell {
+			border: none;
+		}
+
+		.weekend {
+			background: var(--dhx-gantt-base-colors-background-alt);
+		} */
