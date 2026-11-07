@@ -19,9 +19,20 @@ export interface BimTaskLink {
   guids: string[]
 }
 
+/** A converted IFC kept with the project (fragments file in the app data folder). */
+export interface BimModelRef {
+  id: string
+  name: string
+  /** Size of the stored file, in bytes. */
+  size: number
+  addedAt: string
+}
+
 export interface BimData {
   groups: BimGroup[]
   links: BimTaskLink[]
+  /** Models that open with the project. Absent in projects saved before models were kept. */
+  models?: BimModelRef[]
 }
 
 export const emptyBim = (): BimData => ({ groups: [], links: [] })
@@ -74,7 +85,7 @@ export function deleteGroup(bim: BimData, groupId: string): BimData {
   const links = bim.links
     .map((l) => ({ ...l, groupIds: l.groupIds.filter((g) => g !== groupId) }))
     .filter((l) => l.groupIds.length > 0 || l.guids.length > 0)
-  return { groups: bim.groups.filter((g) => g.id !== groupId), links }
+  return { ...bim, groups: bim.groups.filter((g) => g.id !== groupId), links }
 }
 
 /** Tasks that use an element, directly or through a group. */

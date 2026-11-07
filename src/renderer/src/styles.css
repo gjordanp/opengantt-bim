@@ -407,3 +407,32 @@ button.link {
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
 }
+
+.bim-4d {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  font-size: 13px;
+}
+.bim-4d input[type='range'] {
+  flex: 1;
+  min-width: 80px;
+}
+.bim-4d button {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+.bim-search button {
+  height: 32px;
+  font-size: 13px;
+  padding: 0 10px;
+}
+.bim-search button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+}

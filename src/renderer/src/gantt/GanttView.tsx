@@ -5,9 +5,10 @@ import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
 import { TodayLine } from './todayLine'
-import { weekCalendar } from '@shared/scheduling'
+import { toDay, weekCalendar } from '@shared/scheduling'
+import type { TaskSpan } from '@shared/bim4d'
 import { LobOverlay, colorsByName } from './lobLayer'
-import { autoSchedule, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
+import { autoSchedule, dateToIso, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
 import './theme-light.css'
 import './gantt.css'
 
@@ -44,6 +45,8 @@ export interface GanttHandle {
   selectTask(id: string): void
   /** Name of a task, if it exists. */
   taskText(id: string): string | undefined
+  /** Start and (exclusive) end of every task, in days since the epoch. */
+  spans(): TaskSpan[]
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -150,6 +153,16 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       gantt.showTask(id)
       gantt.selectTask(id)
     },
+    spans: () => {
+      const gantt = ganttRef.current
+      const out: TaskSpan[] = []
+      gantt?.eachTask((t: any) => {
+        if (t.start_date && t.end_date) {
+          out.push({ id: String(t.id), start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)) })
+        }
+      })
+      return out
+    },
     taskText: (id) => {
       const gantt = ganttRef.current
       return gantt && gantt.isTaskExists(id) ? String((gantt.getTask(id) as any).text ?? '') : undefined
@@ -218,7 +231,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
     gantt.init(host)
     // The gantt only follows window resizes; its pane can also change size (BIM viewer).
-    const resizeObserver = new ResizeObserver(() => gantt.setSizes())
+    const resizeObserver = new ResizeObserver(() => {
+      // A callback can still arrive after the instance was destroyed (remount).
+      if (ganttRef.current === gantt) gantt.setSizes()
+    })
     resizeObserver.observe(host)
     todayRef.current = new TodayLine(gantt)
     todayRef.current.mount()

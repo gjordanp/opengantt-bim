@@ -15,8 +15,11 @@ import {
   taskGuids,
   tasksForElement,
   type BimData,
-  type BimGroup
+  type BimGroup,
+  type BimModelRef
 } from '@shared/bimGroups'
+import { phasesAt, spanRange, type TaskSpan } from '@shared/bim4d'
+import { fromDay } from '@shared/scheduling'
 import { indexModel } from './indexModel'
 
 export interface BimViewerHandle {
@@ -34,6 +37,10 @@ interface Props {
   onElementsChange: (elements: BimElement[]) => void
   onSelectTask: (taskId: string) => void
   taskText: (taskId: string) => string | undefined
+  /** Start/end of every task, for the 4D simulation. */
+  getSpans: () => TaskSpan[]
+  /** Open project; its models are stored under this id. Null in the plain-browser build. */
+  projectId: string | null
 }
 
 type Status = { kind: 'idle' } | { kind: 'loading'; name: string; progress: number } | { kind: 'error'; message: string }
@@ -42,6 +49,8 @@ type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.Si
 const SELECT_COLOR = new THREE.Color('#f59e0b')
 const MATCH_COLOR = new THREE.Color('#8b5cf6')
 const TASK_COLOR = new THREE.Color('#22c55e')
+const BUILDING_COLOR = new THREE.Color('#f59e0b')
+const DONE_COLOR = new THREE.Color('#38bdf8')
 const GROUP_COLORS = ['#0ea5e9', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#14b8a6', '#ec4899', '#64748b']
 
 const highlightMaterial = (color: THREE.Color): FRAGS.MaterialDefinition => ({
@@ -82,7 +91,9 @@ export default function BimViewer({
   task,
   onElementsChange,
   onSelectTask,
-  taskText
+  taskText,
+  getSpans,
+  projectId
 }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const componentsRef = useRef<OBC.Components | null>(null)
@@ -97,6 +108,20 @@ export default function BimViewer({
   const [text, setText] = useState('')
   const [isolate, setIsolate] = useState(false)
   const [groupName, setGroupName] = useState('')
+
+  // 4D simulation.
+  const [sim, setSim] = useState(false)
+  const [simDay, setSimDay] = useState(0)
+  const [playing, setPlaying] = useState(false)
+  const [hideUnlinked, setHideUnlinked] = useState(false)
+
+  // Models kept with the project: loaded ids, and a token that cancels stale restores.
+  const loadedRef = useRef<Set<string>>(new Set())
+  const syncTokenRef = useRef(0)
+  const bimRef = useRef(bim)
+  bimRef.current = bim
+  const projectIdRef = useRef(projectId)
+  projectIdRef.current = projectId
 
   const elementsRef = useRef<BimElement[]>([])
   elementsRef.current = elements
@@ -206,20 +231,76 @@ export default function BimViewer({
         await readyRef.current
         const data = new Uint8Array(await file.arrayBuffer())
         const ifcLoader = components.get(OBC.IfcLoader)
-        const modelId = `${file.name}-${Date.now()}`
+        const modelId = crypto.randomUUID()
         const model = await ifcLoader.load(data, true, modelId, {
           processData: { progressCallback: (progress: number) => setStatus({ kind: 'loading', name: file.name, progress }) }
         })
         const box = new THREE.Box3().setFromObject(model.object)
         if (!box.isEmpty()) await world.camera.controls.fitToBox(box, true)
         const indexed = await indexModel(model)
+        loadedRef.current.add(modelId)
         setElements((prev) => [...prev, ...indexed])
+        // Keep the converted model with the project so it opens next time without the .ifc.
+        const api = window.api
+        const pid = projectIdRef.current
+        if (api && pid) {
+          const bytes = new Uint8Array(await model.getBuffer(false))
+          const ref = await api.models.save(pid, modelId, file.name, bytes)
+          onBimChange({ ...bimRef.current, models: [...(bimRef.current.models ?? []), ref] })
+        }
         setStatus({ kind: 'idle' })
       } catch (error) {
         setStatus({ kind: 'error', message: error instanceof Error ? error.message : String(error) })
       }
     }
   }))
+
+  // Open the models stored with the project (and drop the ones that are gone).
+  const modelKey = (bim.models ?? []).map((m) => m.id).join(',')
+  useEffect(() => {
+    const api = window.api
+    const world = worldRef.current
+    if (!api || !projectId || !world) return
+    const token = ++syncTokenRef.current
+    void (async () => {
+      await readyRef.current
+      const manager = componentsRef.current?.get(OBC.FragmentsManager)
+      if (!manager || token !== syncTokenRef.current) return
+      const want = new Map((bimRef.current.models ?? []).map((m: BimModelRef) => [m.id, m]))
+      for (const id of [...loadedRef.current]) {
+        if (want.has(id)) continue
+        loadedRef.current.delete(id)
+        await manager.core.disposeModel(id).catch(() => undefined)
+        setElements((prev) => prev.filter((e) => e.modelId !== id))
+      }
+      let first = loadedRef.current.size === 0
+      for (const ref of want.values()) {
+        if (loadedRef.current.has(ref.id)) continue
+        const bytes = await api.models.load(projectId, ref.id)
+        if (token !== syncTokenRef.current) return
+        if (!bytes) continue
+        loadedRef.current.add(ref.id)
+        const model = await manager.core.load(bytes, { modelId: ref.id })
+        const indexed = await indexModel(model)
+        if (token !== syncTokenRef.current) return
+        setElements((prev) => [...prev, ...indexed])
+        if (first) {
+          first = false
+          const box = new THREE.Box3().setFromObject(model.object)
+          if (!box.isEmpty()) await world.camera.controls.fitToBox(box, true)
+        }
+      }
+    })()
+  }, [projectId, modelKey])
+
+  const removeModel = async (ref: BimModelRef): Promise<void> => {
+    if (!window.confirm('¿Quitar el modelo «' + ref.name + '» del proyecto?')) return
+    loadedRef.current.delete(ref.id)
+    await componentsRef.current?.get(OBC.FragmentsManager).core.disposeModel(ref.id).catch(() => undefined)
+    setElements((prev) => prev.filter((e) => e.modelId !== ref.id))
+    if (window.api && projectId) await window.api.models.remove(projectId, ref.id)
+    onBimChange({ ...bim, models: (bim.models ?? []).filter((m) => m.id !== ref.id) })
+  }
 
   // ---- search ----
   const query: Query | null = useMemo(
@@ -237,6 +318,38 @@ export default function BimViewer({
     [selected, bim, elements]
   )
 
+  // ---- 4D ----
+  const guidsByTask = useMemo(() => {
+    const map = new Map<string, Set<string>>()
+    for (const l of bim.links) map.set(l.taskId, taskGuids(l, bim.groups, elements))
+    return map
+  }, [bim, elements])
+  const range = useMemo(() => {
+    if (!sim) return null
+    const withElements = new Set([...guidsByTask].filter(([, g]) => g.size > 0).map(([id]) => id))
+    return spanRange(getSpans(), withElements)
+  }, [sim, guidsByTask, getSpans])
+  const phases = useMemo(
+    () => (sim && range ? phasesAt(simDay, getSpans(), guidsByTask) : null),
+    [sim, range, simDay, guidsByTask, getSpans]
+  )
+  useEffect(() => {
+    if (range && (simDay < range.from || simDay > range.to)) setSimDay(range.from)
+  }, [range, simDay])
+  useEffect(() => {
+    if (!playing || !range) return
+    const timer = window.setInterval(() => {
+      setSimDay((d) => {
+        if (d >= range.to) {
+          setPlaying(false)
+          return d
+        }
+        return d + 1
+      })
+    }, 150)
+    return () => window.clearInterval(timer)
+  }, [playing, range])
+
   // Paint, lowest to highest priority: search matches, the task's elements, the clicked element.
   useEffect(() => {
     const manager = componentsRef.current?.get(OBC.FragmentsManager)
@@ -252,6 +365,27 @@ export default function BimViewer({
           .map((e) => e.localId)
         await model.resetHighlight()
         await model.resetVisible()
+        if (phases) {
+          const local = (guids: Set<string>): number[] =>
+            [...guids]
+              .map((g) => byGuid.get(g))
+              .filter((e): e is BimElement => !!e && e.modelId === modelId)
+              .map((e) => e.localId)
+          const inSim = new Set<string>([...phases.pending, ...phases.building, ...phases.done])
+          const hide = [...local(phases.pending)]
+          if (hideUnlinked) {
+            for (const e of elements) if (e.modelId === modelId && !inSim.has(e.guid)) hide.push(e.localId)
+          }
+          if (hide.length > 0) await model.setVisible(hide, false)
+          const done = local(phases.done)
+          const building = local(phases.building)
+          if (done.length > 0) await model.highlight(done, highlightMaterial(DONE_COLOR))
+          if (building.length > 0) await model.highlight(building, highlightMaterial(BUILDING_COLOR))
+          if (selected && selected.element.modelId === modelId) {
+            await model.highlight([selected.element.localId], highlightMaterial(SELECT_COLOR))
+          }
+          continue
+        }
         if (searchIds.length > 0) {
           await model.highlight(searchIds, highlightMaterial(MATCH_COLOR))
           if (isolate) {
@@ -267,7 +401,7 @@ export default function BimViewer({
       }
       manager.core.update(true)
     })()
-  }, [results, isolate, taskSet, selected, elements])
+  }, [results, isolate, taskSet, selected, elements, phases, hideUnlinked])
 
   // ---- actions ----
   const saveGroup = (): void => {
@@ -313,6 +447,15 @@ export default function BimViewer({
         <label className="bim-isolate">
           <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} /> Aislar
         </label>
+        <button
+          className={sim ? 'active' : ''}
+          onClick={() => {
+            setSim((v) => !v)
+            setPlaying(false)
+          }}
+        >
+          4D
+        </button>
         <span className="bim-count">{query ? `${results.length} de ${elements.length}` : `${elements.length} elementos`}</span>
       </div>
 
@@ -381,7 +524,48 @@ export default function BimViewer({
         )}
       </div>
 
+      {sim && (
+        <div className="bim-4d">
+          {range ? (
+            <>
+              <button onClick={() => setPlaying((p) => !p)}>{playing ? 'Pausa' : 'Reproducir'}</button>
+              <input
+                type="range"
+                min={range.from}
+                max={range.to}
+                value={Math.min(Math.max(simDay, range.from), range.to)}
+                onChange={(e) => {
+                  setPlaying(false)
+                  setSimDay(Number(e.target.value))
+                }}
+              />
+              <strong>{fromDay(simDay)}</strong>
+              <span className="bim-muted">
+                {phases ? phases.done.size + ' listos · ' + phases.building.size + ' en obra · ' + phases.pending.size + ' pendientes' : ''}
+              </span>
+              <label className="bim-isolate">
+                <input type="checkbox" checked={hideUnlinked} onChange={(e) => setHideUnlinked(e.target.checked)} /> Ocultar sin tarea
+              </label>
+            </>
+          ) : (
+            <span className="bim-muted">Asigna elementos a tareas para simular la construcción.</span>
+          )}
+        </div>
+      )}
+
       <div className="bim-side">
+        <div className="bim-section">
+          <div className="bim-section-title">Modelos</div>
+          {(bim.models ?? []).length === 0 && <div className="bim-muted">Sin modelos guardados en este proyecto.</div>}
+          {(bim.models ?? []).map((m) => (
+            <div key={m.id} className="bim-group">
+              <span className="bim-group-name">
+                {m.name} <span className="bim-muted">({(m.size / 1e6).toFixed(1)} MB)</span>
+              </span>
+              <button onClick={() => void removeModel(m)}>Quitar</button>
+            </div>
+          ))}
+        </div>
         <div className="bim-section">
           <div className="bim-section-title">{task ? `Tarea: ${task.text}` : 'Selecciona una tarea en el Gantt para asignarle elementos'}</div>
           {task && (

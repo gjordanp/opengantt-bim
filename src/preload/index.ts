@@ -8,6 +8,11 @@ const api: AppApi = {
     status: () => ipcRenderer.invoke(IPC.dbStatus),
     configure: (settings) => ipcRenderer.invoke(IPC.dbConfigure, settings)
   },
+  models: {
+    save: (projectId, modelId, name, bytes) => ipcRenderer.invoke(IPC.modelsSave, projectId, modelId, name, bytes),
+    load: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsLoad, projectId, modelId),
+    remove: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsRemove, projectId, modelId)
+  },
   projects: {
     list: () => ipcRenderer.invoke(IPC.projectsList),
     load: (id) => ipcRenderer.invoke(IPC.projectsLoad, id),

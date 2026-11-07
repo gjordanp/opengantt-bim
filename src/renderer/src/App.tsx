@@ -202,6 +202,8 @@ export default function App(): React.JSX.Element {
     [api, flush]
   )
 
+  const getSpans = useCallback(() => ganttRef.current?.spans() ?? [], [])
+
   // Elements tied to each task, for the BIM column of the gantt.
   const bimCounts = useMemo(() => {
     const counts: Record<string, number> = {}
@@ -383,6 +385,8 @@ export default function App(): React.JSX.Element {
               onElementsChange={setBimElements}
               onSelectTask={(id) => ganttRef.current?.selectTask(id)}
               taskText={(id) => ganttRef.current?.taskText(id)}
+              getSpans={getSpans}
+              projectId={api ? projectId : null}
             />
           </div>
         )}

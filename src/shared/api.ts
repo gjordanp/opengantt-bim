@@ -1,5 +1,6 @@
 import type { ProjectData } from './model'
 import type { DbSettings, ProjectSummary } from './repository'
+import type { BimModelRef } from './bimGroups'
 
 export interface DbStatus {
   connected: boolean
@@ -15,6 +16,12 @@ export interface AppApi {
     status(): Promise<DbStatus>
     /** Saves the settings and reconnects with them. */
     configure(settings: DbSettings): Promise<DbStatus>
+  }
+  /** Converted IFC models kept next to the project, in the app data folder. */
+  models: {
+    save(projectId: string, modelId: string, name: string, bytes: Uint8Array): Promise<BimModelRef>
+    load(projectId: string, modelId: string): Promise<Uint8Array | null>
+    remove(projectId: string, modelId: string): Promise<void>
   }
   projects: {
     list(): Promise<ProjectSummary[]>
@@ -32,5 +39,8 @@ export const IPC = {
   projectsLoad: 'projects:load',
   projectsCreate: 'projects:create',
   projectsSave: 'projects:save',
-  projectsRemove: 'projects:remove'
+  projectsRemove: 'projects:remove',
+  modelsSave: 'models:save',
+  modelsLoad: 'models:load',
+  modelsRemove: 'models:remove'
 } as const
