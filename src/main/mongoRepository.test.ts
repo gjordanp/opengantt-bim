@@ -93,6 +93,35 @@ describe.skipIf(!binaryPath)('local mongod + MongoProjectRepository', () => {
     await expect(repo.save('nope', sample)).rejects.toThrow()
   })
 
+  it('summarises each project: task count, models and earliest start', async () => {
+    const id = await repo.create('Resumen', sample)
+    const summary = (await repo.list()).find((p) => p.id === id)
+    expect(summary).toMatchObject({ name: 'Resumen', taskCount: 2, modelCount: 0, start: '2026-01-05' })
+  })
+
+  it('renames a project and rejects an unknown id', async () => {
+    const id = await repo.create('Antes')
+    await repo.rename(id, 'Después')
+    expect((await repo.load(id))?.name).toBe('Después')
+    await expect(repo.rename('nope', 'x')).rejects.toThrow()
+  })
+
+  it('duplicates a project with its calendar and BIM data, under a new id', async () => {
+    const id = await repo.create('Original', sample)
+    await repo.save(id, {
+      ...sample,
+      name: 'Original',
+      holidays: ['2026-02-02'],
+      bim: { groups: [], links: [{ taskId: '1', groupIds: [], guids: ['g1'] }] }
+    })
+    const copy = await repo.duplicate(id, 'Copia')
+    expect(copy).not.toBeNull()
+    expect(copy).not.toBe(id)
+    expect(await repo.load(copy!)).toMatchObject({ name: 'Copia', holidays: ['2026-02-02'], tasks: sample.tasks })
+    expect((await repo.load(copy!))?.bim?.links[0].guids).toEqual(['g1'])
+    expect(await repo.duplicate('nope', 'x')).toBeNull()
+  })
+
   it('removes a project', async () => {
     const id = await repo.create('temp')
     await repo.remove(id)

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { DockviewApi } from 'dockview-react'
 import GanttView, { type GanttHandle } from './gantt/GanttView'
-import BimViewer, { type BimViewerHandle } from './bim/BimViewer'
+import BimViewer, { type BimSlots, type BimViewerHandle } from './bim/BimViewer'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
 import type { ProjectData } from '@shared/model'
@@ -8,9 +9,16 @@ import { emptyBim, taskGuids, type BimData } from '@shared/bimGroups'
 import type { BimElement } from '@shared/bimQuery'
 import type { ProjectSummary } from '@shared/repository'
 import type { DbStatus } from '@shared/api'
+import Workspace from './workspace/Workspace'
+import WindowsMenu from './workspace/WindowsMenu'
+import { WorkspaceContext, type SlotKey, type WorkspaceCtx } from './workspace/WorkspaceContext'
+import { openPanel } from './workspace/layout'
+import ProjectsHome from './projects/ProjectsHome'
+import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
 type SaveState = 'idle' | 'pending' | 'saved' | 'error'
+type View = 'home' | 'workspace'
 
 const DAYS = [
   [1, 'Lun'],
@@ -27,15 +35,7 @@ interface CalendarValue {
   workWeek: number[]
 }
 
-function CalendarPanel({
-  value,
-  onChange,
-  onClose
-}: {
-  value: CalendarValue
-  onChange: (v: CalendarValue) => void
-  onClose: () => void
-}): React.JSX.Element {
+function CalendarPanel({ value, onChange }: { value: CalendarValue; onChange: (v: CalendarValue) => void }): React.JSX.Element {
   const [text, setText] = useState(value.holidays.join('\n'))
   const toggle = (d: number): void => {
     const next = value.workWeek.includes(d) ? value.workWeek.filter((x) => x !== d) : [...value.workWeek, d]
@@ -48,25 +48,28 @@ function CalendarPanel({
   }
   return (
     <div className="calendar-panel">
-      <div>
-        <strong>Días laborables</strong>
-        {DAYS.map(([d, label]) => (
-          <label key={d}>
-            <input type="checkbox" checked={value.workWeek.includes(d)} onChange={() => toggle(d)} /> {label}
-          </label>
-        ))}
+      <div className="field">
+        <span>Días laborables</span>
+        <div className="weekdays">
+          {DAYS.map(([d, label]) => (
+            <label key={d} className={value.workWeek.includes(d) ? 'on' : ''}>
+              <input type="checkbox" checked={value.workWeek.includes(d)} onChange={() => toggle(d)} />
+              {label}
+            </label>
+          ))}
+        </div>
       </div>
-      <div>
-        <strong>Feriados</strong> (uno por línea, AAAA-MM-DD)
-        <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} onBlur={applyHolidays} />
+      <div className="field">
+        <span>Feriados (uno por línea, AAAA-MM-DD)</span>
+        <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} onBlur={applyHolidays} />
       </div>
-      <button onClick={onClose}>Cerrar</button>
     </div>
   )
 }
 
 export default function App(): React.JSX.Element {
   const api = window.api
+  const [view, setView] = useState<View>(api ? 'home' : 'workspace')
   const [lobMode, setLobMode] = useState(false)
   const [autoScheduling, setAutoScheduling] = useState(true)
   const [showCritical, setShowCritical] = useState(false)
@@ -76,29 +79,28 @@ export default function App(): React.JSX.Element {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectId, setProjectId] = useState<string | null>(null)
   const [project, setProject] = useState<ProjectData>(sampleProject)
-  const [calendar, setCalendar] = useState<{ holidays: string[]; workWeek: number[] }>({
-    holidays: [],
-    workWeek: [1, 2, 3, 4, 5]
-  })
-  const [calendarOpen, setCalendarOpen] = useState(false)
+  const [projectName, setProjectName] = useState(sampleProject.name)
+  const [calendar, setCalendar] = useState<CalendarValue>({ holidays: [], workWeek: [1, 2, 3, 4, 5] })
   const [saveState, setSaveState] = useState<SaveState>('idle')
+  const [dock, setDock] = useState<DockviewApi | null>(null)
+  const [slots, setSlots] = useState<BimSlots>({ viewer: null, props: null, models: null, task: null, groups: null })
 
   const ganttRef = useRef<GanttHandle>(null)
   const bimRef = useRef<BimViewerHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [bimOpen, setBimOpen] = useState(false)
   const [history, setHistory] = useState({ canUndo: false, canRedo: false })
   const [bim, setBim] = useState<BimData>(emptyBim())
   const bimDataRef = useRef<BimData>(bim)
   const [bimElements, setBimElements] = useState<BimElement[]>([])
   const [selectedTask, setSelectedTask] = useState<{ id: string; text: string } | null>(null)
-  const [naming, setNaming] = useState<string | null>(null)
   // The last full snapshot of the open project, so a BIM-only change can be saved on its own.
   const lastDataRef = useRef<ProjectData | null>(null)
   const latestRef = useRef<ProjectData | null>(null)
   const timerRef = useRef<number | undefined>(undefined)
   const projectIdRef = useRef<string | null>(null)
   projectIdRef.current = projectId
+  const nameRef = useRef(projectName)
+  nameRef.current = projectName
 
   const refreshList = useCallback(async () => {
     if (!api) return
@@ -135,34 +137,23 @@ export default function App(): React.JSX.Element {
       const data = await api.projects.load(id)
       if (!data) return
       setProjectId(id)
+      setProjectName(data.name)
       setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
       loadBim(data)
       setProject(data)
       setSaveState('idle')
+      setView('workspace')
     },
     [api, flush]
   )
 
-  // Connect to the database status and open the first project (or create one).
+  // Connect to the database and list the projects; the user picks one from the home screen.
   useEffect(() => {
     if (!api) return
     void (async () => {
       const status = await api.db.status()
       setDb(status)
-      if (!status.connected) return
-      let list = await api.projects.list()
-      if (list.length === 0) {
-        await api.projects.create(sampleProject.name, sampleProject)
-        list = await api.projects.list()
-      }
-      setProjects(list)
-      const data = await api.projects.load(list[0].id)
-      if (data) {
-        setProjectId(list[0].id)
-        setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
-        loadBim(data)
-        setProject(data)
-      }
+      if (status.connected) setProjects(await api.projects.list())
     })()
   }, [api])
 
@@ -173,17 +164,23 @@ export default function App(): React.JSX.Element {
     return () => window.removeEventListener('beforeunload', onHide)
   }, [flush])
 
-  const onChange = useCallback(
-    (data: ProjectData) => {
-      if (!api || !projectIdRef.current) return
-      const full = { ...data, bim: bimDataRef.current }
+  const schedule = useCallback(
+    (full: ProjectData) => {
       lastDataRef.current = full
       latestRef.current = full
       setSaveState('pending')
       window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(() => void flush(), AUTOSAVE_MS)
     },
-    [api, flush]
+    [flush]
+  )
+
+  const onChange = useCallback(
+    (data: ProjectData) => {
+      if (!api || !projectIdRef.current) return
+      schedule({ ...data, name: nameRef.current, bim: bimDataRef.current })
+    },
+    [api, schedule]
   )
 
   const onBimChange = useCallback(
@@ -192,14 +189,9 @@ export default function App(): React.JSX.Element {
       setBim(next)
       const base = latestRef.current ?? lastDataRef.current
       if (!api || !projectIdRef.current || !base) return
-      const full = { ...base, bim: next }
-      lastDataRef.current = full
-      latestRef.current = full
-      setSaveState('pending')
-      window.clearTimeout(timerRef.current)
-      timerRef.current = window.setTimeout(() => void flush(), AUTOSAVE_MS)
+      schedule({ ...base, bim: next })
     },
-    [api, flush]
+    [api, schedule]
   )
 
   const getSpans = useCallback(() => ganttRef.current?.spans() ?? [], [])
@@ -231,135 +223,56 @@ export default function App(): React.JSX.Element {
     setCycle((prev) => (prev.join() === outcome.cycle.join() ? prev : outcome.cycle))
   }
 
-  const newProject = async (): Promise<void> => {
+  // ---- projects ----
+  const createProject = async (name: string, start: string, template: TemplateId): Promise<void> => {
     if (!api) return
-    const name = naming?.trim()
-    if (!name) return
-    setNaming(null)
     await flush()
-    const id = await api.projects.create(name)
+    const id = await api.projects.create(name, buildTemplate(template, name, start))
     await refreshList()
     await openProject(id)
   }
 
-  const deleteProject = async (): Promise<void> => {
-    if (!api || !projectId) return
-    if (!window.confirm(`¿Eliminar "${project.name}"? No se puede deshacer.`)) return
-    latestRef.current = null
-    window.clearTimeout(timerRef.current)
-    await api.projects.remove(projectId)
-    const list = await api.projects.list()
-    setProjects(list)
-    if (list.length > 0) await openProject(list[0].id)
-    else {
-      const id = await api.projects.create('Nuevo proyecto')
-      await refreshList()
-      await openProject(id)
+  const renameProject = async (id: string, name: string): Promise<void> => {
+    if (!api) return
+    if (id === projectIdRef.current) {
+      setProjectName(name)
+      nameRef.current = name
+      const base = latestRef.current ?? lastDataRef.current
+      if (base && base.name !== name) schedule({ ...base, name })
+    } else {
+      await api.projects.rename(id, name)
     }
+    await refreshList()
   }
 
-  if (api && db && !db.connected) {
-    return (
-      <div className="app">
-        <div className="toolbar">
-          <span className="title">Opengantt BIM</span>
-        </div>
-        <div className="notice">
-          <h2>No se pudo conectar a la base de datos</h2>
-          <p>{db.error}</p>
-          <button
-            onClick={() => {
-              setDb(null)
-              void api.db.configure(db.settings).then((s) => setDb(s))
-            }}
-          >
-            Reintentar
-          </button>
-        </div>
-      </div>
-    )
+  const duplicateProject = async (id: string): Promise<void> => {
+    if (!api) return
+    if (id === projectIdRef.current) await flush()
+    const source = projects.find((p) => p.id === id)
+    await api.projects.duplicate(id, `${source?.name ?? 'Proyecto'} (copia)`)
+    await refreshList()
   }
 
-  const saveLabel = { idle: '', pending: 'Guardando…', saved: 'Guardado', error: 'Error al guardar' }[saveState]
+  const deleteProject = async (id: string): Promise<void> => {
+    if (!api) return
+    if (id === projectIdRef.current) {
+      latestRef.current = null
+      window.clearTimeout(timerRef.current)
+      setProjectId(null)
+      setSaveState('idle')
+    }
+    await api.projects.remove(id)
+    await refreshList()
+  }
 
-  return (
-    <div className="app">
-      <div className="toolbar">
-        <span className="title">Opengantt BIM</span>
-        {api && (
-          <>
-            <select value={projectId ?? ''} onChange={(e) => void openProject(e.target.value)}>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {naming === null ? (
-              <button onClick={() => setNaming('Nuevo proyecto')}>Nuevo</button>
-            ) : (
-              <>
-                <input
-                  autoFocus
-                  value={naming}
-                  onChange={(e) => setNaming(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void newProject()
-                    if (e.key === 'Escape') setNaming(null)
-                  }}
-                />
-                <button onClick={() => void newProject()}>Crear</button>
-                <button onClick={() => setNaming(null)}>Cancelar</button>
-              </>
-            )}
-            <button onClick={() => void deleteProject()}>Eliminar</button>
-          </>
-        )}
-        <button disabled={!history.canUndo} onClick={() => ganttRef.current?.undo()} title="Deshacer (Ctrl+Z)">
-          Deshacer
-        </button>
-        <button disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} title="Rehacer (Ctrl+Y)">
-          Rehacer
-        </button>
-        <button className={bimOpen ? 'active' : ''} onClick={() => setBimOpen((v) => !v)}>
-          BIM
-        </button>
-        {bimOpen && (
-          <>
-            <button onClick={() => fileInputRef.current?.click()}>Importar IFC…</button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".ifc"
-              hidden
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                e.target.value = ''
-                if (file) void bimRef.current?.loadIfc(file)
-              }}
-            />
-          </>
-        )}
-        <button className={calendarOpen ? 'active' : ''} onClick={() => setCalendarOpen((v) => !v)}>
-          Calendario
-        </button>
-        <button className={autoScheduling ? 'active' : ''} onClick={() => setAutoScheduling((v) => !v)}>
-          Auto-schedule
-        </button>
-        <button className={showCritical ? 'active' : ''} onClick={() => setShowCritical((v) => !v)}>
-          Ruta crítica
-        </button>
-        <button className={lobMode ? 'active' : ''} onClick={() => setLobMode((v) => !v)}>
-          Línea de balance
-        </button>
-        {cycle.length > 0 && (
-          <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>
-        )}
-        {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
-      </div>
-      {calendarOpen && <CalendarPanel value={calendar} onChange={setCalendar} onClose={() => setCalendarOpen(false)} />}
-      <div className={`workspace${bimOpen ? ' with-bim' : ''}`}>
-        <div className="gantt-pane">
+  const setSlot = useCallback((key: SlotKey, el: HTMLElement | null) => {
+    setSlots((prev) => (prev[key] === el ? prev : { ...prev, [key]: el }))
+  }, [])
+
+  const workspaceCtx: WorkspaceCtx = {
+    setSlot,
+    calendar: <CalendarPanel value={calendar} onChange={setCalendar} />,
+    gantt: (
       <GanttView
         holidays={calendar.holidays}
         workWeek={calendar.workWeek}
@@ -374,23 +287,147 @@ export default function App(): React.JSX.Element {
         onTaskSelect={setSelectedTask}
         bimCounts={bimCounts}
       />
+    )
+  }
+
+  if (api && db && !db.connected) {
+    return (
+      <div className="app">
+        <div className="topbar">
+          <span className="brand">Opengantt BIM</span>
         </div>
-        {bimOpen && (
-          <div className="bim-pane">
-            <BimViewer
-              ref={bimRef}
-              bim={bim}
-              onBimChange={onBimChange}
-              task={selectedTask}
-              onElementsChange={setBimElements}
-              onSelectTask={(id) => ganttRef.current?.selectTask(id)}
-              taskText={(id) => ganttRef.current?.taskText(id)}
-              getSpans={getSpans}
-              projectId={api ? projectId : null}
+        <div className="notice">
+          <h2>No se pudo conectar a la base de datos</h2>
+          <p>{db.error}</p>
+          <button
+            className="primary"
+            onClick={() => {
+              setDb(null)
+              void api.db.configure(db.settings).then(async (s) => {
+                setDb(s)
+                if (s.connected) setProjects(await api.projects.list())
+              })
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const saveLabel = { idle: '', pending: 'Guardando…', saved: 'Guardado', error: 'Error al guardar' }[saveState]
+  const inWorkspace = view === 'workspace'
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <span className="brand">Opengantt BIM</span>
+        {api && (
+          <button className={view === 'home' ? 'active' : ''} onClick={() => void flush().then(() => setView('home'))}>
+            Proyectos
+          </button>
+        )}
+        {inWorkspace && (
+          <>
+            {api && projectId && (
+              <input
+                className="project-name"
+                value={projectName}
+                aria-label="Nombre del proyecto"
+                onChange={(e) => setProjectName(e.target.value)}
+                onBlur={() => {
+                  const name = projectName.trim()
+                  if (!name) setProjectName(project.name)
+                  else void renameProject(projectId, name)
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              />
+            )}
+            <span className="sep" />
+            <div className="group">
+              <button disabled={!history.canUndo} onClick={() => ganttRef.current?.undo()} title="Deshacer (Ctrl+Z)">
+                Deshacer
+              </button>
+              <button disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} title="Rehacer (Ctrl+Y)">
+                Rehacer
+              </button>
+            </div>
+            <div className="group">
+              <button
+                className={autoScheduling ? 'active' : ''}
+                onClick={() => setAutoScheduling((v) => !v)}
+                title="Reprograma las tareas dependientes al editar"
+              >
+                Auto-schedule
+              </button>
+              <button className={showCritical ? 'active' : ''} onClick={() => setShowCritical((v) => !v)}>
+                Ruta crítica
+              </button>
+              <button className={lobMode ? 'active' : ''} onClick={() => setLobMode((v) => !v)}>
+                Línea de balance
+              </button>
+            </div>
+            <div className="group">
+              <button onClick={() => dock && openPanel(dock, 'calendar')}>Calendario</button>
+              <button onClick={() => fileInputRef.current?.click()}>Importar IFC…</button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".ifc"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file) void bimRef.current?.loadIfc(file)
+                }}
+              />
+            </div>
+            <WindowsMenu api={dock} />
+            {cycle.length > 0 && <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>}
+          </>
+        )}
+        {!inWorkspace && projectId && (
+          <button className="primary" onClick={() => setView('workspace')}>
+            Volver a «{projectName}»
+          </button>
+        )}
+        {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
+      </div>
+
+      <div className="main">
+        {api && (
+          <div className={`view${view === 'home' ? '' : ' hidden'}`}>
+            <ProjectsHome
+              projects={projects}
+              currentId={projectId}
+              onOpen={(id) => (id === projectId ? setView('workspace') : void openProject(id))}
+              onCreate={createProject}
+              onRename={renameProject}
+              onDuplicate={duplicateProject}
+              onDelete={deleteProject}
             />
           </div>
         )}
+        <div className={`view${inWorkspace ? '' : ' hidden'}`}>
+          <WorkspaceContext.Provider value={workspaceCtx}>
+            <Workspace onApi={setDock} />
+          </WorkspaceContext.Provider>
+        </div>
       </div>
+
+      <BimViewer
+        ref={bimRef}
+        slots={slots}
+        bim={bim}
+        onBimChange={onBimChange}
+        task={selectedTask}
+        onElementsChange={setBimElements}
+        onSelectTask={(id) => ganttRef.current?.selectTask(id)}
+        taskText={(id) => ganttRef.current?.taskText(id)}
+        getSpans={getSpans}
+        projectId={api ? projectId : null}
+      />
     </div>
   )
 }

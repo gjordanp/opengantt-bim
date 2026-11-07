@@ -1,4 +1,5 @@
-import { useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
+import { createPortal } from 'react-dom'
 import * as OBC from '@thatopen/components'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
@@ -22,6 +23,15 @@ import { phasesAt, spanRange, type TaskSpan } from '@shared/bim4d'
 import { fromDay } from '@shared/scheduling'
 import { indexModel } from './indexModel'
 
+/** Where each part of the BIM UI is drawn: the dock panels hand their elements over. */
+export interface BimSlots {
+  viewer: HTMLElement | null
+  props: HTMLElement | null
+  models: HTMLElement | null
+  task: HTMLElement | null
+  groups: HTMLElement | null
+}
+
 export interface BimViewerHandle {
   /** Converts an IFC file to fragments in the browser and shows it. */
   loadIfc(file: File): Promise<void>
@@ -41,6 +51,7 @@ interface Props {
   getSpans: () => TaskSpan[]
   /** Open project; its models are stored under this id. Null in the plain-browser build. */
   projectId: string | null
+  slots: BimSlots
 }
 
 type Status = { kind: 'idle' } | { kind: 'loading'; name: string; progress: number } | { kind: 'error'; message: string }
@@ -93,9 +104,21 @@ export default function BimViewer({
   onSelectTask,
   taskText,
   getSpans,
-  projectId
+  projectId,
+  slots
 }: Props): React.JSX.Element {
-  const hostRef = useRef<HTMLDivElement>(null)
+  // The canvas lives in a detached element so the 3D scene survives panels being moved or closed.
+  const [hostEl] = useState(() => {
+    const el = document.createElement('div')
+    el.className = 'bim-canvas'
+    return el
+  })
+  const attachHost = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (el && hostEl.parentElement !== el) el.prepend(hostEl)
+    },
+    [hostEl]
+  )
   const componentsRef = useRef<OBC.Components | null>(null)
   const worldRef = useRef<World | null>(null)
   const readyRef = useRef<Promise<void> | null>(null)
@@ -131,8 +154,7 @@ export default function BimViewer({
   }, [elements, onElementsChange])
 
   useEffect(() => {
-    const host = hostRef.current
-    if (!host) return
+    const host = hostEl
     const components = new OBC.Components()
     componentsRef.current = components
     if (import.meta.env.DEV) (window as unknown as { __bim: OBC.Components }).__bim = components
@@ -219,7 +241,7 @@ export default function BimViewer({
       componentsRef.current = null
       components.dispose()
     }
-  }, [])
+  }, [hostEl])
 
   useImperativeHandle(ref, () => ({
     async loadIfc(file: File) {
@@ -420,7 +442,7 @@ export default function BimViewer({
   const links = bim.links
   const setLinks = (next: typeof links): void => onBimChange({ ...bim, links: next })
 
-  return (
+  const viewerUi = (
     <div className="bim-viewer">
       <div className="bim-search">
         <select value={field} onChange={(e) => setField(e.target.value as RuleField)}>
@@ -459,8 +481,7 @@ export default function BimViewer({
         <span className="bim-count">{query ? `${results.length} de ${elements.length}` : `${elements.length} elementos`}</span>
       </div>
 
-      <div className="bim-stage">
-        <div ref={hostRef} className="bim-canvas" />
+      <div className="bim-stage" ref={attachHost}>
         {status.kind === 'loading' && (
           <div className="bim-status">
             Convirtiendo {status.name}… {Math.round(status.progress * 100)}%
@@ -469,58 +490,6 @@ export default function BimViewer({
         {status.kind === 'error' && <div className="bim-status error">No se pudo cargar el IFC: {status.message}</div>}
         {status.kind === 'idle' && elements.length === 0 && (
           <div className="bim-status">Importa un archivo .ifc para verlo aquí.</div>
-        )}
-        {selected && (
-          <div className="bim-props">
-            <div className="bim-props-head">
-              <strong>{selected.element.name || selected.element.category || 'Elemento'}</strong>
-              <button onClick={() => setSelected(null)}>×</button>
-            </div>
-            {task && (
-              <div className="bim-props-actions">
-                {link?.guids.includes(selected.element.guid) ? (
-                  <button onClick={() => setLinks(removeElementsFromTask(links, task.id, [selected.element.guid]))}>
-                    Quitar de la tarea
-                  </button>
-                ) : (
-                  <button
-                    disabled={!selected.element.guid}
-                    onClick={() => setLinks(addElementsToTask(links, task.id, [selected.element.guid]))}
-                  >
-                    Asignar a «{task.text}»
-                  </button>
-                )}
-              </div>
-            )}
-            {selectedTasks.length > 0 && (
-              <div className="bim-props-tasks">
-                Tareas:{' '}
-                {selectedTasks.map((id) => (
-                  <button key={id} className="link" onClick={() => onSelectTask(id)}>
-                    {taskText(id) ?? id}
-                  </button>
-                ))}
-              </div>
-            )}
-            <dl>
-              <dt>Clase</dt>
-              <dd>{selected.element.category}</dd>
-              {selected.element.storey && (
-                <>
-                  <dt>Piso</dt>
-                  <dd>{selected.element.storey}</dd>
-                </>
-              )}
-              <dt>GlobalId</dt>
-              <dd>{selected.element.guid}</dd>
-              {selected.attributes.map(([k, v]) => (
-                <div key={k}>
-                  <dt>{k}</dt>
-                  <dd>{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </div>
         )}
       </div>
 
@@ -552,99 +521,166 @@ export default function BimViewer({
           )}
         </div>
       )}
-
-      <div className="bim-side">
-        <div className="bim-section">
-          <div className="bim-section-title">Modelos</div>
-          {(bim.models ?? []).length === 0 && <div className="bim-muted">Sin modelos guardados en este proyecto.</div>}
-          {(bim.models ?? []).map((m) => (
-            <div key={m.id} className="bim-group">
-              <span className="bim-group-name">
-                {m.name} <span className="bim-muted">({(m.size / 1e6).toFixed(1)} MB)</span>
-              </span>
-              <button onClick={() => void removeModel(m)}>Quitar</button>
-            </div>
-          ))}
-        </div>
-        <div className="bim-section">
-          <div className="bim-section-title">{task ? `Tarea: ${task.text}` : 'Selecciona una tarea en el Gantt para asignarle elementos'}</div>
-          {task && (
-            <>
-              <div className="bim-chips">
-                {(link?.groupIds ?? []).map((id) => {
-                  const group = bim.groups.find((g) => g.id === id)
-                  return group ? (
-                    <span key={id} className="bim-chip" style={{ borderColor: group.color }}>
-                      {group.name}
-                      <button title="Quitar grupo" onClick={() => setLinks(removeGroupFromTask(links, task.id, id))}>
-                        ×
-                      </button>
-                    </span>
-                  ) : null
-                })}
-                {(link?.guids.length ?? 0) > 0 && (
-                  <span className="bim-chip">
-                    {link?.guids.length} elementos sueltos
-                    <button title="Quitar elementos sueltos" onClick={() => setLinks(removeElementsFromTask(links, task.id, link?.guids ?? []))}>
-                      ×
-                    </button>
-                  </span>
-                )}
-                {taskSet.size === 0 && <span className="bim-muted">Sin elementos asignados</span>}
-                {taskSet.size > 0 && <span className="bim-muted">{taskSet.size} elementos en total (verde)</span>}
-              </div>
-              {query && results.length > 0 && (
-                <button
-                  onClick={() => setLinks(addElementsToTask(links, task.id, results.map((r) => r.guid)))}
-                >
-                  Asignar los {results.length} resultados a la tarea
-                </button>
-              )}
-            </>
-          )}
-        </div>
-
-        <div className="bim-section">
-          <div className="bim-section-title">Grupos</div>
-          {query && (
-            <div className="bim-newgroup">
-              <input
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="Nombre del grupo para esta búsqueda"
-                onKeyDown={(e) => e.key === 'Enter' && saveGroup()}
-              />
-              <button disabled={!groupName.trim()} onClick={saveGroup}>
-                Guardar grupo
-              </button>
-            </div>
-          )}
-          {bim.groups.length === 0 && <div className="bim-muted">Busca algo y guárdalo como grupo.</div>}
-          {bim.groups.map((group) => (
-            <div key={group.id} className="bim-group">
-              <span className="bim-swatch" style={{ background: group.color }} />
-              <span className="bim-group-name">
-                {group.name} <span className="bim-muted">({resolveGroup(group, elements).size})</span>
-              </span>
-              <button
-                disabled={!task || link?.groupIds.includes(group.id)}
-                onClick={() => task && setLinks(addGroupToTask(links, task.id, group.id))}
-              >
-                Asignar
-              </button>
-              <button
-                onClick={() => {
-                  if (window.confirm(`¿Eliminar el grupo «${group.name}»? Se quita de todas las tareas.`)) {
-                    onBimChange(deleteGroup(bim, group.id))
-                  }
-                }}
-              >
-                Eliminar
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
+  )
+
+  const propsUi = selected ? (
+    <div className="panel-body bim-props">
+      <div className="bim-props-head">
+        <strong>{selected.element.name || selected.element.category || 'Elemento'}</strong>
+        <button onClick={() => setSelected(null)}>×</button>
+      </div>
+      {task && (
+        <div className="bim-props-actions">
+          {link?.guids.includes(selected.element.guid) ? (
+            <button onClick={() => setLinks(removeElementsFromTask(links, task.id, [selected.element.guid]))}>
+              Quitar de la tarea
+            </button>
+          ) : (
+            <button
+              disabled={!selected.element.guid}
+              onClick={() => setLinks(addElementsToTask(links, task.id, [selected.element.guid]))}
+            >
+              Asignar a «{task.text}»
+            </button>
+          )}
+        </div>
+      )}
+      {selectedTasks.length > 0 && (
+        <div className="bim-props-tasks">
+          Tareas:{' '}
+          {selectedTasks.map((id) => (
+            <button key={id} className="link" onClick={() => onSelectTask(id)}>
+              {taskText(id) ?? id}
+            </button>
+          ))}
+        </div>
+      )}
+      <dl>
+        <dt>Clase</dt>
+        <dd>{selected.element.category}</dd>
+        {selected.element.storey && (
+          <>
+            <dt>Piso</dt>
+            <dd>{selected.element.storey}</dd>
+          </>
+        )}
+        <dt>GlobalId</dt>
+        <dd>{selected.element.guid}</dd>
+        {selected.attributes.map(([k, v]) => (
+          <div key={k}>
+            <dt>{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  ) : (
+    <div className="panel-body bim-muted">Haz clic en un elemento del visor para ver sus propiedades.</div>
+  )
+
+  const modelsUi = (
+    <div className="panel-body">
+      {(bim.models ?? []).length === 0 && <div className="bim-muted">Sin modelos guardados en este proyecto.</div>}
+      {(bim.models ?? []).map((m) => (
+        <div key={m.id} className="bim-group">
+          <span className="bim-group-name">
+            {m.name} <span className="bim-muted">({(m.size / 1e6).toFixed(1)} MB)</span>
+          </span>
+          <button onClick={() => void removeModel(m)}>Quitar</button>
+        </div>
+      ))}
+    </div>
+  )
+
+  const taskUi = (
+    <div className="panel-body">
+      {!task && <div className="bim-muted">Selecciona una tarea en el Gantt para asignarle elementos.</div>}
+      {task && (
+        <>
+          <div className="bim-section-title">{task.text}</div>
+          <div className="bim-chips">
+            {(link?.groupIds ?? []).map((id) => {
+              const group = bim.groups.find((g) => g.id === id)
+              return group ? (
+                <span key={id} className="bim-chip" style={{ borderColor: group.color }}>
+                  {group.name}
+                  <button title="Quitar grupo" onClick={() => setLinks(removeGroupFromTask(links, task.id, id))}>
+                    ×
+                  </button>
+                </span>
+              ) : null
+            })}
+            {(link?.guids.length ?? 0) > 0 && (
+              <span className="bim-chip">
+                {link?.guids.length} elementos sueltos
+                <button title="Quitar elementos sueltos" onClick={() => setLinks(removeElementsFromTask(links, task.id, link?.guids ?? []))}>
+                  ×
+                </button>
+              </span>
+            )}
+            {taskSet.size === 0 && <span className="bim-muted">Sin elementos asignados</span>}
+            {taskSet.size > 0 && <span className="bim-muted">{taskSet.size} elementos en total (verde)</span>}
+          </div>
+          {query && results.length > 0 && (
+            <button onClick={() => setLinks(addElementsToTask(links, task.id, results.map((r) => r.guid)))}>
+              Asignar los {results.length} resultados a la tarea
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  )
+
+  const groupsUi = (
+    <div className="panel-body">
+      {query && (
+        <div className="bim-newgroup">
+          <input
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            placeholder="Nombre del grupo para esta búsqueda"
+            onKeyDown={(e) => e.key === 'Enter' && saveGroup()}
+          />
+          <button disabled={!groupName.trim()} onClick={saveGroup}>
+            Guardar grupo
+          </button>
+        </div>
+      )}
+      {bim.groups.length === 0 && <div className="bim-muted">Busca algo en el visor y guárdalo como grupo.</div>}
+      {bim.groups.map((group) => (
+        <div key={group.id} className="bim-group">
+          <span className="bim-swatch" style={{ background: group.color }} />
+          <span className="bim-group-name">
+            {group.name} <span className="bim-muted">({resolveGroup(group, elements).size})</span>
+          </span>
+          <button
+            disabled={!task || link?.groupIds.includes(group.id)}
+            onClick={() => task && setLinks(addGroupToTask(links, task.id, group.id))}
+          >
+            Asignar
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm(`¿Eliminar el grupo «${group.name}»? Se quita de todas las tareas.`)) {
+                onBimChange(deleteGroup(bim, group.id))
+              }
+            }}
+          >
+            Eliminar
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+
+  return (
+    <>
+      {slots.viewer && createPortal(viewerUi, slots.viewer)}
+      {slots.props && createPortal(propsUi, slots.props)}
+      {slots.models && createPortal(modelsUi, slots.models)}
+      {slots.task && createPortal(taskUi, slots.task)}
+      {slots.groups && createPortal(groupsUi, slots.groups)}
+    </>
   )
 }

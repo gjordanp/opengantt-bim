@@ -5,6 +5,11 @@ export interface ProjectSummary {
   name: string
   /** ISO timestamp of the last save. */
   updatedAt: string
+  taskCount: number
+  /** Converted IFC models kept with the project. */
+  modelCount: number
+  /** Earliest task start, `YYYY-MM-DD`, or null when there are no tasks. */
+  start: string | null
 }
 
 /**
@@ -21,6 +26,9 @@ export interface ProjectRepository {
   /** Replaces the project's name, tasks and links. Throws if it doesn't exist. */
   save(id: string, data: ProjectData): Promise<void>
   remove(id: string): Promise<void>
+  rename(id: string, name: string): Promise<void>
+  /** Copies a whole project (tasks, calendar, BIM groups and model references) and returns the new id. */
+  duplicate(id: string, name: string): Promise<string | null>
   close(): Promise<void>
 }
 

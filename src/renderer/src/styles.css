@@ -13,7 +13,9 @@
   --destructive: hsl(0 84.2% 60.2%);
   --border: hsl(0 0% 89.8%);
   --ring: hsl(0 0% 3.9%);
+  --brand: #8b5cf6;
   --radius: 0.5rem;
+  --shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 2px 6px rgb(0 0 0 / 0.06);
   --scrollbar-background: hsl(210 20% 96%);
   --scrollbar-accent: hsl(210 20% 75%);
   --scrollbar-accent-foreground: hsl(210 20% 60%);
@@ -39,6 +41,7 @@ body {
   font-feature-settings: 'rlig' 1, 'calt' 1;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  overflow: hidden;
 }
 
 /* The gantt uses Inter too (the original forces it the same way). */
@@ -63,41 +66,20 @@ body {
   background: var(--scrollbar-accent-foreground);
 }
 
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.toolbar {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 8px 12px;
-  background: var(--background);
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
-}
-
-.toolbar .title {
-  font-weight: 600;
-  margin-right: 12px;
-}
-
-/* shadcn "outline" button */
+/* ---------- controls ---------- */
 button {
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  height: 36px;
-  padding: 0 14px;
+  height: 32px;
+  padding: 0 12px;
   color: var(--foreground);
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
   cursor: pointer;
-  transition: background-color 0.15s;
+  white-space: nowrap;
+  transition: background-color 0.15s, border-color 0.15s;
 }
 button:hover:not(:disabled) {
   background: var(--accent);
@@ -108,52 +90,170 @@ button:disabled {
 }
 button:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+input:focus-visible {
   outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline-offset: 1px;
 }
-/* shadcn "default" button for the active toggles */
-.toolbar button.active {
+button.active,
+button.primary {
   background: var(--primary);
   border-color: var(--primary);
   color: var(--primary-foreground);
 }
-.toolbar button.active:hover {
-  background: hsl(0 0% 9% / 0.9);
+button.active:hover:not(:disabled),
+button.primary:hover:not(:disabled) {
+  background: hsl(0 0% 20%);
+}
+button.danger {
+  background: var(--destructive);
+  border-color: var(--destructive);
+  color: white;
+}
+button.danger:hover:not(:disabled) {
+  background: hsl(0 84% 52%);
+}
+button.link {
+  height: auto;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: #2563eb;
+  text-decoration: underline;
 }
 
 select,
-textarea {
+textarea,
+input:not([type='checkbox']):not([type='radio']):not([type='range']) {
   font: inherit;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--foreground);
   background: var(--background);
   border: 1px solid var(--border);
   border-radius: calc(var(--radius) - 2px);
 }
-.toolbar select {
-  height: 36px;
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+select {
+  height: 32px;
   padding: 0 8px;
-  max-width: 220px;
+}
+textarea {
+  padding: 6px 8px;
 }
 
-.gantt-host {
-  flex: 1;
-  min-height: 0;
+.muted,
+.bim-muted {
+  color: var(--muted-foreground);
+  font-size: 12px;
 }
 
-.toolbar .warning {
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.field > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+/* ---------- app shell ---------- */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  min-height: 48px;
+  flex-wrap: wrap;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+.brand {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.brand::before {
+  content: '';
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 3px;
+  background: var(--brand);
+}
+.sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 6px 4px;
+  background: var(--border);
+}
+.group {
+  display: inline-flex;
+}
+.group > button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+.group > button:first-child {
+  margin-left: 0;
+  border-radius: calc(var(--radius) - 2px) 0 0 calc(var(--radius) - 2px);
+}
+.group > button:last-child {
+  border-radius: 0 calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0;
+}
+.group > button:only-child {
+  border-radius: calc(var(--radius) - 2px);
+}
+.project-name {
+  font-weight: 600;
+  min-width: 140px;
+  max-width: 280px;
+  border-color: transparent !important;
+  background: transparent !important;
+}
+.project-name:hover,
+.project-name:focus {
+  border-color: var(--border) !important;
+  background: var(--background) !important;
+}
+.warning {
   color: var(--destructive);
-  font-size: 13px;
-  margin-left: 8px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .save-state {
   margin-left: auto;
+  padding-left: 12px;
   font-size: 12px;
   color: var(--muted-foreground);
+  white-space: nowrap;
 }
 .save-state.error {
   color: var(--destructive);
+}
+
+.main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  background: var(--muted);
+}
+.view {
+  position: absolute;
+  inset: 0;
+}
+.view.hidden {
+  display: none;
 }
 
 .notice {
@@ -161,57 +261,300 @@ textarea {
   max-width: 560px;
 }
 
-.calendar-panel {
-  display: flex;
-  gap: 24px;
-  align-items: flex-start;
-  padding: 12px;
-  background: var(--muted);
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
+/* ---------- windows menu ---------- */
+.menu {
+  position: relative;
 }
-.calendar-panel label {
-  margin-left: 10px;
-}
-.calendar-panel textarea {
-  display: block;
-  font-family: ui-monospace, monospace;
-  width: 160px;
-  margin-top: 4px;
-  padding: 6px;
-}
-
-.workspace {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-}
-.gantt-pane {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.bim-pane {
-  flex: 0 0 45%;
-  min-width: 0;
-  border-left: 1px solid var(--border);
-}
-.bim-status {
+.menu-pop {
   position: absolute;
-  top: 12px;
-  left: 12px;
-  padding: 6px 10px;
-  font-size: 13px;
+  z-index: 2000;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 250px;
+  padding: 6px;
   background: var(--background);
   border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.menu-title {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   color: var(--muted-foreground);
 }
-.bim-status.error {
-  color: var(--destructive);
+.menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: none;
+  text-align: left;
+  font-weight: 400;
+}
+.menu-check {
+  width: 18px;
+  font-size: 12px;
+}
+.menu-sep {
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border);
+}
+.menu-hint {
+  margin: 6px 8px 4px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
 }
 
+/* ---------- dock ---------- */
+.dockview-theme-og {
+  height: 100%;
+}
+.dv-shell,
+.dv-shell.dockview-theme-light,
+.dockview-theme-og {
+  --dv-tabs-and-actions-container-height: 34px;
+  --dv-tabs-and-actions-container-font-size: 12.5px;
+  --dv-tabs-and-actions-container-background-color: var(--muted);
+  --dv-group-view-background-color: var(--background);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--background);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--muted);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--muted);
+  --dv-tab-divider-color: var(--border);
+  --dv-separator-border: var(--border);
+  --dv-activegroup-visiblepanel-tab-color: var(--foreground);
+  --dv-sash-color: var(--border);
+  --dv-active-sash-color: var(--brand);
+  --dv-drag-over-background-color: rgb(139 92 246 / 0.18);
+  --dv-drag-over-border-color: var(--brand);
+  --dv-edge-dock-indicator-color: var(--brand);
+  --dv-spacing-padding: 3px;
+  --dv-border-radius: 6px;
+  --dv-floating-box-shadow: var(--shadow);
+}
+.dockview-theme-og .dv-groupview {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.dockview-theme-og .dv-tab button,
+.dockview-theme-og .dv-tab .dv-default-tab-action {
+  height: auto;
+  border: none;
+  background: none;
+}
+.dockview-theme-og .dv-watermark {
+  color: var(--muted-foreground);
+}
+
+.panel-fill {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+.panel-scroll {
+  overflow: auto;
+}
+.panel-body {
+  padding: 10px 12px;
+  font-size: 13px;
+  overflow: auto;
+  height: 100%;
+}
+.slot-viewer {
+  overflow: hidden;
+}
+
+.calendar-panel {
+  padding: 12px;
+  font-size: 13px;
+}
+.weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.weekdays label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.weekdays label.on {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.weekdays input {
+  display: none;
+}
+.calendar-panel textarea {
+  font-family: ui-monospace, monospace;
+  width: 100%;
+}
+
+/* ---------- projects ---------- */
+.home {
+  height: 100%;
+  overflow: auto;
+  padding: 32px 40px;
+}
+.home-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 1100px;
+  margin: 0 auto 24px;
+}
+.home h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+.home p {
+  margin: 0;
+}
+.home-tools {
+  display: flex;
+  gap: 8px;
+}
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.project-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: box-shadow 0.15s, border-color 0.15s;
+}
+.project-card:hover {
+  box-shadow: var(--shadow);
+}
+.project-card.current {
+  border-color: var(--brand);
+}
+.project-card h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-card p {
+  font-size: 13px;
+  margin-top: 2px;
+}
+.project-card-main input {
+  width: 100%;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.project-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.project-card-actions button {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+.danger-text {
+  font-size: 13px;
+  color: var(--destructive);
+  margin-right: 4px;
+}
+.empty {
+  max-width: 420px;
+  margin: 80px auto;
+  text-align: center;
+}
+.empty h2 {
+  margin: 0 0 6px;
+}
+.empty p {
+  margin-bottom: 16px;
+  color: var(--muted-foreground);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(0 0 0 / 0.35);
+}
+.modal {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  padding: 24px;
+  background: var(--background);
+  border-radius: calc(var(--radius) + 4px);
+  box-shadow: var(--shadow);
+}
+.modal h2 {
+  margin: 0 0 18px;
+  font-size: 18px;
+}
+.modal .field input {
+  width: 100%;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+.template-list {
+  display: grid;
+  gap: 8px;
+}
+.template {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.template.selected {
+  border-color: var(--brand);
+  background: rgb(139 92 246 / 0.06);
+}
+.template small {
+  grid-column: 2;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ---------- BIM ---------- */
 .bim-viewer {
   display: flex;
   flex-direction: column;
@@ -227,6 +570,21 @@ textarea {
   position: absolute;
   inset: 0;
 }
+.bim-status {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted-foreground);
+}
+.bim-status.error {
+  color: var(--destructive);
+}
 .bim-search {
   display: flex;
   align-items: center;
@@ -234,17 +592,6 @@ textarea {
   padding: 8px;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
-}
-.bim-search select,
-.bim-search input[list] {
-  height: 32px;
-  padding: 0 8px;
-  font: inherit;
-  font-size: 13px;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
-  background: var(--background);
-  color: var(--foreground);
 }
 .bim-search input[list] {
   flex: 1;
@@ -260,20 +607,6 @@ textarea {
   color: var(--muted-foreground);
   white-space: nowrap;
 }
-.bim-props {
-  position: absolute;
-  right: 8px;
-  bottom: 8px;
-  width: 280px;
-  max-height: 55%;
-  overflow: auto;
-  padding: 8px 10px;
-  font-size: 12px;
-  background: var(--background);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
-}
 .bim-props-head {
   display: flex;
   justify-content: space-between;
@@ -287,6 +620,7 @@ textarea {
 }
 .bim-props dl {
   margin: 0;
+  font-size: 12px;
 }
 .bim-props dt {
   color: var(--muted-foreground);
@@ -296,31 +630,25 @@ textarea {
   margin: 0;
   word-break: break-word;
 }
-
-.bim-side {
-  max-height: 38%;
-  overflow: auto;
-  border-top: 1px solid var(--border);
-  font-size: 13px;
+.bim-props-actions,
+.bim-props-tasks {
+  margin-bottom: 6px;
 }
-.bim-section {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+.bim-props-actions button {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .bim-section-title {
   font-weight: 600;
   margin-bottom: 6px;
-}
-.bim-muted {
-  color: var(--muted-foreground);
-  font-size: 12px;
 }
 .bim-chips {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .bim-chip {
   display: inline-flex;
@@ -338,11 +666,6 @@ textarea {
   border: none;
   background: transparent;
 }
-.bim-section button {
-  height: 28px;
-  font-size: 12px;
-  padding: 0 10px;
-}
 .bim-newgroup {
   display: flex;
   gap: 6px;
@@ -351,18 +674,17 @@ textarea {
 .bim-newgroup input {
   flex: 1;
   min-width: 0;
-  height: 28px;
-  padding: 0 8px;
-  font: inherit;
-  font-size: 12px;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
 }
 .bim-group {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 3px 0;
+}
+.bim-group button {
+  height: 26px;
+  font-size: 12px;
+  padding: 0 8px;
 }
 .bim-group-name {
   flex: 1;
@@ -377,37 +699,6 @@ textarea {
   border-radius: 2px;
   flex: none;
 }
-.bim-props-actions {
-  margin-bottom: 6px;
-}
-.bim-props-actions button {
-  height: 28px;
-  font-size: 12px;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bim-props-tasks {
-  margin-bottom: 6px;
-}
-button.link {
-  height: auto;
-  padding: 0 4px;
-  border: none;
-  background: none;
-  color: #2563eb;
-  text-decoration: underline;
-}
-.toolbar input {
-  height: 36px;
-  padding: 0 8px;
-  font: inherit;
-  font-size: 14px;
-  border: 1px solid var(--border);
-  border-radius: calc(var(--radius) - 2px);
-}
-
 .bim-4d {
   display: flex;
   align-items: center;
@@ -421,18 +712,9 @@ button.link {
   flex: 1;
   min-width: 80px;
 }
-.bim-4d button {
+.bim-4d button,
+.bim-search button {
   height: 28px;
   font-size: 12px;
   padding: 0 10px;
-}
-.bim-search button {
-  height: 32px;
-  font-size: 13px;
-  padding: 0 10px;
-}
-.bim-search button.active {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: var(--primary-foreground);
 }

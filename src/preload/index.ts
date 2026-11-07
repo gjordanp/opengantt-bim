@@ -18,7 +18,9 @@ const api: AppApi = {
     load: (id) => ipcRenderer.invoke(IPC.projectsLoad, id),
     create: (name, data) => ipcRenderer.invoke(IPC.projectsCreate, name, data),
     save: (id, data) => ipcRenderer.invoke(IPC.projectsSave, id, data),
-    remove: (id) => ipcRenderer.invoke(IPC.projectsRemove, id)
+    remove: (id) => ipcRenderer.invoke(IPC.projectsRemove, id),
+    rename: (id, name) => ipcRenderer.invoke(IPC.projectsRename, id, name),
+    duplicate: (id, name) => ipcRenderer.invoke(IPC.projectsDuplicate, id, name)
   }
 }
 

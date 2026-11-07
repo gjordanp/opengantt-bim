@@ -29,6 +29,8 @@ export interface AppApi {
     create(name: string, data?: Pick<ProjectData, 'tasks' | 'links'>): Promise<string>
     save(id: string, data: ProjectData): Promise<void>
     remove(id: string): Promise<void>
+    rename(id: string, name: string): Promise<void>
+    duplicate(id: string, name: string): Promise<string | null>
   }
 }
 
@@ -40,6 +42,8 @@ export const IPC = {
   projectsCreate: 'projects:create',
   projectsSave: 'projects:save',
   projectsRemove: 'projects:remove',
+  projectsRename: 'projects:rename',
+  projectsDuplicate: 'projects:duplicate',
   modelsSave: 'models:save',
   modelsLoad: 'models:load',
   modelsRemove: 'models:remove'

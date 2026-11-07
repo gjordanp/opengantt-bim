@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
 import type { BimModelRef } from '../shared/bimGroups'
@@ -33,6 +33,11 @@ export async function loadModel(projectId: string, modelId: string): Promise<Uin
 export async function removeModel(projectId: string, modelId: string): Promise<void> {
   check(projectId, modelId)
   await rm(fileFor(projectId, modelId), { force: true })
+}
+
+export async function copyProjectModels(fromId: string, toId: string): Promise<void> {
+  check(fromId, toId)
+  await cp(join(root(), fromId), join(root(), toId), { recursive: true }).catch(() => undefined)
 }
 
 export async function removeProjectModels(projectId: string): Promise<void> {

@@ -39,10 +39,34 @@ export class MongoProjectRepository implements ProjectRepository {
 
   async list(): Promise<ProjectSummary[]> {
     const docs = await this.projects
-      .find({}, { projection: { name: 1, updatedAt: 1 } })
-      .sort({ updatedAt: -1 })
+      .aggregate<{
+        _id: string
+        name: string
+        updatedAt: Date
+        taskCount: number
+        modelCount: number
+        start: string | null
+      }>([
+        { $sort: { updatedAt: -1 } },
+        {
+          $project: {
+            name: 1,
+            updatedAt: 1,
+            taskCount: { $size: { $ifNull: ['$tasks', []] } },
+            modelCount: { $size: { $ifNull: ['$bim.models', []] } },
+            start: { $min: '$tasks.start_date' }
+          }
+        }
+      ])
       .toArray()
-    return docs.map((d) => ({ id: d._id, name: d.name, updatedAt: d.updatedAt.toISOString() }))
+    return docs.map((d) => ({
+      id: d._id,
+      name: d.name,
+      updatedAt: d.updatedAt.toISOString(),
+      taskCount: d.taskCount,
+      modelCount: d.modelCount,
+      start: d.start ?? null
+    }))
   }
 
   async load(id: string): Promise<ProjectData | null> {
@@ -86,6 +110,20 @@ export class MongoProjectRepository implements ProjectRepository {
 
   async remove(id: string): Promise<void> {
     await this.projects.deleteOne({ _id: id })
+  }
+
+  async rename(id: string, name: string): Promise<void> {
+    const result = await this.projects.updateOne({ _id: id }, { $set: { name, updatedAt: new Date() } })
+    if (result.matchedCount === 0) throw new Error(`Project ${id} not found`)
+  }
+
+  async duplicate(id: string, name: string): Promise<string | null> {
+    const doc = await this.projects.findOne({ _id: id })
+    if (!doc) return null
+    const copyId = randomUUID()
+    const now = new Date()
+    await this.projects.insertOne({ ...doc, _id: copyId, name, createdAt: now, updatedAt: now })
+    return copyId
   }
 
   async close(): Promise<void> {

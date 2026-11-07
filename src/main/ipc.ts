@@ -1,7 +1,7 @@
 import { ipcMain } from 'electron'
 import { IPC } from '../shared/api'
 import { configureDatabase, getRepository, getStatus } from './database'
-import { loadModel, removeModel, removeProjectModels, saveModel } from './modelStore'
+import { copyProjectModels, loadModel, removeModel, removeProjectModels, saveModel } from './modelStore'
 
 export function registerIpc(): void {
   ipcMain.handle(IPC.dbStatus, () => getStatus())
@@ -14,6 +14,13 @@ export function registerIpc(): void {
   ipcMain.handle(IPC.projectsRemove, async (_e, id: string) => {
     await getRepository().remove(id)
     await removeProjectModels(id)
+  })
+
+  ipcMain.handle(IPC.projectsRename, (_e, id: string, name: string) => getRepository().rename(id, name))
+  ipcMain.handle(IPC.projectsDuplicate, async (_e, id: string, name: string) => {
+    const copyId = await getRepository().duplicate(id, name)
+    if (copyId) await copyProjectModels(id, copyId)
+    return copyId
   })
 
   ipcMain.handle(IPC.modelsSave, (_e, projectId: string, modelId: string, name: string, bytes: Uint8Array) =>

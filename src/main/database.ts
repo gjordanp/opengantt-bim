@@ -9,6 +9,8 @@ import { MongoProjectRepository } from './mongoRepository'
 let repo: ProjectRepository | null = null
 let local: LocalMongo | null = null
 let status: DbStatus = { connected: false, settings: DEFAULT_DB_SETTINGS }
+/** The connection attempt in flight, so a status request waits for it instead of reporting a failure. */
+let pending: Promise<DbStatus> | null = null
 
 const settingsFile = (): string => join(app.getPath('userData'), 'settings.json')
 
@@ -34,7 +36,16 @@ async function disconnect(): Promise<void> {
 }
 
 /** Connects with the given (or saved) settings. Never throws: failures land in the status. */
-export async function connectDatabase(settings: DbSettings = loadSettings()): Promise<DbStatus> {
+export function connectDatabase(settings: DbSettings = loadSettings()): Promise<DbStatus> {
+  const run = connect(settings)
+  pending = run
+  void run.finally(() => {
+    if (pending === run) pending = null
+  })
+  return run
+}
+
+async function connect(settings: DbSettings): Promise<DbStatus> {
   await disconnect()
   try {
     let uri: string
@@ -61,7 +72,7 @@ export async function configureDatabase(settings: DbSettings): Promise<DbStatus>
   return result
 }
 
-export const getStatus = (): DbStatus => status
+export const getStatus = (): Promise<DbStatus> => pending ?? Promise.resolve(status)
 
 export function getRepository(): ProjectRepository {
   if (!repo) throw new Error('La base de datos no está conectada.')
