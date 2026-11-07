@@ -4,6 +4,7 @@ import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import type { ProjectData } from '@shared/model'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
 import { LobOverlay, colorsByName } from './lobLayer'
+import { autoSchedule, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
 import './gantt.css'
 
 const BASE_ROW_HEIGHT = 30
@@ -11,6 +12,12 @@ const BASE_ROW_HEIGHT = 30
 interface Props {
   project: ProjectData
   lobMode: boolean
+  /** Reschedule dependent tasks whenever tasks or links change. */
+  autoScheduling: boolean
+  /** Highlight the critical path. */
+  showCritical: boolean
+  /** Called after every scheduling run. */
+  onScheduled?: (outcome: AutoScheduleOutcome) => void
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -25,7 +32,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -33,6 +40,32 @@ export default function GanttView({ project, lobMode }: Props): React.JSX.Elemen
   const lobSectionsRef = useRef<Set<string>>(new Set())
   const lobModeRef = useRef(lobMode)
   lobModeRef.current = lobMode
+  const autoSchedulingRef = useRef(autoScheduling)
+  autoSchedulingRef.current = autoScheduling
+  const showCriticalRef = useRef(showCritical)
+  showCriticalRef.current = showCritical
+  const onScheduledRef = useRef(onScheduled)
+  onScheduledRef.current = onScheduled
+  const criticalRef = useRef<Set<string>>(new Set())
+  // True while we write scheduled dates back, so the update events that
+  // triggers don't start another scheduling run.
+  const schedulingRef = useRef(false)
+
+  const runSchedule = (): void => {
+    const gantt = ganttRef.current
+    if (!gantt || schedulingRef.current) return
+    schedulingRef.current = true
+    try {
+      const outcome = autoSchedule(gantt)
+      criticalRef.current = outcome.critical
+      gantt.render()
+      onScheduledRef.current?.(outcome)
+    } finally {
+      schedulingRef.current = false
+    }
+  }
+  const runScheduleRef = useRef(runSchedule)
+  runScheduleRef.current = runSchedule
 
   // Create the gantt instance once.
   useEffect(() => {
@@ -62,9 +95,34 @@ export default function GanttView({ project, lobMode }: Props): React.JSX.Elemen
       return defaultRender(task)
     }
 
+    gantt.templates.task_class = (_start: Date, _end: Date, task: any) =>
+      showCriticalRef.current && criticalRef.current.has(String(task.id)) ? 'critical-task' : ''
+
     gantt.init(host)
     // Handy for poking at the instance from the devtools console while developing.
     if (import.meta.env.DEV) (window as unknown as { __gantt: GanttStatic }).__gantt = gantt
+
+    // Reschedule when the structure or the data changes.
+    const reschedule = (): void => {
+      if (autoSchedulingRef.current) runScheduleRef.current()
+    }
+    const eventNames = [
+      'onAfterTaskAdd',
+      'onAfterTaskUpdate',
+      'onAfterTaskDelete',
+      'onAfterLinkAdd',
+      'onAfterLinkUpdate',
+      'onAfterLinkDelete'
+    ] as const
+    const eventIds = eventNames.map((name) => gantt.attachEvent(name, reschedule))
+    // A dragged/resized bar comes back with a calendar-day duration; convert it first.
+    eventIds.push(
+      gantt.attachEvent('onAfterTaskDrag', (id: string | number) => {
+        if (schedulingRef.current) return
+        normalizeDuration(gantt, id)
+        reschedule()
+      })
+    )
 
     gantt.ext.zoom.init({
       levels: [
@@ -104,6 +162,7 @@ export default function GanttView({ project, lobMode }: Props): React.JSX.Elemen
     gantt.ext.zoom.setLevel('month')
 
     return () => {
+      for (const id of eventIds) gantt.detachEvent(id)
       overlayRef.current?.destroy()
       overlayRef.current = null
       ganttRef.current = null
@@ -111,13 +170,24 @@ export default function GanttView({ project, lobMode }: Props): React.JSX.Elemen
     }
   }, [])
 
-  // Load the project whenever it changes.
+  // Load the project whenever it changes, then lay it out on the calendar.
   useEffect(() => {
     const gantt = ganttRef.current
     if (!gantt) return
     gantt.clearAll()
     gantt.parse({ data: project.tasks, links: project.links })
+    runScheduleRef.current()
   }, [project])
+
+  // Turning auto-scheduling on applies it right away; the critical path
+  // highlight only needs a repaint.
+  useEffect(() => {
+    if (autoScheduling) runScheduleRef.current()
+  }, [autoScheduling])
+
+  useEffect(() => {
+    ganttRef.current?.render()
+  }, [showCritical])
 
   // Apply / remove line-of-balance mode.
   useEffect(() => {

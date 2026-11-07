@@ -3,3 +3,13 @@
   width: 100%;
   height: 100%;
 }
+
+/* Critical path highlight (see templates.task_class in GanttView). */
+.gantt_task_line.critical-task {
+  background-color: #e5484d;
+  border-color: #b02a2f;
+}
+
+.gantt_task_line.critical-task .gantt_task_progress {
+  background-color: #b02a2f;
+}

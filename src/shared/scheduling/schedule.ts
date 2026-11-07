@@ -1,0 +1,282 @@
+import {
+  type Calendar,
+  countWorkDays,
+  endFromStart,
+  fromDay,
+  nextWorkingDay,
+  prevWorkingDay,
+  shiftWorkDays,
+  startFromEnd,
+  toDay,
+  weekCalendar
+} from './calendar'
+
+/** Finish-to-start `0`, start-to-start `1`, finish-to-finish `2`, start-to-finish `3`. */
+export type LinkKind = '0' | '1' | '2' | '3'
+
+export interface SchedTask {
+  id: string
+  /** `YYYY-MM-DD`. Only used for tasks with no predecessors (or in non-strict mode). */
+  start: string
+  /** Working days. */
+  duration: number
+  /** Parent id; absent or `'0'` for a root task. */
+  parent?: string
+}
+
+export interface SchedLink {
+  source: string
+  target: string
+  type: LinkKind
+  /** Working days; negative = lead. */
+  lag?: number
+}
+
+export interface ScheduleOptions {
+  /** Default: Monday to Friday. */
+  calendar?: Calendar
+  /**
+   * Strict (default): a task with predecessors always sits at the earliest date
+   * they allow, even if that moves it earlier. Non-strict: it only moves later
+   * when a predecessor would otherwise be violated.
+   */
+  strict?: boolean
+  /**
+   * Move the start of a task with no predecessors to the next working day.
+   * Default `false`, like DHTMLX Pro: such a task keeps the start date it was
+   * given (even on a weekend) and only its end is computed on the calendar.
+   */
+  snapFixedStarts?: boolean
+}
+
+export interface ScheduledTask {
+  id: string
+  /** `YYYY-MM-DD` */
+  start: string
+  /** `YYYY-MM-DD`, exclusive (the day after the last working day). */
+  end: string
+  /** Working days. For summary tasks, the span of their children. */
+  duration: number
+  summary: boolean
+  /** Latest start/finish that doesn't delay the project. Leaf tasks only. */
+  lateStart?: string
+  lateEnd?: string
+  /** Working days the task can slip without delaying the project. Negative = already late. */
+  totalFloat?: number
+  critical: boolean
+}
+
+export interface ScheduleResult {
+  tasks: Map<string, ScheduledTask>
+  /** Ids of the tasks in a dependency cycle (they aren't scheduled), or `null`. */
+  cycle: string[] | null
+  /** Links ignored because an endpoint is missing or is a summary task. */
+  skippedLinks: SchedLink[]
+  /** End (exclusive) of the last task, or `null` for an empty project. */
+  projectEnd: string | null
+}
+
+const isRoot = (parent: string | undefined): boolean => parent === undefined || parent === '0' || parent === ''
+
+/**
+ * Earliest-dates scheduling (forward pass) with total float and critical tasks
+ * (backward pass), plus summary roll-up.
+ */
+export function schedule(tasks: SchedTask[], links: SchedLink[], options: ScheduleOptions = {}): ScheduleResult {
+  const cal = options.calendar ?? weekCalendar()
+  const strict = options.strict ?? true
+  const snapFixedStarts = options.snapFixedStarts ?? false
+
+  const byId = new Map(tasks.map((t) => [t.id, t]))
+  const children = new Map<string, string[]>()
+  for (const t of tasks) {
+    if (isRoot(t.parent) || !byId.has(t.parent!)) continue
+    const list = children.get(t.parent!)
+    if (list) list.push(t.id)
+    else children.set(t.parent!, [t.id])
+  }
+  const isSummary = (id: string): boolean => children.has(id)
+
+  // Only links between two leaf tasks drive the scheduling.
+  const usable: SchedLink[] = []
+  const skippedLinks: SchedLink[] = []
+  for (const l of links) {
+    if (byId.has(l.source) && byId.has(l.target) && !isSummary(l.source) && !isSummary(l.target)) usable.push(l)
+    else skippedLinks.push(l)
+  }
+
+  const leaves = tasks.filter((t) => !isSummary(t.id))
+  const incoming = new Map<string, SchedLink[]>()
+  const outgoing = new Map<string, SchedLink[]>()
+  const pending = new Map<string, number>()
+  for (const t of leaves) {
+    incoming.set(t.id, [])
+    outgoing.set(t.id, [])
+    pending.set(t.id, 0)
+  }
+  for (const l of usable) {
+    incoming.get(l.target)!.push(l)
+    outgoing.get(l.source)!.push(l)
+    pending.set(l.target, pending.get(l.target)! + 1)
+  }
+
+  // Topological order (Kahn). Tasks left over are in, or behind, a cycle.
+  const order: string[] = []
+  const queue = leaves.filter((t) => pending.get(t.id) === 0).map((t) => t.id)
+  while (queue.length > 0) {
+    const id = queue.shift()!
+    order.push(id)
+    for (const l of outgoing.get(id)!) {
+      const left = pending.get(l.target)! - 1
+      pending.set(l.target, left)
+      if (left === 0) queue.push(l.target)
+    }
+  }
+  const scheduledIds = new Set(order)
+  const cycle = leaves.filter((t) => !scheduledIds.has(t.id)).map((t) => t.id)
+
+  // Forward pass.
+  const start = new Map<string, number>()
+  const end = new Map<string, number>()
+  for (const id of order) {
+    const task = byId.get(id)!
+    const duration = Math.max(0, task.duration)
+    // Earliest start allowed by links that fix the start (FS, SS) and by links
+    // that fix the end (FF, SF), kept apart for the milestone rule below.
+    let fromStartLinks = -Infinity
+    let fromEndLinks = -Infinity
+    // For milestones: the same start-driven bounds, but only those without a
+    // positive lag are moved to a working day (see below).
+    let milestoneBound = -Infinity
+    for (const l of incoming.get(id)!) {
+      const lag = l.lag ?? 0
+      const pStart = start.get(l.source)!
+      const pEnd = end.get(l.source)!
+      switch (l.type) {
+        case '0': // FS
+        case '1': {
+          // SS
+          const raw = shiftWorkDays(cal, l.type === '0' ? pEnd : pStart, lag)
+          fromStartLinks = Math.max(fromStartLinks, raw)
+          milestoneBound = Math.max(milestoneBound, lag > 0 ? raw : nextWorkingDay(cal, raw))
+          break
+        }
+        case '2': // FF
+          fromEndLinks = Math.max(fromEndLinks, startFromEnd(cal, shiftWorkDays(cal, pEnd, lag), duration))
+          break
+        default: // SF
+          fromEndLinks = Math.max(fromEndLinks, startFromEnd(cal, shiftWorkDays(cal, pStart, lag), duration))
+      }
+    }
+    const lower = Math.max(fromStartLinks, fromEndLinks)
+    const own = toDay(task.start)
+    let s: number
+    if (lower === -Infinity) s = snapFixedStarts ? nextWorkingDay(cal, own) : own
+    else if (duration === 0) {
+      // A milestone takes no working time. Like DHTMLX Pro, a date forced by an
+      // end-driven link (FF, SF), or by a start-driven link with a positive lag,
+      // stays put (it may be a weekend); a start-driven link without lag moves
+      // to the next working day.
+      const found = Math.max(milestoneBound, fromEndLinks)
+      s = strict ? found : Math.max(own, found)
+    } else {
+      s = nextWorkingDay(cal, strict ? lower : Math.max(own, lower))
+    }
+    start.set(id, s)
+    end.set(id, endFromStart(cal, s, duration))
+  }
+
+  // Backward pass over the scheduled leaves.
+  const projectEnd = order.length > 0 ? Math.max(...order.map((id) => end.get(id)!)) : null
+  const lateStart = new Map<string, number>()
+  const lateEnd = new Map<string, number>()
+  for (const id of [...order].reverse()) {
+    const duration = Math.max(0, byId.get(id)!.duration)
+    // Like DHTMLX Pro, only a task with no successors is capped by the project
+    // end; one with successors is bounded by what its links require.
+    let lfBound = outgoing.get(id)!.length === 0 ? projectEnd! : Infinity
+    let lsBound = Infinity
+    for (const l of outgoing.get(id)!) {
+      if (!lateStart.has(l.target)) continue
+      const lag = l.lag ?? 0
+      const tLS = lateStart.get(l.target)!
+      const tLF = lateEnd.get(l.target)!
+      switch (l.type) {
+        case '0': // pred.end <= succ.start - lag
+          lfBound = Math.min(lfBound, shiftWorkDays(cal, tLS, -lag))
+          break
+        case '1': // pred.start <= succ.start - lag
+          lsBound = Math.min(lsBound, shiftWorkDays(cal, tLS, -lag))
+          break
+        case '2': // pred.end <= succ.end - lag
+          lfBound = Math.min(lfBound, shiftWorkDays(cal, tLF, -lag))
+          break
+        default: // SF: pred.start <= succ.end - lag
+          lsBound = Math.min(lsBound, shiftWorkDays(cal, tLF, -lag))
+      }
+    }
+    if (lfBound === Infinity && lsBound === Infinity) lfBound = projectEnd! // successors in a cycle
+    let ls = lfBound === Infinity ? prevWorkingDay(cal, lsBound) : startFromEnd(cal, lfBound, duration)
+    if (lsBound !== Infinity) ls = Math.min(ls, prevWorkingDay(cal, lsBound))
+    lateStart.set(id, ls)
+    lateEnd.set(id, endFromStart(cal, ls, duration))
+  }
+
+  const result = new Map<string, ScheduledTask>()
+  const floatOf = (id: string): number => {
+    const es = start.get(id)!
+    const ls = lateStart.get(id)!
+    return ls >= es ? countWorkDays(cal, es, ls) : -countWorkDays(cal, ls, es)
+  }
+  for (const id of order) {
+    const totalFloat = floatOf(id)
+    result.set(id, {
+      id,
+      start: fromDay(start.get(id)!),
+      end: fromDay(end.get(id)!),
+      duration: byId.get(id)!.duration,
+      summary: false,
+      lateStart: fromDay(lateStart.get(id)!),
+      lateEnd: fromDay(lateEnd.get(id)!),
+      totalFloat,
+      critical: totalFloat <= 0
+    })
+  }
+
+  // Roll summaries up from their children, deepest first.
+  const rollUp = (id: string): { start: number; end: number; critical: boolean } | null => {
+    const kids = children.get(id)
+    if (!kids) {
+      const r = result.get(id)
+      return r ? { start: toDay(r.start), end: toDay(r.end), critical: r.critical } : null
+    }
+    let s = Infinity
+    let e = -Infinity
+    let critical = false
+    for (const kid of kids) {
+      const r = rollUp(kid)
+      if (!r) continue
+      s = Math.min(s, r.start)
+      e = Math.max(e, r.end)
+      critical ||= r.critical
+    }
+    if (s === Infinity) return null
+    result.set(id, {
+      id,
+      start: fromDay(s),
+      end: fromDay(e),
+      duration: countWorkDays(cal, s, e),
+      summary: true,
+      critical
+    })
+    return { start: s, end: e, critical }
+  }
+  for (const t of tasks) if (isRoot(t.parent) || !byId.has(t.parent!)) rollUp(t.id)
+
+  return {
+    tasks: result,
+    cycle: cycle.length > 0 ? cycle : null,
+    skippedLinks,
+    projectEnd: projectEnd === null ? null : fromDay(projectEnd)
+  }
+}
