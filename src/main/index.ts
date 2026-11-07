@@ -1,5 +1,7 @@
 import { app, BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
+import { closeDatabase, connectDatabase } from './database'
+import { registerIpc } from './ipc'
 
 const isDev = !app.isPackaged
 
@@ -35,8 +37,13 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  registerIpc()
+  // The window opens right away and asks for the status; a slow start of the
+  // database shouldn't keep the user staring at nothing.
+  const database = connectDatabase()
   createWindow()
+  await database
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -44,4 +51,14 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
+})
+
+// Shut the private mongod down cleanly before exiting, so it never leaves a
+// stale lock on the data folder.
+let closing = false
+app.on('before-quit', (event) => {
+  if (closing) return
+  event.preventDefault()
+  closing = true
+  void closeDatabase().finally(() => app.quit())
 })

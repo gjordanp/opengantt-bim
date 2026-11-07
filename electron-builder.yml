@@ -1,0 +1,24 @@
+appId: dev.opengantt.bim
+productName: Opengantt BIM
+directories:
+  output: dist
+files:
+  - out/**
+  - package.json
+# The bundled MongoDB server ships next to the app, outside the asar archive,
+# so it can be executed. Run `npm run fetch:mongod` before packaging.
+extraResources:
+  - from: resources/mongod
+    to: mongod
+  - from: THIRD_PARTY_NOTICES.md
+    to: THIRD_PARTY_NOTICES.md
+win:
+  target: nsis
+  artifactName: ${productName}-Setup-${version}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target: dmg
+linux:
+  target: AppImage

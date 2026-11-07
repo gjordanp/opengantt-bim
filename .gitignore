@@ -8,3 +8,6 @@ dist/
 # local tooling
 .claude/
 graphify-out/
+
+# bundled MongoDB server binary (see npm run fetch:mongod)
+resources/mongod/

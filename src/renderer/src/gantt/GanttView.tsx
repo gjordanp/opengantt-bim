@@ -18,6 +18,8 @@ interface Props {
   showCritical: boolean
   /** Called after every scheduling run. */
   onScheduled?: (outcome: AutoScheduleOutcome) => void
+  /** Called with a snapshot after every user edit (not on load). */
+  onChange?: (data: ProjectData) => void
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -32,7 +34,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -46,6 +48,37 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   showCriticalRef.current = showCritical
   const onScheduledRef = useRef(onScheduled)
   onScheduledRef.current = onScheduled
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
+  const loadingRef = useRef(false)
+  const emitChange = (): void => {
+    const gantt = ganttRef.current
+    if (!gantt || !onChangeRef.current) return
+    const { data, links } = gantt.serialize() as { data: any[]; links: any[] }
+    onChangeRef.current({
+      name: project.name,
+      tasks: data.map((t) => ({
+        id: String(t.id),
+        text: String(t.text ?? ''),
+        start_date: String(t.start_date),
+        duration: Number(t.duration) || 0,
+        progress: Number(t.progress) || 0,
+        parent: String(t.parent ?? '0'),
+        ...(t.type ? { type: t.type } : {}),
+        ...(t.open !== undefined ? { open: Boolean(t.open) } : {}),
+        ...(Number(t.location_surface) ? { location_surface: Number(t.location_surface) } : {})
+      })),
+      links: links.map((l) => ({
+        id: String(l.id),
+        source: String(l.source),
+        target: String(l.target),
+        type: String(l.type) as '0' | '1' | '2' | '3',
+        ...(l.lag ? { lag: Number(l.lag) } : {})
+      }))
+    })
+  }
+  const emitChangeRef = useRef(emitChange)
+  emitChangeRef.current = emitChange
   const criticalRef = useRef<Set<string>>(new Set())
   // True while we write scheduled dates back, so the update events that
   // triggers don't start another scheduling run.
@@ -104,7 +137,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
     // Reschedule when the structure or the data changes.
     const reschedule = (): void => {
+      if (schedulingRef.current || loadingRef.current) return
       if (autoSchedulingRef.current) runScheduleRef.current()
+      emitChangeRef.current()
     }
     const eventNames = [
       'onAfterTaskAdd',
@@ -121,6 +156,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         if (schedulingRef.current) return
         normalizeDuration(gantt, id)
         reschedule()
+        emitChangeRef.current()
       })
     )
 
@@ -174,11 +210,16 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   useEffect(() => {
     const gantt = ganttRef.current
     if (!gantt) return
-    gantt.clearAll()
-    // The gantt keeps and mutates the objects it's given; hand it copies so the
-    // project data (and a remount in React StrictMode) always starts clean.
-    gantt.parse({ data: structuredClone(project.tasks), links: structuredClone(project.links) })
-    runScheduleRef.current()
+    loadingRef.current = true
+    try {
+      gantt.clearAll()
+      // The gantt keeps and mutates the objects it's given; hand it copies so the
+      // project data (and a remount in React StrictMode) always starts clean.
+      gantt.parse({ data: structuredClone(project.tasks), links: structuredClone(project.links) })
+      runScheduleRef.current()
+    } finally {
+      loadingRef.current = false
+    }
   }, [project])
 
   // Turning auto-scheduling on applies it right away; the critical path

@@ -1,22 +1,175 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import GanttView from './gantt/GanttView'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
+import type { ProjectData } from '@shared/model'
+import type { ProjectSummary } from '@shared/repository'
+import type { DbStatus } from '@shared/api'
+
+const AUTOSAVE_MS = 1000
+type SaveState = 'idle' | 'pending' | 'saved' | 'error'
 
 export default function App(): React.JSX.Element {
+  const api = window.api
   const [lobMode, setLobMode] = useState(false)
   const [autoScheduling, setAutoScheduling] = useState(true)
   const [showCritical, setShowCritical] = useState(false)
   const [cycle, setCycle] = useState<string[]>([])
 
+  const [db, setDb] = useState<DbStatus | null>(null)
+  const [projects, setProjects] = useState<ProjectSummary[]>([])
+  const [projectId, setProjectId] = useState<string | null>(null)
+  const [project, setProject] = useState<ProjectData>(sampleProject)
+  const [saveState, setSaveState] = useState<SaveState>('idle')
+
+  const latestRef = useRef<ProjectData | null>(null)
+  const timerRef = useRef<number | undefined>(undefined)
+  const projectIdRef = useRef<string | null>(null)
+  projectIdRef.current = projectId
+
+  const refreshList = useCallback(async () => {
+    if (!api) return
+    setProjects(await api.projects.list())
+  }, [api])
+
+  const flush = useCallback(async () => {
+    window.clearTimeout(timerRef.current)
+    const id = projectIdRef.current
+    const data = latestRef.current
+    if (!api || !id || !data) return
+    latestRef.current = null
+    try {
+      await api.projects.save(id, data)
+      setSaveState('saved')
+    } catch {
+      latestRef.current = data
+      setSaveState('error')
+    }
+  }, [api])
+
+  const openProject = useCallback(
+    async (id: string) => {
+      if (!api) return
+      await flush()
+      const data = await api.projects.load(id)
+      if (!data) return
+      setProjectId(id)
+      setProject(data)
+      setSaveState('idle')
+    },
+    [api, flush]
+  )
+
+  // Connect to the database status and open the first project (or create one).
+  useEffect(() => {
+    if (!api) return
+    void (async () => {
+      const status = await api.db.status()
+      setDb(status)
+      if (!status.connected) return
+      let list = await api.projects.list()
+      if (list.length === 0) {
+        await api.projects.create(sampleProject.name, sampleProject)
+        list = await api.projects.list()
+      }
+      setProjects(list)
+      const data = await api.projects.load(list[0].id)
+      if (data) {
+        setProjectId(list[0].id)
+        setProject(data)
+      }
+    })()
+  }, [api])
+
+  // Save what's pending when the window goes away.
+  useEffect(() => {
+    const onHide = (): void => void flush()
+    window.addEventListener('beforeunload', onHide)
+    return () => window.removeEventListener('beforeunload', onHide)
+  }, [flush])
+
+  const onChange = useCallback(
+    (data: ProjectData) => {
+      if (!api || !projectIdRef.current) return
+      latestRef.current = data
+      setSaveState('pending')
+      window.clearTimeout(timerRef.current)
+      timerRef.current = window.setTimeout(() => void flush(), AUTOSAVE_MS)
+    },
+    [api, flush]
+  )
+
   const onScheduled = (outcome: AutoScheduleOutcome): void => {
     setCycle((prev) => (prev.join() === outcome.cycle.join() ? prev : outcome.cycle))
   }
 
+  const newProject = async (): Promise<void> => {
+    if (!api) return
+    const name = window.prompt('Nombre del proyecto', 'Nuevo proyecto')
+    if (!name) return
+    await flush()
+    const id = await api.projects.create(name)
+    await refreshList()
+    await openProject(id)
+  }
+
+  const deleteProject = async (): Promise<void> => {
+    if (!api || !projectId) return
+    if (!window.confirm(`¿Eliminar "${project.name}"? No se puede deshacer.`)) return
+    latestRef.current = null
+    window.clearTimeout(timerRef.current)
+    await api.projects.remove(projectId)
+    const list = await api.projects.list()
+    setProjects(list)
+    if (list.length > 0) await openProject(list[0].id)
+    else {
+      const id = await api.projects.create('Nuevo proyecto')
+      await refreshList()
+      await openProject(id)
+    }
+  }
+
+  if (api && db && !db.connected) {
+    return (
+      <div className="app">
+        <div className="toolbar">
+          <span className="title">Opengantt BIM</span>
+        </div>
+        <div className="notice">
+          <h2>No se pudo conectar a la base de datos</h2>
+          <p>{db.error}</p>
+          <button
+            onClick={() => {
+              setDb(null)
+              void api.db.configure(db.settings).then((s) => setDb(s))
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const saveLabel = { idle: '', pending: 'Guardando…', saved: 'Guardado', error: 'Error al guardar' }[saveState]
+
   return (
     <div className="app">
       <div className="toolbar">
-        <span className="title">Opengantt BIM · {sampleProject.name}</span>
+        <span className="title">Opengantt BIM</span>
+        {api && (
+          <>
+            <select value={projectId ?? ''} onChange={(e) => void openProject(e.target.value)}>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+            <button onClick={() => void newProject()}>Nuevo</button>
+            <button onClick={() => void deleteProject()}>Eliminar</button>
+          </>
+        )}
         <button className={autoScheduling ? 'active' : ''} onClick={() => setAutoScheduling((v) => !v)}>
           Auto-schedule
         </button>
@@ -29,13 +182,15 @@ export default function App(): React.JSX.Element {
         {cycle.length > 0 && (
           <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>
         )}
+        {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
       </div>
       <GanttView
-        project={sampleProject}
+        project={project}
         lobMode={lobMode}
         autoScheduling={autoScheduling}
         showCritical={showCritical}
         onScheduled={onScheduled}
+        onChange={api ? onChange : undefined}
       />
     </div>
   )
