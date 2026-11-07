@@ -1,0 +1,38 @@
+﻿{
+    "name":  "opengantt-bim",
+    "version":  "0.1.0",
+    "description":  "Open-source desktop Gantt, line of balance and 4D BIM (IFC) scheduling",
+    "main":  "./out/main/index.js",
+    "scripts":  {
+                    "dev":  "electron-vite dev",
+                    "build":  "electron-vite build",
+                    "start":  "electron-vite preview",
+                    "typecheck":  "tsc --noEmit",
+                    "test":  "vitest run",
+                    "test:watch":  "vitest",
+                    "dev:web":  "vite --config vite.web.config.mts"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "MIT",
+    "type":  "commonjs",
+    "dependencies":  {
+                         "dhtmlx-gantt":  "10.0.3",
+                         "react":  "19.3.1",
+                         "react-dom":  "19.3.1"
+                     },
+    "devDependencies":  {
+                            "@types/node":  "26.6.6",
+                            "@types/react":  "19.3.0",
+                            "@types/react-dom":  "19.3.0",
+                            "@vitejs/plugin-react":  "6.2.1",
+                            "electron":  "45.2.3",
+                            "electron-vite":  "6.0.0",
+                            "typescript":  "7.0.2",
+                            "vite":  "8.3.6",
+                            "vitest":  "5.1.0"
+                        },
+    "private":  true
+}

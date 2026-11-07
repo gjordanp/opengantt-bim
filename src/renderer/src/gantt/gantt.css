@@ -1,0 +1,5 @@
+/* The gantt host fills its flex parent. */
+.gantt-host {
+  width: 100%;
+  height: 100%;
+}

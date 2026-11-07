@@ -1,0 +1,70 @@
+:root {
+  --bg: #0f1420;
+  --panel: #171d2c;
+  --border: #27304a;
+  --text: #e6e9f2;
+  --muted: #8b94ad;
+  --accent: #8b5cf6;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar .title {
+  font-weight: 600;
+  margin-right: 12px;
+}
+
+.toolbar button {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.toolbar button:hover {
+  border-color: var(--accent);
+}
+
+.toolbar button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.gantt-host {
+  flex: 1;
+  min-height: 0;
+}
