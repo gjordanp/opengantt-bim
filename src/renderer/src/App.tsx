@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import GanttView from './gantt/GanttView'
+import GanttView, { type GanttHandle } from './gantt/GanttView'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
 import type { ProjectData } from '@shared/model'
@@ -22,6 +22,8 @@ export default function App(): React.JSX.Element {
   const [project, setProject] = useState<ProjectData>(sampleProject)
   const [saveState, setSaveState] = useState<SaveState>('idle')
 
+  const ganttRef = useRef<GanttHandle>(null)
+  const [history, setHistory] = useState({ canUndo: false, canRedo: false })
   const latestRef = useRef<ProjectData | null>(null)
   const timerRef = useRef<number | undefined>(undefined)
   const projectIdRef = useRef<string | null>(null)
@@ -99,6 +101,22 @@ export default function App(): React.JSX.Element {
     [api, flush]
   )
 
+  // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z), except while typing in a field.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      const k = e.key.toLowerCase()
+      if (k === 'z' && !e.shiftKey) ganttRef.current?.undo()
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) ganttRef.current?.redo()
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const onScheduled = (outcome: AutoScheduleOutcome): void => {
     setCycle((prev) => (prev.join() === outcome.cycle.join() ? prev : outcome.cycle))
   }
@@ -170,6 +188,12 @@ export default function App(): React.JSX.Element {
             <button onClick={() => void deleteProject()}>Eliminar</button>
           </>
         )}
+        <button disabled={!history.canUndo} onClick={() => ganttRef.current?.undo()} title="Deshacer (Ctrl+Z)">
+          Deshacer
+        </button>
+        <button disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} title="Rehacer (Ctrl+Y)">
+          Rehacer
+        </button>
         <button className={autoScheduling ? 'active' : ''} onClick={() => setAutoScheduling((v) => !v)}>
           Auto-schedule
         </button>
@@ -185,12 +209,14 @@ export default function App(): React.JSX.Element {
         {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
       </div>
       <GanttView
+        ref={ganttRef}
+        onHistoryChange={setHistory}
         project={project}
         lobMode={lobMode}
         autoScheduling={autoScheduling}
         showCritical={showCritical}
         onScheduled={onScheduled}
-        onChange={api ? onChange : undefined}
+        onChange={onChange}
       />
     </div>
   )

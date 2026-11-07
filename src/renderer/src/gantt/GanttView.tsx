@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import type { ProjectData } from '@shared/model'
+import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
 import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
@@ -20,6 +21,15 @@ interface Props {
   onScheduled?: (outcome: AutoScheduleOutcome) => void
   /** Called with a snapshot after every user edit (not on load). */
   onChange?: (data: ProjectData) => void
+  /** Imperative undo/redo. */
+  ref?: Ref<GanttHandle>
+  /** Called when undo/redo availability changes. */
+  onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
+}
+
+export interface GanttHandle {
+  undo(): void
+  redo(): void
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -34,7 +44,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange, ref, onHistoryChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -51,11 +61,11 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const loadingRef = useRef(false)
-  const emitChange = (): void => {
+  const snapshot = (): ProjectData | null => {
     const gantt = ganttRef.current
-    if (!gantt || !onChangeRef.current) return
+    if (!gantt) return null
     const { data, links } = gantt.serialize() as { data: any[]; links: any[] }
-    onChangeRef.current({
+    return {
       name: project.name,
       tasks: data.map((t) => ({
         id: String(t.id),
@@ -75,8 +85,40 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         type: String(l.type) as '0' | '1' | '2' | '3',
         ...(l.lag ? { lag: Number(l.lag) } : {})
       }))
-    })
+    }
   }
+  const historyRef = useRef(new History<ProjectData>())
+  const onHistoryChangeRef = useRef(onHistoryChange)
+  onHistoryChangeRef.current = onHistoryChange
+  const notifyHistory = (): void =>
+    onHistoryChangeRef.current?.({ canUndo: historyRef.current.canUndo, canRedo: historyRef.current.canRedo })
+  const emitChange = (): void => {
+    const snap = snapshot()
+    if (!snap) return
+    historyRef.current.push(snap)
+    notifyHistory()
+    onChangeRef.current?.(snap)
+  }
+  // Replaces the gantt's contents with a stored snapshot (undo/redo) and saves it.
+  const restore = (snap: ProjectData | undefined): void => {
+    const gantt = ganttRef.current
+    if (!gantt || !snap) return
+    loadingRef.current = true
+    try {
+      gantt.clearAll()
+      gantt.parse({ data: structuredClone(snap.tasks), links: structuredClone(snap.links) })
+      runScheduleRef.current()
+      applyLobRef.current()
+    } finally {
+      loadingRef.current = false
+    }
+    notifyHistory()
+    onChangeRef.current?.(snap)
+  }
+  useImperativeHandle(ref, () => ({
+    undo: () => restore(historyRef.current.undo()),
+    redo: () => restore(historyRef.current.redo())
+  }))
   const emitChangeRef = useRef(emitChange)
   emitChangeRef.current = emitChange
   const criticalRef = useRef<Set<string>>(new Set())
@@ -156,7 +198,6 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         if (schedulingRef.current) return
         normalizeDuration(gantt, id)
         reschedule()
-        emitChangeRef.current()
       })
     )
 
@@ -217,6 +258,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       // project data (and a remount in React StrictMode) always starts clean.
       gantt.parse({ data: structuredClone(project.tasks), links: structuredClone(project.links) })
       runScheduleRef.current()
+      const snap = snapshot()
+      if (snap) historyRef.current.reset(snap)
+      notifyHistory()
     } finally {
       loadingRef.current = false
     }
@@ -233,9 +277,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   }, [showCritical])
 
   // Apply / remove line-of-balance mode.
-  useEffect(() => {
+  const applyLob = (): void => {
     const gantt = ganttRef.current
     if (!gantt) return
+    const lobMode = lobModeRef.current
 
     const removeOverlay = (): void => {
       overlayRef.current?.destroy()
@@ -272,6 +317,11 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     }
 
     gantt.render()
+  }
+  const applyLobRef = useRef(applyLob)
+  applyLobRef.current = applyLob
+  useEffect(() => {
+    applyLobRef.current()
   }, [lobMode, project])
 
   return <div ref={hostRef} className="gantt-host" />
