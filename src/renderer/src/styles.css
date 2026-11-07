@@ -71,8 +71,8 @@ button {
   font: inherit;
   font-size: 13px;
   font-weight: 500;
-  height: 32px;
-  padding: 0 12px;
+  height: 28px;
+  padding: 0 10px;
   color: var(--foreground);
   background: var(--background);
   border: 1px solid var(--border);
@@ -170,8 +170,8 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px;
-  min-height: 48px;
+  padding: 5px 10px;
+  min-height: 40px;
   flex-wrap: wrap;
   background: var(--background);
   border-bottom: 1px solid var(--border);
@@ -318,8 +318,8 @@ textarea {
 .dv-shell,
 .dv-shell.dockview-theme-light,
 .dockview-theme-og {
-  --dv-tabs-and-actions-container-height: 34px;
-  --dv-tabs-and-actions-container-font-size: 12.5px;
+  --dv-tabs-and-actions-container-height: 26px;
+  --dv-tabs-and-actions-container-font-size: 12px;
   --dv-tabs-and-actions-container-background-color: var(--muted);
   --dv-group-view-background-color: var(--background);
   --dv-activegroup-visiblepanel-tab-background-color: var(--background);
@@ -351,6 +351,23 @@ textarea {
 }
 .dockview-theme-og .dv-watermark {
   color: var(--muted-foreground);
+}
+
+.hdr-btn {
+  height: 20px;
+  width: 22px;
+  margin: 3px 4px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: var(--muted-foreground);
+}
+.hdr-btn:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--foreground);
 }
 
 .panel-fill {
@@ -588,10 +605,14 @@ textarea {
 .bim-search {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
+  gap: 6px;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--border);
-  font-size: 13px;
+  font-size: 12px;
+}
+.bim-search select,
+.bim-search input[list] {
+  height: 26px;
 }
 .bim-search input[list] {
   flex: 1;
@@ -703,7 +724,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 3px 8px;
   border-top: 1px solid var(--border);
   background: var(--muted);
   font-size: 13px;
@@ -714,7 +735,7 @@ textarea {
 }
 .bim-4d button,
 .bim-search button {
-  height: 28px;
+  height: 26px;
   font-size: 12px;
   padding: 0 10px;
 }
