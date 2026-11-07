@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import GanttView, { type GanttHandle } from './gantt/GanttView'
 import BimViewer, { type BimViewerHandle } from './bim/BimViewer'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
 import type { ProjectData } from '@shared/model'
+import { emptyBim, taskGuids, type BimData } from '@shared/bimGroups'
+import type { BimElement } from '@shared/bimQuery'
 import type { ProjectSummary } from '@shared/repository'
 import type { DbStatus } from '@shared/api'
 
@@ -86,6 +88,13 @@ export default function App(): React.JSX.Element {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [bimOpen, setBimOpen] = useState(false)
   const [history, setHistory] = useState({ canUndo: false, canRedo: false })
+  const [bim, setBim] = useState<BimData>(emptyBim())
+  const bimDataRef = useRef<BimData>(bim)
+  const [bimElements, setBimElements] = useState<BimElement[]>([])
+  const [selectedTask, setSelectedTask] = useState<{ id: string; text: string } | null>(null)
+  const [naming, setNaming] = useState<string | null>(null)
+  // The last full snapshot of the open project, so a BIM-only change can be saved on its own.
+  const lastDataRef = useRef<ProjectData | null>(null)
   const latestRef = useRef<ProjectData | null>(null)
   const timerRef = useRef<number | undefined>(undefined)
   const projectIdRef = useRef<string | null>(null)
@@ -111,6 +120,14 @@ export default function App(): React.JSX.Element {
     }
   }, [api])
 
+  const loadBim = (data: ProjectData): void => {
+    const next = data.bim ?? emptyBim()
+    bimDataRef.current = next
+    lastDataRef.current = data
+    setBim(next)
+    setSelectedTask(null)
+  }
+
   const openProject = useCallback(
     async (id: string) => {
       if (!api) return
@@ -119,6 +136,7 @@ export default function App(): React.JSX.Element {
       if (!data) return
       setProjectId(id)
       setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
+      loadBim(data)
       setProject(data)
       setSaveState('idle')
     },
@@ -142,6 +160,7 @@ export default function App(): React.JSX.Element {
       if (data) {
         setProjectId(list[0].id)
         setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
+        loadBim(data)
         setProject(data)
       }
     })()
@@ -157,13 +176,38 @@ export default function App(): React.JSX.Element {
   const onChange = useCallback(
     (data: ProjectData) => {
       if (!api || !projectIdRef.current) return
-      latestRef.current = data
+      const full = { ...data, bim: bimDataRef.current }
+      lastDataRef.current = full
+      latestRef.current = full
       setSaveState('pending')
       window.clearTimeout(timerRef.current)
       timerRef.current = window.setTimeout(() => void flush(), AUTOSAVE_MS)
     },
     [api, flush]
   )
+
+  const onBimChange = useCallback(
+    (next: BimData) => {
+      bimDataRef.current = next
+      setBim(next)
+      const base = latestRef.current ?? lastDataRef.current
+      if (!api || !projectIdRef.current || !base) return
+      const full = { ...base, bim: next }
+      lastDataRef.current = full
+      latestRef.current = full
+      setSaveState('pending')
+      window.clearTimeout(timerRef.current)
+      timerRef.current = window.setTimeout(() => void flush(), AUTOSAVE_MS)
+    },
+    [api, flush]
+  )
+
+  // Elements tied to each task, for the BIM column of the gantt.
+  const bimCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const l of bim.links) counts[l.taskId] = taskGuids(l, bim.groups, bimElements).size
+    return counts
+  }, [bim, bimElements])
 
   // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z), except while typing in a field.
   useEffect(() => {
@@ -187,8 +231,9 @@ export default function App(): React.JSX.Element {
 
   const newProject = async (): Promise<void> => {
     if (!api) return
-    const name = window.prompt('Nombre del proyecto', 'Nuevo proyecto')
+    const name = naming?.trim()
     if (!name) return
+    setNaming(null)
     await flush()
     const id = await api.projects.create(name)
     await refreshList()
@@ -248,7 +293,23 @@ export default function App(): React.JSX.Element {
                 </option>
               ))}
             </select>
-            <button onClick={() => void newProject()}>Nuevo</button>
+            {naming === null ? (
+              <button onClick={() => setNaming('Nuevo proyecto')}>Nuevo</button>
+            ) : (
+              <>
+                <input
+                  autoFocus
+                  value={naming}
+                  onChange={(e) => setNaming(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void newProject()
+                    if (e.key === 'Escape') setNaming(null)
+                  }}
+                />
+                <button onClick={() => void newProject()}>Crear</button>
+                <button onClick={() => setNaming(null)}>Cancelar</button>
+              </>
+            )}
             <button onClick={() => void deleteProject()}>Eliminar</button>
           </>
         )}
@@ -308,11 +369,21 @@ export default function App(): React.JSX.Element {
         showCritical={showCritical}
         onScheduled={onScheduled}
         onChange={onChange}
+        onTaskSelect={setSelectedTask}
+        bimCounts={bimCounts}
       />
         </div>
         {bimOpen && (
           <div className="bim-pane">
-            <BimViewer ref={bimRef} />
+            <BimViewer
+              ref={bimRef}
+              bim={bim}
+              onBimChange={onBimChange}
+              task={selectedTask}
+              onElementsChange={setBimElements}
+              onSelectTask={(id) => ganttRef.current?.selectTask(id)}
+              taskText={(id) => ganttRef.current?.taskText(id)}
+            />
           </div>
         )}
       </div>

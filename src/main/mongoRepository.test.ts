@@ -62,6 +62,25 @@ describe.skipIf(!binaryPath)('local mongod + MongoProjectRepository', () => {
     expect(loaded?.workWeek).toEqual([1, 2, 3, 4, 5, 6])
   })
 
+  it('persists BIM groups and task links', async () => {
+    const id = await repo.create('Bim')
+    const bim = {
+      groups: [
+        {
+          id: 'g1',
+          name: 'Losas',
+          color: '#0ea5e9',
+          query: { op: 'and' as const, rules: [{ field: 'category' as const, op: 'eq' as const, value: 'IFCSLAB' }] },
+          manualInclude: ['abc'],
+          manualExclude: []
+        }
+      ],
+      links: [{ taskId: 't1', groupIds: ['g1'], guids: ['xyz'] }]
+    }
+    await repo.save(id, { name: 'Bim', tasks: [], links: [], bim })
+    expect((await repo.load(id))?.bim).toEqual(bim)
+  })
+
   it('lists the most recently saved project first', async () => {
     const first = await repo.create('first')
     await repo.create('second')

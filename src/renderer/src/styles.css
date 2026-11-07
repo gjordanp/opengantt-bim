@@ -296,3 +296,114 @@ textarea {
   margin: 0;
   word-break: break-word;
 }
+
+.bim-side {
+  max-height: 38%;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.bim-section {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.bim-section-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.bim-muted {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.bim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.bim-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 8px;
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+.bim-chip button {
+  height: 18px;
+  padding: 0 6px;
+  border: none;
+  background: transparent;
+}
+.bim-section button {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+.bim-newgroup {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.bim-newgroup input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+}
+.bim-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.bim-group-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bim-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+.bim-props-actions {
+  margin-bottom: 6px;
+}
+.bim-props-actions button {
+  height: 28px;
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bim-props-tasks {
+  margin-bottom: 6px;
+}
+button.link {
+  height: auto;
+  padding: 0 4px;
+  border: none;
+  background: none;
+  color: #2563eb;
+  text-decoration: underline;
+}
+.toolbar input {
+  height: 36px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+}

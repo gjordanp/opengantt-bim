@@ -29,6 +29,8 @@ export interface ProjectLink {
 
 export interface ProjectData {
   name: string
+  /** BIM groups and the tasks they are assigned to. */
+  bim?: import('./bimGroups').BimData
   /** Non-working days, `YYYY-MM-DD`. */
   holidays?: string[]
   /** Working weekdays, 0=Sunday..6=Saturday. Defaults to Mon-Fri. */

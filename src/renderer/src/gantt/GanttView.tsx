@@ -28,6 +28,10 @@ interface Props {
   /** Non-working days and working weekdays; drive the scheduler. */
   holidays?: string[]
   workWeek?: number[]
+  /** Called when the user selects a task (null when the selection is cleared). */
+  onTaskSelect?: (task: { id: string; text: string } | null) => void
+  /** Number of BIM elements tied to each task id; shown in the BIM column. */
+  bimCounts?: Record<string, number>
   ref?: Ref<GanttHandle>
   /** Called when undo/redo availability changes. */
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
@@ -36,6 +40,10 @@ interface Props {
 export interface GanttHandle {
   undo(): void
   redo(): void
+  /** Selects a task and scrolls to it. */
+  selectTask(id: string): void
+  /** Name of a task, if it exists. */
+  taskText(id: string): string | undefined
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -50,7 +58,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange, holidays, workWeek, ref, onHistoryChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange, holidays, workWeek, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -68,6 +76,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const loadingRef = useRef(false)
+  const onTaskSelectRef = useRef(onTaskSelect)
+  onTaskSelectRef.current = onTaskSelect
+  const bimCountsRef = useRef(bimCounts)
+  bimCountsRef.current = bimCounts
   const calendar = weekCalendar({ holidays, workWeek: workWeek?.length ? workWeek : undefined })
   const calendarRef = useRef(calendar)
   calendarRef.current = calendar
@@ -131,7 +143,17 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   }
   useImperativeHandle(ref, () => ({
     undo: () => restore(historyRef.current.undo()),
-    redo: () => restore(historyRef.current.redo())
+    redo: () => restore(historyRef.current.redo()),
+    selectTask: (id) => {
+      const gantt = ganttRef.current
+      if (!gantt || !gantt.isTaskExists(id)) return
+      gantt.showTask(id)
+      gantt.selectTask(id)
+    },
+    taskText: (id) => {
+      const gantt = ganttRef.current
+      return gantt && gantt.isTaskExists(id) ? String((gantt.getTask(id) as any).text ?? '') : undefined
+    }
   }))
   const emitChangeRef = useRef(emitChange)
   emitChangeRef.current = emitChange
@@ -170,7 +192,14 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       { name: 'text', label: 'Tarea', tree: true, width: 220, resize: true },
       { name: 'start_date', label: 'Inicio', align: 'center', width: 100, resize: true },
       { name: 'duration', label: 'Días', align: 'center', width: 60, resize: true },
-      { name: 'location_surface', label: 'Superficie', align: 'center', width: 80, resize: true }
+      { name: 'location_surface', label: 'Superficie', align: 'center', width: 80, resize: true },
+      {
+        name: 'bim',
+        label: 'BIM',
+        align: 'center',
+        width: 60,
+        template: (task: any) => String(bimCountsRef.current?.[String(task.id)] || '')
+      }
     ]
 
     // A LOB section collapsed by LOB mode already shows its duration through
@@ -212,6 +241,14 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     ] as const
     const eventIds = eventNames.map((name) => gantt.attachEvent(name, reschedule))
     // A dragged/resized bar comes back with a calendar-day duration; convert it first.
+    eventIds.push(
+      gantt.attachEvent('onTaskSelected', (id: string | number) => {
+        onTaskSelectRef.current?.({ id: String(id), text: String((gantt.getTask(id) as any).text ?? '') })
+      }),
+      gantt.attachEvent('onTaskUnselected', () => {
+        onTaskSelectRef.current?.(null)
+      })
+    )
     eventIds.push(
       gantt.attachEvent('onAfterTaskDrag', (id: string | number) => {
         if (schedulingRef.current) return
@@ -295,7 +332,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
   useEffect(() => {
     ganttRef.current?.render()
-  }, [showCritical])
+  }, [showCritical, bimCounts])
 
   // A calendar change reschedules and is saved like any other edit.
   const calendarKey = `${holidays?.join(',') ?? ''}|${workWeek?.join(',') ?? ''}`
