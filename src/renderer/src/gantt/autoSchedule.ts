@@ -5,12 +5,11 @@ import {
   schedule,
   toDay,
   weekCalendar,
+  type Calendar,
   type LinkKind,
   type SchedLink,
   type SchedTask
 } from '@shared/scheduling'
-
-const calendar = weekCalendar()
 
 const pad = (n: number): string => String(n).padStart(2, '0')
 
@@ -39,7 +38,7 @@ export interface AutoScheduleOutcome {
  * moves tasks around. Callers must guard against the update events this
  * triggers (see `GanttView`).
  */
-export function autoSchedule(gantt: GanttStatic): AutoScheduleOutcome {
+export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalendar()): AutoScheduleOutcome {
   const tasks: SchedTask[] = []
   gantt.eachTask((t: any) => {
     tasks.push({
@@ -85,7 +84,11 @@ export function autoSchedule(gantt: GanttStatic): AutoScheduleOutcome {
  * After a bar is dragged or resized the gantt re-derives `duration` in calendar
  * days; convert it back to working days so the scheduler sees what was meant.
  */
-export function normalizeDuration(gantt: GanttStatic, id: string | number): void {
+export function normalizeDuration(
+  gantt: GanttStatic,
+  id: string | number,
+  calendar: Calendar = weekCalendar()
+): void {
   const task = gantt.getTask(id) as any
   if (!task.start_date || !task.end_date) return
   task.duration = countWorkDays(calendar, toDay(dateToIso(task.start_date)), toDay(dateToIso(task.end_date)))

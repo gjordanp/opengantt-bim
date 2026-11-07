@@ -9,6 +9,59 @@ import type { DbStatus } from '@shared/api'
 const AUTOSAVE_MS = 1000
 type SaveState = 'idle' | 'pending' | 'saved' | 'error'
 
+const DAYS = [
+  [1, 'Lun'],
+  [2, 'Mar'],
+  [3, 'Mié'],
+  [4, 'Jue'],
+  [5, 'Vie'],
+  [6, 'Sáb'],
+  [0, 'Dom']
+] as const
+
+interface CalendarValue {
+  holidays: string[]
+  workWeek: number[]
+}
+
+function CalendarPanel({
+  value,
+  onChange,
+  onClose
+}: {
+  value: CalendarValue
+  onChange: (v: CalendarValue) => void
+  onClose: () => void
+}): React.JSX.Element {
+  const [text, setText] = useState(value.holidays.join('\n'))
+  const toggle = (d: number): void => {
+    const next = value.workWeek.includes(d) ? value.workWeek.filter((x) => x !== d) : [...value.workWeek, d]
+    if (next.length > 0) onChange({ ...value, workWeek: next })
+  }
+  const applyHolidays = (): void => {
+    const list = [...new Set(text.split(/[\s,;]+/).filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t)))].sort()
+    onChange({ ...value, holidays: list })
+    setText(list.join('\n'))
+  }
+  return (
+    <div className="calendar-panel">
+      <div>
+        <strong>Días laborables</strong>
+        {DAYS.map(([d, label]) => (
+          <label key={d}>
+            <input type="checkbox" checked={value.workWeek.includes(d)} onChange={() => toggle(d)} /> {label}
+          </label>
+        ))}
+      </div>
+      <div>
+        <strong>Feriados</strong> (uno por línea, AAAA-MM-DD)
+        <textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} onBlur={applyHolidays} />
+      </div>
+      <button onClick={onClose}>Cerrar</button>
+    </div>
+  )
+}
+
 export default function App(): React.JSX.Element {
   const api = window.api
   const [lobMode, setLobMode] = useState(false)
@@ -20,6 +73,11 @@ export default function App(): React.JSX.Element {
   const [projects, setProjects] = useState<ProjectSummary[]>([])
   const [projectId, setProjectId] = useState<string | null>(null)
   const [project, setProject] = useState<ProjectData>(sampleProject)
+  const [calendar, setCalendar] = useState<{ holidays: string[]; workWeek: number[] }>({
+    holidays: [],
+    workWeek: [1, 2, 3, 4, 5]
+  })
+  const [calendarOpen, setCalendarOpen] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>('idle')
 
   const ganttRef = useRef<GanttHandle>(null)
@@ -56,6 +114,7 @@ export default function App(): React.JSX.Element {
       const data = await api.projects.load(id)
       if (!data) return
       setProjectId(id)
+      setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
       setProject(data)
       setSaveState('idle')
     },
@@ -78,6 +137,7 @@ export default function App(): React.JSX.Element {
       const data = await api.projects.load(list[0].id)
       if (data) {
         setProjectId(list[0].id)
+        setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
         setProject(data)
       }
     })()
@@ -194,6 +254,9 @@ export default function App(): React.JSX.Element {
         <button disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} title="Rehacer (Ctrl+Y)">
           Rehacer
         </button>
+        <button className={calendarOpen ? 'active' : ''} onClick={() => setCalendarOpen((v) => !v)}>
+          Calendario
+        </button>
         <button className={autoScheduling ? 'active' : ''} onClick={() => setAutoScheduling((v) => !v)}>
           Auto-schedule
         </button>
@@ -208,7 +271,10 @@ export default function App(): React.JSX.Element {
         )}
         {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
       </div>
+      {calendarOpen && <CalendarPanel value={calendar} onChange={setCalendar} onClose={() => setCalendarOpen(false)} />}
       <GanttView
+        holidays={calendar.holidays}
+        workWeek={calendar.workWeek}
         ref={ganttRef}
         onHistoryChange={setHistory}
         project={project}

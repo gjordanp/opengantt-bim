@@ -29,6 +29,10 @@ export interface ProjectLink {
 
 export interface ProjectData {
   name: string
+  /** Non-working days, `YYYY-MM-DD`. */
+  holidays?: string[]
+  /** Working weekdays, 0=Sunday..6=Saturday. Defaults to Mon-Fri. */
+  workWeek?: number[]
   tasks: ProjectTask[]
   links: ProjectLink[]
 }

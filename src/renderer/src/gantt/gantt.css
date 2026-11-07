@@ -13,3 +13,14 @@
 .gantt_task_line.critical-task .gantt_task_progress {
   background-color: #b02a2f;
 }
+
+.today-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #e67e22;
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 4;
+}

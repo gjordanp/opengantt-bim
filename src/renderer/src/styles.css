@@ -79,3 +79,7 @@ body {
 .save-state { margin-left: auto; font-size: 12px; opacity: 0.7; }
 .save-state.error { color: #c0392b; opacity: 1; }
 .notice { padding: 32px; max-width: 560px; }
+
+.calendar-panel { display: flex; gap: 24px; align-items: flex-start; padding: 8px 12px; border-bottom: 1px solid #ccc; font-size: 13px; }
+.calendar-panel label { margin-left: 10px; }
+.calendar-panel textarea { display: block; font-family: monospace; width: 160px; }

@@ -41,7 +41,7 @@ describe.skipIf(!binaryPath)('local mongod + MongoProjectRepository', () => {
 
   it('creates, loads and lists a project', async () => {
     const id = await repo.create('Demo', sample)
-    expect(await repo.load(id)).toEqual(sample)
+    expect(await repo.load(id)).toMatchObject(sample)
     expect((await repo.list()).map((p) => p.id)).toContain(id)
   })
 
@@ -52,6 +52,14 @@ describe.skipIf(!binaryPath)('local mongod + MongoProjectRepository', () => {
     expect(loaded?.name).toBe('Demo')
     expect(loaded?.tasks).toHaveLength(2)
     expect(loaded?.links[0].lag).toBe(1)
+  })
+
+  it('persists the calendar (holidays and working weekdays)', async () => {
+    const id = await repo.create('Cal')
+    await repo.save(id, { name: 'Cal', tasks: [], links: [], holidays: ['2026-01-01'], workWeek: [1, 2, 3, 4, 5, 6] })
+    const loaded = await repo.load(id)
+    expect(loaded?.holidays).toEqual(['2026-01-01'])
+    expect(loaded?.workWeek).toEqual([1, 2, 3, 4, 5, 6])
   })
 
   it('lists the most recently saved project first', async () => {

@@ -7,6 +7,8 @@ import { DB_NAME, type ProjectRepository, type ProjectSummary } from '../shared/
 interface ProjectDoc {
   _id: string
   name: string
+  holidays?: string[]
+  workWeek?: number[]
   tasks: ProjectTask[]
   links: ProjectLink[]
   createdAt: Date
@@ -44,7 +46,9 @@ export class MongoProjectRepository implements ProjectRepository {
 
   async load(id: string): Promise<ProjectData | null> {
     const doc = await this.projects.findOne({ _id: id })
-    return doc ? { name: doc.name, tasks: doc.tasks, links: doc.links } : null
+    return doc
+      ? { name: doc.name, holidays: doc.holidays ?? [], workWeek: doc.workWeek, tasks: doc.tasks, links: doc.links }
+      : null
   }
 
   async create(name: string, data?: Pick<ProjectData, 'tasks' | 'links'>): Promise<string> {
@@ -64,7 +68,16 @@ export class MongoProjectRepository implements ProjectRepository {
   async save(id: string, data: ProjectData): Promise<void> {
     const result = await this.projects.updateOne(
       { _id: id },
-      { $set: { name: data.name, tasks: data.tasks, links: data.links, updatedAt: new Date() } }
+      {
+        $set: {
+          name: data.name,
+          holidays: data.holidays ?? [],
+          ...(data.workWeek ? { workWeek: data.workWeek } : {}),
+          tasks: data.tasks,
+          links: data.links,
+          updatedAt: new Date()
+        }
+      }
     )
     if (result.matchedCount === 0) throw new Error(`Project ${id} not found`)
   }

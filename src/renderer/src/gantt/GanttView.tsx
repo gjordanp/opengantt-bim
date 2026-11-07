@@ -4,6 +4,8 @@ import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
+import { TodayLine } from './todayLine'
+import { weekCalendar } from '@shared/scheduling'
 import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
 import './gantt.css'
@@ -22,6 +24,9 @@ interface Props {
   /** Called with a snapshot after every user edit (not on load). */
   onChange?: (data: ProjectData) => void
   /** Imperative undo/redo. */
+  /** Non-working days and working weekdays; drive the scheduler. */
+  holidays?: string[]
+  workWeek?: number[]
   ref?: Ref<GanttHandle>
   /** Called when undo/redo availability changes. */
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
@@ -44,10 +49,11 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange, ref, onHistoryChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange, holidays, workWeek, ref, onHistoryChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
+  const todayRef = useRef<TodayLine | null>(null)
   // Read by the gantt callbacks, which are bound once at init.
   const lobSectionsRef = useRef<Set<string>>(new Set())
   const lobModeRef = useRef(lobMode)
@@ -61,12 +67,19 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const loadingRef = useRef(false)
+  const calendar = weekCalendar({ holidays, workWeek: workWeek?.length ? workWeek : undefined })
+  const calendarRef = useRef(calendar)
+  calendarRef.current = calendar
+  const settingsRef = useRef({ holidays, workWeek })
+  settingsRef.current = { holidays, workWeek }
   const snapshot = (): ProjectData | null => {
     const gantt = ganttRef.current
     if (!gantt) return null
     const { data, links } = gantt.serialize() as { data: any[]; links: any[] }
     return {
       name: project.name,
+      holidays: settingsRef.current.holidays ?? [],
+      ...(settingsRef.current.workWeek ? { workWeek: settingsRef.current.workWeek } : {}),
       tasks: data.map((t) => ({
         id: String(t.id),
         text: String(t.text ?? ''),
@@ -113,7 +126,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       loadingRef.current = false
     }
     notifyHistory()
-    onChangeRef.current?.(snap)
+    onChangeRef.current?.({ ...snap, holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek })
   }
   useImperativeHandle(ref, () => ({
     undo: () => restore(historyRef.current.undo()),
@@ -131,7 +144,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     if (!gantt || schedulingRef.current) return
     schedulingRef.current = true
     try {
-      const outcome = autoSchedule(gantt)
+      const outcome = autoSchedule(gantt, calendarRef.current)
       criticalRef.current = outcome.critical
       gantt.render()
       onScheduledRef.current?.(outcome)
@@ -174,6 +187,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       showCriticalRef.current && criticalRef.current.has(String(task.id)) ? 'critical-task' : ''
 
     gantt.init(host)
+    todayRef.current = new TodayLine(gantt)
+    todayRef.current.mount()
     // Handy for poking at the instance from the devtools console while developing.
     if (import.meta.env.DEV) (window as unknown as { __gantt: GanttStatic }).__gantt = gantt
 
@@ -196,7 +211,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     eventIds.push(
       gantt.attachEvent('onAfterTaskDrag', (id: string | number) => {
         if (schedulingRef.current) return
-        normalizeDuration(gantt, id)
+        normalizeDuration(gantt, id, calendarRef.current)
         reschedule()
       })
     )
@@ -242,6 +257,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       for (const id of eventIds) gantt.detachEvent(id)
       overlayRef.current?.destroy()
       overlayRef.current = null
+      todayRef.current?.destroy()
+      todayRef.current = null
       ganttRef.current = null
       gantt.destructor()
     }
@@ -275,6 +292,19 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   useEffect(() => {
     ganttRef.current?.render()
   }, [showCritical])
+
+  // A calendar change reschedules and is saved like any other edit.
+  const calendarKey = `${holidays?.join(',') ?? ''}|${workWeek?.join(',') ?? ''}`
+  const calendarProjectRef = useRef(project)
+  useEffect(() => {
+    // Opening another project brings its own calendar: that's a load, not an edit.
+    if (calendarProjectRef.current !== project) {
+      calendarProjectRef.current = project
+      return
+    }
+    if (autoSchedulingRef.current) runScheduleRef.current()
+    emitChangeRef.current()
+  }, [calendarKey])
 
   // Apply / remove line-of-balance mode.
   const applyLob = (): void => {
