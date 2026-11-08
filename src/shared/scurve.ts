@@ -5,6 +5,8 @@ export const localTodayDay = (): number => toDay(new Date().toLocaleDateString('
 
 /** A task as the S-curve sees it: its span (end exclusive, like the schedule) and how far along it is. */
 export interface SCurveTask {
+  /** The gantt task this comes from, when the caller needs to tell them apart (volume weights). */
+  id?: string
   /** Days since the epoch (see scheduling/calendar `toDay`). */
   start: number
   end: number

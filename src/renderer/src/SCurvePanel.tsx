@@ -7,6 +7,8 @@ interface Props {
   getTasks: () => SCurveTask[]
   /** Changes whenever the gantt reports an edit, so the curve is recomputed. */
   version: number
+  /** Changes when the weights behind the tasks change (duration to volume, or the volumes themselves). */
+  basis?: unknown
   holidays: string[]
   workWeek: number[]
 }
@@ -31,7 +33,7 @@ function monthTicks(from: number, length: number, width: number): number[] {
 }
 
 /** Planned vs real progress over time, with the pace so far carried forward (like DHTMLX's S-curve sample). */
-export default function SCurvePanel({ getTasks, version, holidays, workWeek }: Props): React.JSX.Element {
+export default function SCurvePanel({ getTasks, version, basis, holidays, workWeek }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [hover, setHover] = useState<number | null>(null)
@@ -49,7 +51,7 @@ export default function SCurvePanel({ getTasks, version, holidays, workWeek }: P
     () => computeSCurve(getTasks(), weekCalendar({ holidays, workWeek: workWeek.length ? workWeek : undefined }), today),
     // `version` stands for "the gantt changed": getTasks reads live state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version, holidays, workWeek, today]
+    [version, basis, holidays, workWeek, today]
   )
 
   const plotW = Math.max(0, size.w - MARGIN.left - MARGIN.right)

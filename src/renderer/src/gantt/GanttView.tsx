@@ -25,6 +25,8 @@ interface Props {
   showCritical: boolean
   /** Draw the planned / real progress curve over the timeline. */
   showScurve: boolean
+  /** Volume each detail task is worth (task id -> volume). When given, the curve is by volume instead of by working days. */
+  volumeWeights?: Map<string, number> | null
   /** Called after every scheduling run. */
   onScheduled?: (outcome: AutoScheduleOutcome) => void
   /** Called with a snapshot after every user edit (not on load). */
@@ -67,7 +69,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, onScheduled, onChange, holidays, workWeek, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, onScheduled, onChange, holidays, workWeek, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -151,13 +153,23 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     notifyHistory()
     onChangeRef.current?.({ ...snap, holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek })
   }
+  const volumeWeightsRef = useRef<Map<string, number> | null>(volumeWeights ?? null)
+  volumeWeightsRef.current = volumeWeights ?? null
   // Detail tasks (no summaries, no milestones) with their span and progress: what the S-curve adds up.
   const collectProgressTasks = (): SCurveTask[] => {
     const gantt = ganttRef.current
     const out: SCurveTask[] = []
     gantt?.eachTask((t: any) => {
       if (gantt.hasChild(t.id) || t.type === 'project' || !t.start_date || !t.end_date) return
-      out.push({ start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)), progress: Number(t.progress) || 0 })
+      const weights = volumeWeightsRef.current
+      out.push({
+        id: String(t.id),
+        start: toDay(dateToIso(t.start_date)),
+        end: toDay(dateToIso(t.end_date)),
+        progress: Number(t.progress) || 0,
+        // By volume: what the task's elements are worth; without a weight the curve falls back to working days.
+        ...(weights ? { weight: weights.get(String(t.id)) ?? 0 } : {})
+      })
     })
     return out
   }
@@ -356,7 +368,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       overlay.destroy()
       if (scurveRef.current === overlay) scurveRef.current = null
     }
-  }, [showScurve])
+  }, [showScurve, volumeWeights])
 
 
   // Load the project whenever it changes, then lay it out on the calendar.

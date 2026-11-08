@@ -21,7 +21,9 @@ import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
-import { Activity, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
+import { splitVolumes } from '@shared/bimVolume'
+import { countWorkDays, weekCalendar } from '@shared/scheduling'
+import { Activity, Box, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import SCurvePanel from './SCurvePanel'
 import SCurveIcon from './SCurveIcon'
 import { buildTemplate, type TemplateId } from './projects/templates'
@@ -248,6 +250,29 @@ export default function App(): React.JSX.Element {
     return counts
   }, [bim, bimElements])
 
+  // What each detail task is worth by volume: an element's volume is split among the tasks that use it in
+  // proportion to their durations. The volume curve is only offered once every task has elements with volume.
+  const [volumeCurve, setVolumeCurve] = useState(false)
+  const volumeInfo = useMemo(() => {
+    const tasks = ganttRef.current?.progressTasks() ?? []
+    const cal = weekCalendar({ holidays: calendar.holidays, workWeek: calendar.workWeek.length ? calendar.workWeek : undefined })
+    const volumeOf = new Map(bimElements.map((e) => [e.guid, e.volume]))
+    const guidsByTask = new Map(bim.links.map((l) => [l.taskId, taskGuids(l, bim.groups, bimElements)]))
+    const split = splitVolumes(
+      tasks.map((t) => ({ id: t.id ?? '', duration: countWorkDays(cal, t.start, t.end) })),
+      guidsByTask,
+      (g) => volumeOf.get(g),
+      bimElements.map((e) => e.guid)
+    )
+    const withoutVolume = tasks.filter((t) => !((split.byTask.get(t.id ?? '') ?? 0) > 0)).length
+    return { weights: split.byTask, total: tasks.length, withoutVolume, split }
+    // scheduleVersion: the gantt's tasks changed (progressTasks reads live state).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scheduleVersion, bim, bimElements, calendar])
+  const volumeReady = volumeInfo.total > 0 && volumeInfo.withoutVolume === 0
+  const useVolume = volumeCurve && volumeReady
+  const volumeWeights = useVolume ? volumeInfo.weights : null
+
   // Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z), except while typing in a field.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
@@ -443,6 +468,29 @@ export default function App(): React.JSX.Element {
           <SCurveIcon size={16} />
         </button>
       </Tooltip>
+      <Tooltip
+        label={
+          volumeReady
+            ? 'Curva S por volumen: cada tarea vale el volumen de sus elementos (si comparten, en proporción a la duración)'
+            : volumeInfo.total === 0
+              ? 'Curva S por volumen: no hay tareas'
+              : `Curva S por volumen: faltan ${volumeInfo.withoutVolume} de ${volumeInfo.total} tareas por asignar a elementos con volumen`
+        }
+      >
+        <button
+          className={`icon-btn${useVolume && showScurve ? ' active' : ''}`}
+          disabled={!volumeReady}
+          onClick={() => {
+            const on = !(volumeCurve && showScurve)
+            setVolumeCurve(on)
+            if (on) setShowScurve(true)
+          }}
+          aria-label="Curva S por volumen"
+          aria-pressed={useVolume && showScurve}
+        >
+          <Box size={16} />
+        </button>
+      </Tooltip>
       <Tooltip label="Calendario laboral y feriados">
         <button className="icon-btn" onClick={() => dock && openPanel(dock, 'calendar')} aria-label="Calendario">
           <CalendarDays size={16} />
@@ -456,7 +504,7 @@ export default function App(): React.JSX.Element {
     setSlot,
     ganttToolbar,
     calendar: <CalendarPanel value={calendar} onChange={setCalendar} />,
-    scurve: <SCurvePanel getTasks={() => ganttRef.current?.progressTasks() ?? []} version={scheduleVersion} holidays={calendar.holidays} workWeek={calendar.workWeek} />,
+    scurve: <SCurvePanel getTasks={() => ganttRef.current?.progressTasks() ?? []} version={scheduleVersion} basis={volumeWeights} holidays={calendar.holidays} workWeek={calendar.workWeek} />,
     gantt: (
       <GanttView
         holidays={calendar.holidays}
@@ -468,6 +516,7 @@ export default function App(): React.JSX.Element {
         autoScheduling={autoScheduling}
         showCritical={showCritical}
         showScurve={showScurve}
+        volumeWeights={volumeWeights}
         onScheduled={onScheduled}
         onChange={onChange}
         onTaskSelect={setSelectedTask}
