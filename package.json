@@ -18,7 +18,7 @@
   },
   "keywords": [],
   "author": "Gabriel Jordan",
-  "repository": { "type": "git", "url": "https://github.com/gjordanp/Opengantt-bim.git" },
+  "repository": { "type": "git", "url": "https://github.com/gjordanp/opengantt-bim.git" },
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
