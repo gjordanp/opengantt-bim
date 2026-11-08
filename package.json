@@ -13,8 +13,8 @@
     "dev:web": "npm run copy:wasm && vite --config vite.web.config.mts",
     "fetch:mongod": "node scripts/fetch-mongod.mjs",
     "fetch:mpp": "node scripts/fetch-mpp-runtime.mjs",
-    "dist": "npm run fetch:mongod && npm run fetch:mpp && npm run build && electron-builder",
-    "dist:dir": "npm run fetch:mongod && npm run fetch:mpp && npm run build && electron-builder --dir",
+    "dist": "node node_modules/electron/install.js && npm run fetch:mongod && npm run fetch:mpp && npm run build && electron-builder",
+    "dist:dir": "node node_modules/electron/install.js && npm run fetch:mongod && npm run fetch:mpp && npm run build && electron-builder --dir",
     "copy:wasm": "node scripts/copy-wasm.mjs"
   },
   "keywords": [],

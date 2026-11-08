@@ -32,6 +32,20 @@ jobs:
 
       - run: npm ci
 
+      # Electron installs its binary lazily (no postinstall), but the installer packages
+      # node_modules/electron/dist (electronDist in electron-builder.yml). Install it here,
+      # checked against the checksums in the electron package, and keep the download
+      # between runs so a GitHub hiccup can't block a release.
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/electron-cache
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install the Electron binary
+        env:
+          electron_config_cache: ${{ runner.temp }}/electron-cache
+        run: node node_modules/electron/install.js
+
       - run: npm run typecheck
 
       - run: npm test
@@ -59,8 +73,8 @@ jobs:
 
       - run: npm run build
 
-      # electron-builder downloads its packaging tools (NSIS, winCodeSign) from GitHub, which now
-      # and then answers 504. Keep them between runs and retry a few times before giving up.
+      # electron-builder downloads its packaging tools (NSIS, icons, 7-Zip) from GitHub, which now
+      # and then answers 504. Keep them between runs and retry once before giving up.
       - uses: actions/cache@v4
         with:
           path: ~\AppData\Local\electron-builder\Cache
@@ -69,12 +83,10 @@ jobs:
       - name: Build the installer
         shell: bash
         run: |
-          for attempt in 1 2 3 4 5; do
-            npx electron-builder --win --publish never && exit 0
-            echo "electron-builder failed (attempt $attempt); retrying in $((attempt * 45)) s"
-            sleep $((attempt * 45))
-          done
-          exit 1
+          npx electron-builder --win --publish never && exit 0
+          echo "electron-builder failed; retrying once in 60 s"
+          sleep 60
+          npx electron-builder --win --publish never
 
       # ---- signing (only when SignPath is configured) ----
       - name: Upload the unsigned installer
