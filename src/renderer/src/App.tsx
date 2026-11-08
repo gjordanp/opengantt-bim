@@ -8,7 +8,8 @@ import type { ProjectData } from '@shared/model'
 import { emptyBim, taskGuids, type BimData } from '@shared/bimGroups'
 import type { BimElement } from '@shared/bimQuery'
 import type { ProjectSummary } from '@shared/repository'
-import type { DbStatus } from '@shared/api'
+import type { DbStatus, UpdateStatus } from '@shared/api'
+import logoUrl from './assets/logo.svg'
 import Workspace from './workspace/Workspace'
 import WindowsMenu from './workspace/WindowsMenu'
 import { WorkspaceContext, type SlotKey, type WorkspaceCtx } from './workspace/WorkspaceContext'
@@ -87,6 +88,13 @@ export default function App(): React.JSX.Element {
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [dock, setDock] = useState<DockviewApi | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
+
+  useEffect(() => {
+    if (!api) return
+    void api.updates.status().then(setUpdate)
+    return api.updates.onStatus(setUpdate)
+  }, [api])
   const [slots, setSlots] = useState<BimSlots>({ viewer: null })
 
   const ganttRef = useRef<GanttHandle>(null)
@@ -351,7 +359,10 @@ export default function App(): React.JSX.Element {
     return (
       <div className="app">
         <div className="topbar">
-          <span className="brand">Opengantt BIM</span>
+          <span className="brand">
+          <img src={logoUrl} alt="" width={18} height={18} />
+          Opengantt BIM
+        </span>
         </div>
         <div className="notice">
           <h2>No se pudo conectar a la base de datos</h2>
@@ -376,8 +387,17 @@ export default function App(): React.JSX.Element {
   const saveLabel = { idle: '', pending: 'Guardando…', saved: 'Guardado', error: 'Error al guardar' }[saveState]
   const inWorkspace = view === 'workspace'
 
+  const updateCommands: Command[] = api
+    ? [
+        update.state === 'ready'
+          ? { id: 'update-install', section: 'Aplicación', label: `Reiniciar e instalar la versión ${update.version}`, keywords: 'actualizar update', run: () => void flush().then(() => api.updates.install()) }
+          : { id: 'update-check', section: 'Aplicación', label: 'Buscar actualizaciones', keywords: 'update version', run: () => void api.updates.check() }
+      ]
+    : []
+
   const goHome = (): void => void flush().then(() => setView('home'))
   const commands: Command[] = [
+    ...updateCommands,
     ...(api
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
@@ -436,7 +456,10 @@ export default function App(): React.JSX.Element {
   return (
     <div className="app">
       <div className="topbar">
-        <span className="brand">Opengantt BIM</span>
+        <span className="brand">
+          <img src={logoUrl} alt="" width={18} height={18} />
+          Opengantt BIM
+        </span>
         {api && (
           <Tooltip label="Proyectos">
             <button className={`icon-btn${view === 'home' ? ' active' : ''}`} onClick={goHome} aria-label="Proyectos">
@@ -465,6 +488,14 @@ export default function App(): React.JSX.Element {
         </button>
         <div className="topbar-right">
           {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
+          {update.state === 'downloading' && <span className="save-state">Descargando actualización {update.percent ?? 0}%</span>}
+          {update.state === 'ready' && api && (
+            <Tooltip label="Se reiniciará la aplicación para instalarla">
+              <button className="primary update-btn" onClick={() => void flush().then(() => api.updates.install())}>
+                Actualizar a v{update.version}
+              </button>
+            </Tooltip>
+          )}
           {inWorkspace && <WindowsMenu api={dock} />}
         </div>
       </div>

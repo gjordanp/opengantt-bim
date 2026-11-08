@@ -9,6 +9,15 @@ export interface DbStatus {
   error?: string
 }
 
+/** Progress of the self-update, as reported by the main process. */
+export interface UpdateStatus {
+  state: 'idle' | 'checking' | 'none' | 'downloading' | 'ready' | 'error'
+  version?: string
+  /** 0-100 while downloading. */
+  percent?: number
+  message?: string
+}
+
 /** What the renderer may ask the main process for (exposed by the preload script). */
 export interface AppApi {
   platform: string
@@ -22,6 +31,14 @@ export interface AppApi {
     save(projectId: string, modelId: string, name: string, bytes: Uint8Array): Promise<BimModelRef>
     load(projectId: string, modelId: string): Promise<Uint8Array | null>
     remove(projectId: string, modelId: string): Promise<void>
+  }
+  updates: {
+    status(): Promise<UpdateStatus>
+    check(): Promise<void>
+    /** Restarts the app to install a downloaded update. */
+    install(): Promise<void>
+    /** Subscribes to status changes; returns the unsubscribe function. */
+    onStatus(callback: (status: UpdateStatus) => void): () => void
   }
   projects: {
     list(): Promise<ProjectSummary[]>
@@ -46,5 +63,8 @@ export const IPC = {
   projectsDuplicate: 'projects:duplicate',
   modelsSave: 'models:save',
   modelsLoad: 'models:load',
-  modelsRemove: 'models:remove'
+  modelsRemove: 'models:remove',
+  updatesStatus: 'updates:status',
+  updatesCheck: 'updates:check',
+  updatesInstall: 'updates:install'
 } as const

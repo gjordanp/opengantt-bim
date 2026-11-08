@@ -12,8 +12,15 @@ extraResources:
     to: mongod
   - from: THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
+# Releases are published to GitHub; installed apps look there for newer versions
+# (electron-updater). See .github/workflows/release.yml.
+publish:
+  provider: github
+  owner: gjordanp
+  repo: Opengantt-bim
 win:
   target: nsis
+  icon: build/icon.png
   artifactName: ${productName}-Setup-${version}.${ext}
 nsis:
   oneClick: false

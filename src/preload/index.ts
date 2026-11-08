@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, type AppApi } from '../shared/api'
+import { IPC, type AppApi, type UpdateStatus } from '../shared/api'
 
 // The renderer talks to the main process only through this narrow API.
 const api: AppApi = {
@@ -12,6 +12,16 @@ const api: AppApi = {
     save: (projectId, modelId, name, bytes) => ipcRenderer.invoke(IPC.modelsSave, projectId, modelId, name, bytes),
     load: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsLoad, projectId, modelId),
     remove: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsRemove, projectId, modelId)
+  },
+  updates: {
+    status: () => ipcRenderer.invoke(IPC.updatesStatus),
+    check: () => ipcRenderer.invoke(IPC.updatesCheck),
+    install: () => ipcRenderer.invoke(IPC.updatesInstall),
+    onStatus: (callback) => {
+      const listener = (_e: unknown, status: UpdateStatus): void => callback(status)
+      ipcRenderer.on(IPC.updatesStatus, listener)
+      return () => ipcRenderer.removeListener(IPC.updatesStatus, listener)
+    }
   },
   projects: {
     list: () => ipcRenderer.invoke(IPC.projectsList),

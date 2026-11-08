@@ -1,0 +1,49 @@
+# Publishes a new version of the app.
+#
+# Push a tag like v0.2.0 (it must match "version" in package.json) and this builds the
+# Windows installer and attaches it to a GitHub release. Installed copies of the app
+# find that release on their own and update themselves (electron-updater).
+#
+#   npm version minor      # bumps package.json and creates the tag v0.2.0
+#   git push --follow-tags
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      # The MongoDB server binary is large; keep it between runs.
+      - uses: actions/cache@v4
+        with:
+          path: resources/mongod
+          key: mongod-${{ runner.os }}-${{ hashFiles('scripts/fetch-mongod.mjs') }}
+
+      - run: npm run fetch:mongod
+
+      - run: npm run build
+
+      - name: Build the installer and publish the release
+        run: npx electron-builder --win --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

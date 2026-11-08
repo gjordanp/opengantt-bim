@@ -2,8 +2,11 @@ import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { closeDatabase, connectDatabase } from './database'
 import { registerIpc } from './ipc'
+import { initUpdater } from './updater'
 
 const isDev = !app.isPackaged
+// Set once the database is shutting down, so quitting isn't intercepted twice.
+let closing = false
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -14,6 +17,8 @@ function createWindow(): void {
     show: false,
     title: 'Opengantt BIM',
     backgroundColor: '#ffffff',
+    // The packaged app uses the icon built into the executable; this is for dev runs.
+    ...(isDev ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     // No native menu bar or title bar: the app draws its own, and the OS only
     // supplies the minimize/maximize/close buttons on top of it.
     titleBarStyle: 'hidden',
@@ -45,6 +50,11 @@ function createWindow(): void {
 app.whenReady().then(async () => {
   Menu.setApplicationMenu(null)
   registerIpc()
+  initUpdater(async () => {
+    // The installer restarts the app: shut the private mongod down cleanly first.
+    closing = true
+    await closeDatabase()
+  })
   // The window opens right away and asks for the status; a slow start of the
   // database shouldn't keep the user staring at nothing.
   const database = connectDatabase()
@@ -61,7 +71,6 @@ app.on('window-all-closed', () => {
 
 // Shut the private mongod down cleanly before exiting, so it never leaves a
 // stale lock on the data folder.
-let closing = false
 app.on('before-quit', (event) => {
   if (closing) return
   event.preventDefault()
