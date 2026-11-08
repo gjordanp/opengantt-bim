@@ -12,8 +12,11 @@ import type { DbStatus } from '@shared/api'
 import Workspace from './workspace/Workspace'
 import WindowsMenu from './workspace/WindowsMenu'
 import { WorkspaceContext, type SlotKey, type WorkspaceCtx } from './workspace/WorkspaceContext'
-import { openPanel } from './workspace/layout'
+import { PANELS, PRESETS, applyPreset, openPanel, resetLayout } from './workspace/layout'
 import ProjectsHome from './projects/ProjectsHome'
+import CommandPalette, { type Command } from './CommandPalette'
+import Tooltip from './Tooltip'
+import { Activity, CalendarDays, Flame, FolderKanban, Redo2, Search, Undo2, Zap } from 'lucide-react'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
@@ -83,7 +86,8 @@ export default function App(): React.JSX.Element {
   const [calendar, setCalendar] = useState<CalendarValue>({ holidays: [], workWeek: [1, 2, 3, 4, 5] })
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [dock, setDock] = useState<DockviewApi | null>(null)
-  const [slots, setSlots] = useState<BimSlots>({ viewer: null, props: null, models: null, task: null, groups: null })
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [slots, setSlots] = useState<BimSlots>({ viewer: null })
 
   const ganttRef = useRef<GanttHandle>(null)
   const bimRef = useRef<BimViewerHandle>(null)
@@ -219,6 +223,20 @@ export default function App(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Ctrl+K or Ctrl+Shift+P opens the command palette, even while typing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      const k = e.key.toLowerCase()
+      if (k === 'k' || (k === 'p' && e.shiftKey)) {
+        e.preventDefault()
+        setPaletteOpen((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   const onScheduled = (outcome: AutoScheduleOutcome): void => {
     setCycle((prev) => (prev.join() === outcome.cycle.join() ? prev : outcome.cycle))
   }
@@ -269,8 +287,47 @@ export default function App(): React.JSX.Element {
     setSlots((prev) => (prev[key] === el ? prev : { ...prev, [key]: el }))
   }, [])
 
+  const ganttToolbar = (
+    <>
+      <Tooltip label="Deshacer" shortcut="Ctrl+Z">
+        <button className="icon-btn" disabled={!history.canUndo} onClick={() => ganttRef.current?.undo()} aria-label="Deshacer">
+          <Undo2 size={16} />
+        </button>
+      </Tooltip>
+      <Tooltip label="Rehacer" shortcut="Ctrl+Y">
+        <button className="icon-btn" disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} aria-label="Rehacer">
+          <Redo2 size={16} />
+        </button>
+      </Tooltip>
+      <span className="sep" />
+      <Tooltip label="Auto-schedule: reprograma las tareas dependientes al editar">
+        <button className={`icon-btn${autoScheduling ? ' active' : ''}`} onClick={() => setAutoScheduling((v) => !v)} aria-label="Auto-schedule" aria-pressed={autoScheduling}>
+          <Zap size={16} />
+        </button>
+      </Tooltip>
+      <Tooltip label="Ruta crítica">
+        <button className={`icon-btn${showCritical ? ' active' : ''}`} onClick={() => setShowCritical((v) => !v)} aria-label="Ruta crítica" aria-pressed={showCritical}>
+          <Flame size={16} />
+        </button>
+      </Tooltip>
+      <Tooltip label="Línea de balance">
+        <button className={`icon-btn${lobMode ? ' active' : ''}`} onClick={() => setLobMode((v) => !v)} aria-label="Línea de balance" aria-pressed={lobMode}>
+          <Activity size={16} />
+        </button>
+      </Tooltip>
+      <span className="sep" />
+      <Tooltip label="Calendario laboral y feriados">
+        <button className="icon-btn" onClick={() => dock && openPanel(dock, 'calendar')} aria-label="Calendario">
+          <CalendarDays size={16} />
+        </button>
+      </Tooltip>
+      {cycle.length > 0 && <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>}
+    </>
+  )
+
   const workspaceCtx: WorkspaceCtx = {
     setSlot,
+    ganttToolbar,
     calendar: <CalendarPanel value={calendar} onChange={setCalendar} />,
     gantt: (
       <GanttView
@@ -319,81 +376,110 @@ export default function App(): React.JSX.Element {
   const saveLabel = { idle: '', pending: 'Guardando…', saved: 'Guardado', error: 'Error al guardar' }[saveState]
   const inWorkspace = view === 'workspace'
 
+  const goHome = (): void => void flush().then(() => setView('home'))
+  const commands: Command[] = [
+    ...(api
+      ? [
+          { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
+          ...(projectId ? [{ id: 'back', section: 'Proyectos', label: `Volver a «${projectName}»`, run: () => setView('workspace') }] : []),
+          ...projects.map((p) => ({
+            id: `open-${p.id}`,
+            section: 'Proyectos',
+            label: `Abrir: ${p.name}`,
+            run: () => (p.id === projectId ? setView('workspace') : void openProject(p.id))
+          }))
+        ]
+      : []),
+    ...(inWorkspace
+      ? [
+          { id: 'undo', section: 'Edición', label: 'Deshacer', shortcut: 'Ctrl+Z', disabled: !history.canUndo, run: () => ganttRef.current?.undo() },
+          { id: 'redo', section: 'Edición', label: 'Rehacer', shortcut: 'Ctrl+Y', disabled: !history.canRedo, run: () => ganttRef.current?.redo() },
+          { id: 'auto', section: 'Planificación', label: `${autoScheduling ? 'Desactivar' : 'Activar'} auto-schedule`, keywords: 'programar automatico', run: () => setAutoScheduling((v) => !v) },
+          { id: 'critical', section: 'Planificación', label: `${showCritical ? 'Ocultar' : 'Mostrar'} ruta crítica`, keywords: 'critical path', run: () => setShowCritical((v) => !v) },
+          { id: 'lob', section: 'Planificación', label: `${lobMode ? 'Ocultar' : 'Mostrar'} línea de balance`, keywords: 'lob balance', run: () => setLobMode((v) => !v) },
+          { id: 'ifc', section: 'BIM', label: 'Importar IFC…', keywords: 'modelo cargar abrir', run: () => fileInputRef.current?.click() },
+          ...(dock
+            ? [
+                ...PANELS.map((pn) => ({
+                  id: `panel-${pn.id}`,
+                  section: 'Ventanas',
+                  label: `Mostrar panel: ${pn.title}`,
+                  keywords: 'abrir ventana panel',
+                  run: () => openPanel(dock, pn.id)
+                })),
+                ...(['task', 'groups', 'props', 'models'] as const).map((t, i) => ({
+                  id: `tool-${t}`,
+                  section: 'BIM',
+                  label: `Herramienta: ${['Asignación a tareas', 'Grupos guardados', 'Propiedades', 'Modelos'][i]}`,
+                  keywords: 'bim visor panel',
+                  run: () => {
+                    openPanel(dock, 'viewer')
+                    bimRef.current?.openTool(t)
+                  }
+                })),
+                ...PRESETS.map((pr) => ({ id: `preset-${pr.id}`, section: 'Ventanas', label: `Distribución: ${pr.label}`, keywords: pr.hint, run: () => applyPreset(dock, pr.id) })),
+                {
+                  id: 'reset-layout',
+                  section: 'Ventanas',
+                  label: 'Restablecer ventanas',
+                  run: () => {
+                    resetLayout()
+                    applyPreset(dock, 'classic')
+                  }
+                }
+              ]
+            : [])
+        ]
+      : [])
+  ]
+
   return (
     <div className="app">
       <div className="topbar">
         <span className="brand">Opengantt BIM</span>
         {api && (
-          <button className={view === 'home' ? 'active' : ''} onClick={() => void flush().then(() => setView('home'))}>
-            Proyectos
-          </button>
+          <Tooltip label="Proyectos">
+            <button className={`icon-btn${view === 'home' ? ' active' : ''}`} onClick={goHome} aria-label="Proyectos">
+              <FolderKanban size={16} />
+            </button>
+          </Tooltip>
         )}
-        {inWorkspace && (
-          <>
-            {api && projectId && (
-              <input
-                className="project-name"
-                value={projectName}
-                aria-label="Nombre del proyecto"
-                onChange={(e) => setProjectName(e.target.value)}
-                onBlur={() => {
-                  const name = projectName.trim()
-                  if (!name) setProjectName(project.name)
-                  else void renameProject(projectId, name)
-                }}
-                onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-              />
-            )}
-            <span className="sep" />
-            <div className="group">
-              <button disabled={!history.canUndo} onClick={() => ganttRef.current?.undo()} title="Deshacer (Ctrl+Z)">
-                Deshacer
-              </button>
-              <button disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} title="Rehacer (Ctrl+Y)">
-                Rehacer
-              </button>
-            </div>
-            <div className="group">
-              <button
-                className={autoScheduling ? 'active' : ''}
-                onClick={() => setAutoScheduling((v) => !v)}
-                title="Reprograma las tareas dependientes al editar"
-              >
-                Auto-schedule
-              </button>
-              <button className={showCritical ? 'active' : ''} onClick={() => setShowCritical((v) => !v)}>
-                Ruta crítica
-              </button>
-              <button className={lobMode ? 'active' : ''} onClick={() => setLobMode((v) => !v)}>
-                Línea de balance
-              </button>
-            </div>
-            <div className="group">
-              <button onClick={() => dock && openPanel(dock, 'calendar')}>Calendario</button>
-              <button onClick={() => fileInputRef.current?.click()}>Importar IFC…</button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".ifc"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  e.target.value = ''
-                  if (file) void bimRef.current?.loadIfc(file)
-                }}
-              />
-            </div>
-            <WindowsMenu api={dock} />
-            {cycle.length > 0 && <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>}
-          </>
+        {inWorkspace && api && projectId && (
+          <input
+            className="project-name"
+            value={projectName}
+            aria-label="Nombre del proyecto"
+            onChange={(e) => setProjectName(e.target.value)}
+            onBlur={() => {
+              const name = projectName.trim()
+              if (!name) setProjectName(project.name)
+              else void renameProject(projectId, name)
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          />
         )}
-        {!inWorkspace && projectId && (
-          <button className="primary" onClick={() => setView('workspace')}>
-            Volver a «{projectName}»
-          </button>
-        )}
-        {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
+        <button className="palette-trigger" onClick={() => setPaletteOpen(true)} aria-label="Abrir paleta de comandos">
+          <Search size={14} aria-hidden />
+          <span>Buscar comandos y proyectos</span>
+          <kbd>Ctrl K</kbd>
+        </button>
+        <div className="topbar-right">
+          {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
+          {inWorkspace && <WindowsMenu api={dock} />}
+        </div>
       </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".ifc"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0]
+          e.target.value = ''
+          if (file) void bimRef.current?.loadIfc(file)
+        }}
+      />
+      <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
 
       <div className="main">
         {api && (
@@ -419,6 +505,7 @@ export default function App(): React.JSX.Element {
       <BimViewer
         ref={bimRef}
         slots={slots}
+        onImport={() => fileInputRef.current?.click()}
         bim={bim}
         onBimChange={onBimChange}
         task={selectedTask}

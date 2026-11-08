@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
+import { Box, ClipboardList, Info, Layers, PanelBottom, PanelRight, Upload, X } from 'lucide-react'
+import Tooltip from '../Tooltip'
+import Dropdown from '../Dropdown'
+import SuggestInput from '../SuggestInput'
 import * as OBC from '@thatopen/components'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
@@ -26,15 +30,23 @@ import { indexModel } from './indexModel'
 /** Where each part of the BIM UI is drawn: the dock panels hand their elements over. */
 export interface BimSlots {
   viewer: HTMLElement | null
-  props: HTMLElement | null
-  models: HTMLElement | null
-  task: HTMLElement | null
-  groups: HTMLElement | null
 }
+
+export type BimTool = 'task' | 'groups' | 'props' | 'models'
+
+const TOOLS: { id: BimTool; label: string; icon: React.ReactNode }[] = [
+  { id: 'task', label: 'Asignación a tareas', icon: <ClipboardList size={16} /> },
+  { id: 'groups', label: 'Grupos guardados', icon: <Layers size={16} /> },
+  { id: 'props', label: 'Propiedades del elemento', icon: <Info size={16} /> },
+  { id: 'models', label: 'Modelos del proyecto', icon: <Box size={16} /> }
+]
+const SIDE_KEY = 'ogbim.toolsSide'
 
 export interface BimViewerHandle {
   /** Converts an IFC file to fragments in the browser and shows it. */
   loadIfc(file: File): Promise<void>
+  /** Opens one of the tools floating over the 3D view. */
+  openTool(tool: BimTool): void
 }
 
 interface Props {
@@ -52,6 +64,8 @@ interface Props {
   /** Open project; its models are stored under this id. Null in the plain-browser build. */
   projectId: string | null
   slots: BimSlots
+  /** Asks the app to open the .ifc file picker. */
+  onImport: () => void
 }
 
 type Status = { kind: 'idle' } | { kind: 'loading'; name: string; progress: number } | { kind: 'error'; message: string }
@@ -105,7 +119,8 @@ export default function BimViewer({
   taskText,
   getSpans,
   projectId,
-  slots
+  slots,
+  onImport
 }: Props): React.JSX.Element {
   // The canvas lives in a detached element so the 3D scene survives panels being moved or closed.
   const [hostEl] = useState(() => {
@@ -123,6 +138,24 @@ export default function BimViewer({
   const worldRef = useRef<World | null>(null)
   const readyRef = useRef<Promise<void> | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  // The tools float over the 3D view, along its right edge or its bottom edge.
+  const [tool, setTool] = useState<BimTool | null>(null)
+  const [side, setSide] = useState<'right' | 'bottom'>(() => {
+    try {
+      return localStorage.getItem(SIDE_KEY) === 'bottom' ? 'bottom' : 'right'
+    } catch {
+      return 'right'
+    }
+  })
+  const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null)
+  const changeSide = (next: 'right' | 'bottom'): void => {
+    setSide(next)
+    try {
+      localStorage.setItem(SIDE_KEY, next)
+    } catch {
+      /* the choice just won't be remembered */
+    }
+  }
   const [elements, setElements] = useState<BimElement[]>([])
   const [selected, setSelected] = useState<Selected | null>(null)
 
@@ -244,6 +277,9 @@ export default function BimViewer({
   }, [hostEl])
 
   useImperativeHandle(ref, () => ({
+    openTool(next: BimTool) {
+      setTool(next)
+    },
     async loadIfc(file: File) {
       const components = componentsRef.current
       const world = worldRef.current
@@ -445,27 +481,14 @@ export default function BimViewer({
   const viewerUi = (
     <div className="bim-viewer">
       <div className="bim-search">
-        <select value={field} onChange={(e) => setField(e.target.value as RuleField)}>
-          {FIELDS.map((f) => (
-            <option key={f.field} value={f.field}>
-              {f.label}
-            </option>
-          ))}
-        </select>
-        <input
-          list="bim-suggestions"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Buscar elementos…"
-          disabled={elements.length === 0}
-        />
-        <datalist id="bim-suggestions">
-          {suggestions.map((s) => (
-            <option key={s.value} value={s.value}>
-              {s.count}
-            </option>
-          ))}
-        </datalist>
+        <span className="panel-title">Visor 3D</span>
+        <Tooltip label="Importar modelo IFC…">
+          <button className="icon-btn" onClick={onImport} aria-label="Importar IFC">
+            <Upload size={16} />
+          </button>
+        </Tooltip>
+        <Dropdown label="Buscar por" value={field} onChange={(v) => setField(v)} options={FIELDS.map((f) => ({ value: f.field, label: f.label }))} />
+        <SuggestInput value={text} onChange={setText} suggestions={suggestions} placeholder="Buscar elementos…" disabled={elements.length === 0} />
         <label className="bim-isolate">
           <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} /> Aislar
         </label>
@@ -482,6 +505,7 @@ export default function BimViewer({
       </div>
 
       <div className="bim-stage" ref={attachHost}>
+        <div className="bim-overlay" ref={setOverlayEl} />
         {status.kind === 'loading' && (
           <div className="bim-status">
             Convirtiendo {status.name}… {Math.round(status.progress * 100)}%
@@ -677,10 +701,43 @@ export default function BimViewer({
   return (
     <>
       {slots.viewer && createPortal(viewerUi, slots.viewer)}
-      {slots.props && createPortal(propsUi, slots.props)}
-      {slots.models && createPortal(modelsUi, slots.models)}
-      {slots.task && createPortal(taskUi, slots.task)}
-      {slots.groups && createPortal(groupsUi, slots.groups)}
+      {overlayEl &&
+        createPortal(
+          <>
+            <div className={`bim-tools bim-tools-${side}`} role="toolbar" aria-label="Herramientas BIM">
+              {TOOLS.map((t) => (
+                <Tooltip key={t.id} label={t.label} side={side === 'right' ? 'left' : 'top'}>
+                  <button
+                    className={`icon-btn${tool === t.id ? ' active' : ''}`}
+                    aria-label={t.label}
+                    aria-pressed={tool === t.id}
+                    onClick={() => setTool((cur) => (cur === t.id ? null : t.id))}
+                  >
+                    {t.icon}
+                  </button>
+                </Tooltip>
+              ))}
+              <span className="sep" />
+              <Tooltip label={side === 'right' ? 'Mover la barra abajo' : 'Mover la barra a la derecha'} side={side === 'right' ? 'left' : 'top'}>
+                <button className="icon-btn" aria-label="Mover la barra de herramientas" onClick={() => changeSide(side === 'right' ? 'bottom' : 'right')}>
+                  {side === 'right' ? <PanelBottom size={16} /> : <PanelRight size={16} />}
+                </button>
+              </Tooltip>
+            </div>
+            {tool && (
+              <div className={`bim-tool-panel bim-tool-panel-${side}`} role="dialog" aria-label={TOOLS.find((t) => t.id === tool)?.label}>
+                <div className="bim-tool-head">
+                  <b>{TOOLS.find((t) => t.id === tool)?.label}</b>
+                  <button className="icon-btn" aria-label="Cerrar" onClick={() => setTool(null)}>
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="bim-tool-body">{{ task: taskUi, groups: groupsUi, props: propsUi, models: modelsUi }[tool]}</div>
+              </div>
+            )}
+          </>,
+          overlayEl
+        )}
     </>
   )
 }

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, Menu, shell } from 'electron'
 import { join } from 'node:path'
 import { closeDatabase, connectDatabase } from './database'
 import { registerIpc } from './ipc'
@@ -13,6 +13,11 @@ function createWindow(): void {
     minHeight: 600,
     show: false,
     title: 'Opengantt BIM',
+    backgroundColor: '#ffffff',
+    // No native menu bar or title bar: the app draws its own, and the OS only
+    // supplies the minimize/maximize/close buttons on top of it.
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#ffffff', symbolColor: '#0a0a0a', height: 40 },
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // The renderer only ever loads our own bundle; keep it fully isolated.
@@ -38,6 +43,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
+  Menu.setApplicationMenu(null)
   registerIpc()
   // The window opens right away and asks for the status; a slow start of the
   // database shouldn't keep the user staring at nothing.

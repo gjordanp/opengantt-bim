@@ -8,10 +8,6 @@ export interface PanelDef {
 export const PANELS: PanelDef[] = [
   { id: 'gantt', title: 'Gantt' },
   { id: 'viewer', title: 'Visor 3D' },
-  { id: 'task', title: 'Asignación' },
-  { id: 'groups', title: 'Grupos' },
-  { id: 'props', title: 'Propiedades' },
-  { id: 'models', title: 'Modelos' },
   { id: 'calendar', title: 'Calendario' }
 ]
 
@@ -24,7 +20,7 @@ export const PRESETS: { id: PresetId; label: string; hint: string }[] = [
   { id: 'gantt', label: 'Solo Gantt', hint: 'Solo el cronograma' }
 ]
 
-const LAYOUT_KEY = 'ogbim.layout.v2'
+const LAYOUT_KEY = 'ogbim.layout.v4'
 const KNOWN = new Set(PANELS.map((p) => p.id))
 
 const title = (id: string): string => PANELS.find((p) => p.id === id)?.title ?? id
@@ -32,31 +28,19 @@ const panel = (api: DockviewApi, id: string, extra: Record<string, unknown> = {}
   api.addPanel({ id, component: id, title: title(id), ...extra })
 }
 
-/** Tabs that share one group: the BIM tools. */
-function addTools(api: DockviewApi, first: Record<string, unknown>): void {
-  panel(api, 'task', first)
-  panel(api, 'groups', { position: { referencePanel: 'task', direction: 'within' } })
-  panel(api, 'props', { position: { referencePanel: 'task', direction: 'within' } })
-  panel(api, 'models', { position: { referencePanel: 'task', direction: 'within' } })
-  api.getPanel('task')?.api.setActive()
-}
-
 export function applyPreset(api: DockviewApi, preset: PresetId): void {
   api.clear()
   panel(api, 'gantt')
   if (preset === 'gantt') return
   if (preset === 'classic') {
-    panel(api, 'viewer', { position: { referencePanel: 'gantt', direction: 'right' }, initialWidth: 640 })
-    addTools(api, { position: { referencePanel: 'viewer', direction: 'below' }, initialHeight: 260 })
+    panel(api, 'viewer', { position: { referencePanel: 'gantt', direction: 'right' }, initialWidth: 760 })
   } else if (preset === 'stacked') {
     panel(api, 'viewer', { position: { referencePanel: 'gantt', direction: 'below' }, initialHeight: 420 })
-    addTools(api, { position: { referencePanel: 'viewer', direction: 'right' }, initialWidth: 420 })
   } else {
     // 'bim': viewer first, gantt under it.
     api.clear()
     panel(api, 'viewer')
     panel(api, 'gantt', { position: { referencePanel: 'viewer', direction: 'below' }, initialHeight: 300 })
-    addTools(api, { position: { referencePanel: 'viewer', direction: 'right' }, initialWidth: 380 })
   }
 }
 

@@ -166,15 +166,219 @@ textarea {
   height: 100%;
 }
 
+/* The title bar: the app's own, draggable, with the OS window buttons overlaid on the right. */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  min-height: 40px;
-  flex-wrap: wrap;
+  gap: 6px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  /* Leave room for the minimize/maximize/close buttons. */
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 140px)) + 10px);
   background: var(--background);
   border-bottom: 1px solid var(--border);
+  -webkit-app-region: drag;
+  user-select: none;
+  position: relative;
+}
+.topbar button,
+.topbar input,
+.topbar .menu,
+.topbar .topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.topbar .save-state {
+  margin: 0;
+  padding: 0;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.icon-btn:hover:not(:disabled) {
+  color: var(--foreground);
+}
+.icon-btn.active {
+  background: var(--accent);
+  border-color: transparent;
+  color: var(--foreground);
+  box-shadow: inset 0 -2px 0 var(--brand);
+}
+.icon-btn.active:hover:not(:disabled) {
+  background: var(--accent);
+}
+.palette-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 380px;
+  min-width: 140px;
+  height: 28px;
+  padding: 0 8px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  border-color: var(--border);
+}
+.palette-trigger span {
+  flex: 1;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* ---------- command palette ---------- */
+/* Dock tabs: icon-only for the BIM tool rail, text with a close button elsewhere. */
+.tab-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-width: 28px;
+  min-height: 28px;
+  color: var(--muted-foreground);
+}
+.dv-tab.dv-active-tab .tab-icon,
+.tab-icon:hover {
+  color: var(--foreground);
+}
+.tab-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  height: 100%;
+  font-size: 12px;
+}
+.tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted-foreground);
+}
+
+/* A panel's title, drawn inside its own toolbar when the tab strip is hidden. */
+.panel-title {
+  padding-right: 10px;
+  margin-right: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+}
+
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 0.25);
+}
+.palette {
+  width: min(620px, calc(100vw - 32px));
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+.palette-input input,
+.palette-input input:focus,
+.palette-input input:focus-visible {
+  flex: 1;
+  height: 46px;
+  padding: 0;
+  font-size: 15px;
+  color: var(--foreground);
+  /* The global input styles are more specific than this block; the palette has its own look. */
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.palette-list {
+  overflow-y: auto;
+  padding: 6px;
+}
+.palette-section {
+  padding: 8px 8px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.palette-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: calc(var(--radius) - 2px);
+  cursor: pointer;
+}
+.palette-item.selected {
+  background: var(--accent);
+}
+.palette-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--muted-foreground);
+}
+.palette-footer {
+  display: flex;
+  gap: 16px;
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--muted-foreground);
+  border-top: 1px solid var(--border);
 }
 .brand {
   font-weight: 700;
@@ -606,7 +810,10 @@ textarea {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 6px;
+  /* Same height as the gantt's toolbar. */
+  height: 34px;
+  flex-shrink: 0;
+  padding: 0 8px;
   border-bottom: 1px solid var(--border);
   font-size: 12px;
 }
@@ -738,4 +945,254 @@ textarea {
   height: 26px;
   font-size: 12px;
   padding: 0 10px;
+}
+
+/* ---------- tooltip ---------- */
+.tt {
+  display: inline-flex;
+  -webkit-app-region: no-drag;
+}
+.tooltip {
+  position: fixed;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 260px;
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--primary-foreground);
+  background: var(--primary);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+  animation: tooltip-in 0.12s ease-out;
+}
+.tooltip-bottom,
+.tooltip-top {
+  transform: translateX(-50%);
+}
+.tooltip-top {
+  translate: 0 -100%;
+}
+.tooltip-left {
+  transform: translate(-100%, -50%);
+}
+.tooltip kbd {
+  color: hsl(0 0% 80%);
+  background: hsl(0 0% 100% / 0.12);
+  border-color: transparent;
+}
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    animation: none;
+  }
+}
+
+/* ---------- panel toolbars (the title and the panel's own buttons share one row) ---------- */
+.gantt-panel {
+  display: flex;
+  flex-direction: column;
+}
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 34px;
+  flex-shrink: 0;
+  padding: 0 8px;
+  background: var(--background);
+  border-bottom: 1px solid var(--border);
+}
+.panel-toolbar .panel-title {
+  margin-right: 6px;
+}
+.panel-toolbar .sep,
+.bim-search .sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  align-self: center;
+  background: var(--border);
+}
+.panel-toolbar .warning {
+  margin-left: 8px;
+}
+.gantt-body {
+  flex: 1;
+  min-height: 0;
+}
+.bim-search .dd-trigger {
+  height: 28px;
+  padding: 0 8px;
+}
+.bim-search button.icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+
+/* ---------- BIM tools floating inside the 3D view ---------- */
+.bim-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+.bim-overlay > * {
+  pointer-events: auto;
+}
+.bim-tools {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+.bim-tools-right {
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
+.bim-tools-bottom {
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  flex-direction: row;
+}
+.bim-tools-right .sep {
+  width: 18px;
+  height: 1px;
+  margin: 3px 0;
+}
+.bim-tools-bottom .sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+}
+.bim-tool-panel {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.bim-tool-panel-right {
+  right: 68px;
+  top: 12px;
+  max-height: calc(100% - 24px);
+}
+.bim-tool-panel-bottom {
+  right: 12px;
+  top: 12px;
+  max-height: calc(100% - 82px);
+}
+.bim-tool-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  flex-shrink: 0;
+  padding: 0 6px 0 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.bim-tool-head .icon-btn {
+  width: 24px;
+  height: 24px;
+}
+.bim-tool-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ---------- dropdown + suggestions ---------- */
+.dd-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  font-weight: 400;
+  color: var(--foreground);
+}
+.dd-trigger svg {
+  color: var(--muted-foreground);
+}
+.dd-trigger[aria-expanded='true'] {
+  background: var(--accent);
+}
+.suggest {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.bim-search .suggest input:not([type='checkbox']):not([type='radio']):not([type='range']) {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+}
+.dd-list {
+  position: fixed;
+  z-index: 8000;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  font-size: 13px;
+}
+.dd-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 8px 0 4px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.dd-item.active {
+  background: var(--accent);
+}
+.dd-check {
+  width: 16px;
+  display: inline-flex;
+  justify-content: center;
+}
+.dd-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dd-hint {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.dd-empty {
+  padding: 10px;
+  text-align: center;
+  color: var(--muted-foreground);
 }

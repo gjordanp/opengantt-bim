@@ -1,10 +1,12 @@
 import { createContext, useContext, type ReactNode } from 'react'
 
-/** The BIM panels are drawn by the viewer component through these slots. */
-export type SlotKey = 'viewer' | 'props' | 'models' | 'task' | 'groups'
+/** The viewer is drawn by the BimViewer component into this slot; its tools float inside it. */
+export type SlotKey = 'viewer'
 
 export interface WorkspaceCtx {
   gantt: ReactNode
+  /** Buttons that act on the gantt; drawn in the gantt panel's own toolbar. */
+  ganttToolbar: ReactNode
   calendar: ReactNode
   setSlot: (key: SlotKey, el: HTMLElement | null) => void
 }

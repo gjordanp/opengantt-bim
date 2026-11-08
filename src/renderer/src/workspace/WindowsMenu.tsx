@@ -1,5 +1,7 @@
 import { useEffect, useReducer, useRef, useState } from 'react'
 import type { DockviewApi } from 'dockview-react'
+import { LayoutPanelLeft } from 'lucide-react'
+import Tooltip from '../Tooltip'
 import { PANELS, PRESETS, applyPreset, openPanel, resetLayout, type PresetId } from './layout'
 
 /** "Ventanas" menu: show or hide each panel, switch between layouts, or start over. */
@@ -42,9 +44,18 @@ export default function WindowsMenu({ api }: { api: DockviewApi | null }): React
 
   return (
     <div className="menu" ref={root}>
-      <button className={open ? 'active' : ''} disabled={!api} onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open}>
-        Ventanas ▾
-      </button>
+      <Tooltip label="Ventanas y distribución">
+        <button
+          className={`icon-btn${open ? ' active' : ''}`}
+          disabled={!api}
+          onClick={() => setOpen((v) => !v)}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label="Ventanas"
+        >
+          <LayoutPanelLeft size={16} />
+        </button>
+      </Tooltip>
       {open && api && (
         <div className="menu-pop" role="menu">
           <div className="menu-title">Paneles</div>
