@@ -13,6 +13,10 @@ const api: AppApi = {
     load: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsLoad, projectId, modelId),
     remove: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsRemove, projectId, modelId)
   },
+  files: {
+    openText: (filters) => ipcRenderer.invoke(IPC.filesOpenText, filters),
+    saveText: (defaultName, text, filters) => ipcRenderer.invoke(IPC.filesSaveText, defaultName, text, filters)
+  },
   appearance: {
     setTheme: (theme) => ipcRenderer.invoke(IPC.appearanceSetTheme, theme)
   },

@@ -7,12 +7,14 @@ interface Props {
   confirmLabel?: string
   /** Styles the confirm button as destructive (red). */
   danger?: boolean
+  /** Shows only the confirm button, for messages that need no decision. */
+  hideCancel?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
 
 /** An in-app replacement for window.confirm: the native one freezes the renderer and ignores the theme. */
-export default function ConfirmDialog({ title, message, confirmLabel = 'Aceptar', danger, onConfirm, onCancel }: Props): React.JSX.Element {
+export default function ConfirmDialog({ title, message, confirmLabel = 'Aceptar', danger, hideCancel, onConfirm, onCancel }: Props): React.JSX.Element {
   const confirmRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
@@ -32,9 +34,11 @@ export default function ConfirmDialog({ title, message, confirmLabel = 'Aceptar'
           {message}
         </p>
         <div className="modal-actions">
-          <button type="button" onClick={onCancel}>
-            Cancelar
-          </button>
+          {!hideCancel && (
+            <button type="button" onClick={onCancel}>
+              Cancelar
+            </button>
+          )}
           <button ref={confirmRef} type="button" className={danger ? 'danger' : 'primary'} onClick={onConfirm}>
             {confirmLabel}
           </button>

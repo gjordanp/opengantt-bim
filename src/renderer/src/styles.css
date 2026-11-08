@@ -1263,6 +1263,8 @@ kbd {
   font-size: 14px;
   line-height: 1.5;
   color: var(--muted-foreground);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 .project-card .tt {
   display: block;

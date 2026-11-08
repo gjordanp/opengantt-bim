@@ -18,11 +18,14 @@ import ProjectsHome from './projects/ProjectsHome'
 import CommandPalette, { type Command } from './CommandPalette'
 import Tooltip from './Tooltip'
 import StatusBar from './StatusBar'
+import ConfirmDialog from './ConfirmDialog'
+import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
 import { Activity, CalendarDays, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
+const MSP_FILTERS = [{ name: 'MS Project (XML)', extensions: ['xml'] }]
 type SaveState = 'idle' | 'pending' | 'saved' | 'error'
 type View = 'home' | 'workspace'
 
@@ -92,6 +95,8 @@ export default function App(): React.JSX.Element {
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
   const { pref: themePref } = useTheme()
+  // A message the user has to read (import results, errors).
+  const [notice, setNotice] = useState<{ title: string; message: string } | null>(null)
   // Bumped whenever the gantt reports a change, so views that read task dates can refresh.
   const [scheduleVersion, setScheduleVersion] = useState(0)
 
@@ -265,6 +270,40 @@ export default function App(): React.JSX.Element {
     await openProject(id)
   }
 
+  const importMsProject = async (): Promise<void> => {
+    if (!api) return
+    try {
+      const file = await api.files.openText(MSP_FILTERS)
+      if (!file) return
+      const { data, warnings } = parseMspdi(file.text)
+      await flush()
+      const id = await api.projects.create(data.name, { tasks: data.tasks, links: data.links })
+      await api.projects.save(id, data)
+      await refreshList()
+      await openProject(id)
+      const summary = `Se importaron ${data.tasks.length} tareas y ${data.links.length} vínculos desde «${file.name}».`
+      setNotice({
+        title: 'Proyecto importado',
+        message: warnings.length > 0 ? `${summary}\n\nNo se pudo conservar:\n• ${warnings.join('\n• ')}` : summary
+      })
+    } catch (error) {
+      setNotice({ title: 'No se pudo importar', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  const exportMsProject = async (): Promise<void> => {
+    if (!api || !projectIdRef.current) return
+    try {
+      await flush()
+      const base = lastDataRef.current ?? project
+      const data: ProjectData = { ...base, name: nameRef.current, holidays: calendar.holidays, workWeek: calendar.workWeek }
+      const path = await api.files.saveText(`${nameRef.current}.xml`, buildMspdi(data), MSP_FILTERS)
+      if (path) setNotice({ title: 'Proyecto exportado', message: `Guardado en ${path}.\n\nAbre el archivo en MS Project (Archivo → Abrir).` })
+    } catch (error) {
+      setNotice({ title: 'No se pudo exportar', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
   const renameProject = async (id: string, name: string): Promise<void> => {
     if (!api) return
     if (id === projectIdRef.current) {
@@ -417,6 +456,8 @@ export default function App(): React.JSX.Element {
     ...(api
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
+          { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project (XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
+          ...(projectId ? [{ id: 'msp-export', section: 'Proyectos', label: 'Exportar a MS Project (XML)…', keywords: 'microsoft project xml guardar', run: () => void exportMsProject() }] : []),
           ...(projectId ? [{ id: 'back', section: 'Proyectos', label: `Volver a «${projectName}»`, run: () => setView('workspace') }] : []),
           ...projects.map((p) => ({
             id: `open-${p.id}`,
@@ -539,6 +580,7 @@ export default function App(): React.JSX.Element {
               currentId={projectId}
               onOpen={(id) => (id === projectId ? setView('workspace') : void openProject(id))}
               onCreate={createProject}
+              onImportMsProject={importMsProject}
               onRename={renameProject}
               onDuplicate={duplicateProject}
               onDelete={deleteProject}
@@ -551,6 +593,8 @@ export default function App(): React.JSX.Element {
           </WorkspaceContext.Provider>
         </div>
       </div>
+
+      {notice && <ConfirmDialog title={notice.title} message={notice.message} confirmLabel="Entendido" hideCancel onConfirm={() => setNotice(null)} onCancel={() => setNotice(null)} />}
 
       <StatusBar
         db={db}

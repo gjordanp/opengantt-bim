@@ -1,5 +1,6 @@
 import { BrowserWindow, ipcMain } from 'electron'
 import { IPC } from '../shared/api'
+import { openTextFile, saveTextFile } from './files'
 import { configureDatabase, getRepository, getStatus } from './database'
 import { copyProjectModels, loadModel, removeModel, removeProjectModels, saveModel } from './modelStore'
 
@@ -10,6 +11,8 @@ const CHROME = {
 } as const
 
 export function registerIpc(): void {
+  ipcMain.handle(IPC.filesOpenText, (e, filters) => openTextFile(e.sender, filters))
+  ipcMain.handle(IPC.filesSaveText, (e, defaultName: string, text: string, filters) => saveTextFile(e.sender, defaultName, text, filters))
   ipcMain.handle(IPC.appearanceSetTheme, (_e, theme: 'light' | 'dark') => {
     const c = CHROME[theme === 'dark' ? 'dark' : 'light']
     for (const win of BrowserWindow.getAllWindows()) {

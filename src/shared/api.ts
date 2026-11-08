@@ -18,6 +18,12 @@ export interface UpdateStatus {
   message?: string
 }
 
+export interface FileFilter {
+  name: string
+  /** Without the dot, e.g. `xml`. */
+  extensions: string[]
+}
+
 /** What the renderer may ask the main process for (exposed by the preload script). */
 export interface AppApi {
   platform: string
@@ -31,6 +37,12 @@ export interface AppApi {
     save(projectId: string, modelId: string, name: string, bytes: Uint8Array): Promise<BimModelRef>
     load(projectId: string, modelId: string): Promise<Uint8Array | null>
     remove(projectId: string, modelId: string): Promise<void>
+  }
+  /** Open and save dialogs; the user always picks the file, the renderer never gets a path to read on its own. */
+  files: {
+    openText(filters: FileFilter[]): Promise<{ name: string; text: string } | null>
+    /** Resolves to the path written, or null if the user cancelled. */
+    saveText(defaultName: string, text: string, filters: FileFilter[]): Promise<string | null>
   }
   /** The window chrome (title bar buttons, background) follows the app theme. */
   appearance: {
@@ -68,6 +80,8 @@ export const IPC = {
   modelsSave: 'models:save',
   modelsLoad: 'models:load',
   modelsRemove: 'models:remove',
+  filesOpenText: 'files:openText',
+  filesSaveText: 'files:saveText',
   appearanceSetTheme: 'appearance:setTheme',
   updatesStatus: 'updates:status',
   updatesCheck: 'updates:check',
