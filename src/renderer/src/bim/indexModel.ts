@@ -61,5 +61,22 @@ export async function indexModel(model: FRAGS.FragmentsModel): Promise<BimElemen
       })
     })
   }
+  await addVolumes(model, elements)
   return elements
+}
+
+/**
+ * Volume of each element, from its geometry: That Open's `getItemsVolume` sums the signed volumes of the
+ * tetrahedra a mesh's triangles make with the origin (divergence theorem), so it needs closed meshes. It
+ * takes a list and returns the total, so it is called once per element, a slice at a time.
+ */
+async function addVolumes(model: FRAGS.FragmentsModel, elements: BimElement[]): Promise<void> {
+  const SLICE = 100
+  for (let i = 0; i < elements.length; i += SLICE) {
+    const slice = elements.slice(i, i + SLICE)
+    const volumes = await Promise.all(slice.map((el) => model.getItemsVolume([el.localId]).catch(() => 0)))
+    slice.forEach((el, k) => {
+      if (volumes[k] > 0) el.volume = volumes[k]
+    })
+  }
 }

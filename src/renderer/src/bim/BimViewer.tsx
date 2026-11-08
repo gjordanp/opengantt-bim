@@ -210,10 +210,12 @@ export default function BimViewer({
     world.scene.setup()
     world.scene.three.background = new THREE.Color(canvasColor())
     world.renderer = new OBC.SimpleRenderer(components, host)
+    // Clean viewport: That Open's own switch for its corner logo (credited in THIRD_PARTY_NOTICES.md).
+    world.renderer.showLogo = false
     world.camera = new OBC.OrthoPerspectiveCamera(components)
     worldRef.current = world
     components.init()
-    components.get(OBC.Grids).create(world)
+    // No ground grid: it fades into a horizon line that distracts from the model.
 
     const manager = components.get(OBC.FragmentsManager)
     readyRef.current = (async () => {

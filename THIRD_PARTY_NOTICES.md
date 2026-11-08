@@ -17,6 +17,13 @@ runtime (GPLv2 with Classpath Exception, Eclipse Temurin), MPXJ (LGPL-2.1,
 https://www.mpxj.org) and Apache POI plus its dependencies (Apache-2.0), unmodified,
 run as a separate process that converts the file to MS Project XML.
 
+## That Open Company (BIM viewer)
+
+The 3D viewer is built on `@thatopen/components` and `@thatopen/fragments` (MIT) by
+That Open Company, and reads IFC with `web-ifc` (MPL-2.0). The libraries' corner logo is
+switched off in the viewer through their own `showLogo` option; the credit is kept here and
+in the README.
+
 ## Other
 
 DHTMLX Gantt Community (MIT), React (MIT), Electron (MIT), the MongoDB Node.js

@@ -8,6 +8,8 @@ export interface BimElement {
   name: string
   /** Building storey the element sits on, or empty. */
   storey: string
+  /** Volume computed from the element's mesh (model units, normally m³); absent when it has no solid geometry. */
+  volume?: number
 }
 
 export type RuleField = 'category' | 'storey' | 'name' | 'guid'
