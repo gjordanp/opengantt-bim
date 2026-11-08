@@ -21,7 +21,7 @@ import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
-import { Activity, CalendarDays, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
+import { Activity, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
@@ -271,6 +271,52 @@ export default function App(): React.JSX.Element {
     await openProject(id)
   }
 
+  const describeImport = (data: ProjectData, name: string, warnings: string[]): string => {
+    const summary = `Se importaron ${data.tasks.length} tareas y ${data.links.length} vínculos desde «${name}».`
+    return warnings.length > 0 ? `${summary}\n\nNo se pudo conservar:\n• ${warnings.join('\n• ')}` : summary
+  }
+
+  // Replacing the open project's gantt with an MS Project file: picked first, applied once confirmed.
+  const [pendingReplace, setPendingReplace] = useState<{ name: string; data: ProjectData; warnings: string[] } | null>(null)
+
+  const replaceWithMsProject = async (): Promise<void> => {
+    if (!api || !projectIdRef.current) return
+    try {
+      const file = await api.files.openText(MSP_IMPORT_FILTERS)
+      if (!file) return
+      const { data, warnings } = parseMspdi(file.text)
+      setPendingReplace({ name: file.name, data, warnings })
+    } catch (error) {
+      setNotice({ title: 'No se pudo importar', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  const applyReplace = async (): Promise<void> => {
+    const pending = pendingReplace
+    const id = projectIdRef.current
+    setPendingReplace(null)
+    if (!api || !pending || !id) return
+    try {
+      await flush()
+      // Keep the name and the 3D models and groups; links from tasks to BIM elements pointed at the
+      // old task ids, so they can't survive.
+      const keptBim = bimDataRef.current
+      const data: ProjectData = { ...pending.data, name: nameRef.current, bim: { ...keptBim, links: [] } }
+      await api.projects.save(id, data)
+      lastDataRef.current = data
+      latestRef.current = null
+      setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
+      loadBim(data)
+      setProject(data)
+      setSaveState('saved')
+      setScheduleVersion((v) => v + 1)
+      const dropped = keptBim.links.length > 0 ? [`${keptBim.links.length} asignaciones de elementos 3D a tareas (las tareas son otras; vuelve a asignarlas).`] : []
+      setNotice({ title: 'Gantt reemplazado', message: describeImport(data, pending.name, [...pending.warnings, ...dropped]) })
+    } catch (error) {
+      setNotice({ title: 'No se pudo reemplazar', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
   const importMsProject = async (): Promise<void> => {
     if (!api) return
     try {
@@ -282,11 +328,7 @@ export default function App(): React.JSX.Element {
       await api.projects.save(id, data)
       await refreshList()
       await openProject(id)
-      const summary = `Se importaron ${data.tasks.length} tareas y ${data.links.length} vínculos desde «${file.name}».`
-      setNotice({
-        title: 'Proyecto importado',
-        message: warnings.length > 0 ? `${summary}\n\nNo se pudo conservar:\n• ${warnings.join('\n• ')}` : summary
-      })
+      setNotice({ title: 'Proyecto importado', message: describeImport(data, file.name, warnings) })
     } catch (error) {
       setNotice({ title: 'No se pudo importar', message: error instanceof Error ? error.message : String(error) })
     }
@@ -371,6 +413,11 @@ export default function App(): React.JSX.Element {
         </button>
       </Tooltip>
       <span className="sep" />
+      <Tooltip label="Reemplazar este Gantt con un archivo de MS Project (.mpp o XML)">
+        <button className="icon-btn" onClick={() => void replaceWithMsProject()} aria-label="Reemplazar con MS Project">
+          <FileInput size={16} />
+        </button>
+      </Tooltip>
       <Tooltip label="Calendario laboral y feriados">
         <button className="icon-btn" onClick={() => dock && openPanel(dock, 'calendar')} aria-label="Calendario">
           <CalendarDays size={16} />
@@ -457,7 +504,8 @@ export default function App(): React.JSX.Element {
     ...(api
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
-          { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
+          { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project como proyecto nuevo (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
+          ...(projectId ? [{ id: 'msp-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml importar sobrescribir', run: () => void replaceWithMsProject() }] : []),
           ...(projectId ? [{ id: 'msp-export', section: 'Proyectos', label: 'Exportar a MS Project (XML)…', keywords: 'microsoft project xml guardar', run: () => void exportMsProject() }] : []),
           ...(projectId ? [{ id: 'back', section: 'Proyectos', label: `Volver a «${projectName}»`, run: () => setView('workspace') }] : []),
           ...projects.map((p) => ({
@@ -595,6 +643,16 @@ export default function App(): React.JSX.Element {
         </div>
       </div>
 
+      {pendingReplace && (
+        <ConfirmDialog
+          title="Reemplazar el Gantt"
+          message={`Se reemplazarán todas las tareas y vínculos de «${projectName}» por los de «${pendingReplace.name}» (${pendingReplace.data.tasks.length} tareas, ${pendingReplace.data.links.length} vínculos), junto con el calendario laboral. Los modelos 3D se conservan. No se puede deshacer.`}
+          confirmLabel="Reemplazar"
+          danger
+          onConfirm={() => void applyReplace()}
+          onCancel={() => setPendingReplace(null)}
+        />
+      )}
       {notice && <ConfirmDialog title={notice.title} message={notice.message} confirmLabel="Entendido" hideCancel onConfirm={() => setNotice(null)} onCancel={() => setNotice(null)} />}
 
       <StatusBar
