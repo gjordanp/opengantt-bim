@@ -1,6 +1,6 @@
 {
   "name": "opengantt-bim",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Open-source desktop Gantt, line of balance and 4D BIM (IFC) scheduling",
   "main": "./out/main/index.js",
   "scripts": {
