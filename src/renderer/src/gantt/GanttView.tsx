@@ -1,6 +1,7 @@
 import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
+import { installIgnoreTime } from './hideTime'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
@@ -284,6 +285,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       showCriticalRef.current && criticalRef.current.has(String(task.id)) ? 'critical-task' : ''
 
     gantt.init(host)
+    installIgnoreTime(gantt)
     // The gantt only follows window resizes; its pane can also change size (BIM viewer).
     const resizeObserver = new ResizeObserver(() => {
       // A callback can still arrive after the instance was destroyed (remount).
@@ -383,7 +385,6 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     if (!gantt) return
     gantt.config.columns = visibleColumns(allColumnsRef.current, settings)
     const workDays = workWeek?.length ? workWeek : [1, 2, 3, 4, 5]
-    gantt.config.skip_off_time = settings.hideWeekends
     gantt.ignore_time = settings.hideWeekends ? (date: Date) => !workDays.includes(date.getDay()) : () => false
     gantt.render()
   }, [settings, workWeek])
