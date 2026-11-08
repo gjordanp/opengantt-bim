@@ -9,7 +9,7 @@ export const PANELS: PanelDef[] = [
   { id: 'gantt', title: 'Gantt' },
   { id: 'viewer', title: 'Visor 3D' },
   { id: 'calendar', title: 'Calendario' },
-  { id: 'scurve', title: 'Curva S' }
+  { id: 'scurve', title: 'Curva S (panel)' }
 ]
 
 export type PresetId = 'classic' | 'stacked' | 'bim' | 'gantt'

@@ -84,6 +84,7 @@ export default function App(): React.JSX.Element {
   const [lobMode, setLobMode] = useState(false)
   const [autoScheduling, setAutoScheduling] = useState(true)
   const [showCritical, setShowCritical] = useState(false)
+  const [showScurve, setShowScurve] = useState(false)
   const [cycle, setCycle] = useState<string[]>([])
 
   const [db, setDb] = useState<DbStatus | null>(null)
@@ -436,8 +437,8 @@ export default function App(): React.JSX.Element {
           <FileInput size={16} />
         </button>
       </Tooltip>
-      <Tooltip label="Curva S: avance planificado vs real">
-        <button className="icon-btn" onClick={() => dock && openPanel(dock, 'scurve')} aria-label="Curva S">
+      <Tooltip label="Curva S sobre el Gantt: avance planificado vs real">
+        <button className={`icon-btn${showScurve ? ' active' : ''}`} onClick={() => setShowScurve((v) => !v)} aria-label="Curva S" aria-pressed={showScurve}>
           <TrendingUp size={16} />
         </button>
       </Tooltip>
@@ -465,6 +466,7 @@ export default function App(): React.JSX.Element {
         lobMode={lobMode}
         autoScheduling={autoScheduling}
         showCritical={showCritical}
+        showScurve={showScurve}
         onScheduled={onScheduled}
         onChange={onChange}
         onTaskSelect={setSelectedTask}
@@ -545,6 +547,7 @@ export default function App(): React.JSX.Element {
           { id: 'undo', section: 'Edición', label: 'Deshacer', shortcut: 'Ctrl+Z', disabled: !history.canUndo, run: () => ganttRef.current?.undo() },
           { id: 'redo', section: 'Edición', label: 'Rehacer', shortcut: 'Ctrl+Y', disabled: !history.canRedo, run: () => ganttRef.current?.redo() },
           { id: 'auto', section: 'Planificación', label: `${autoScheduling ? 'Desactivar' : 'Activar'} auto-schedule`, keywords: 'programar automatico', run: () => setAutoScheduling((v) => !v) },
+          { id: 'scurve-overlay', section: 'Planificación', label: `${showScurve ? 'Ocultar' : 'Mostrar'} curva S sobre el Gantt`, keywords: 'curva s avance progreso planificado real', run: () => setShowScurve((v) => !v) },
           { id: 'critical', section: 'Planificación', label: `${showCritical ? 'Ocultar' : 'Mostrar'} ruta crítica`, keywords: 'critical path', run: () => setShowCritical((v) => !v) },
           { id: 'lob', section: 'Planificación', label: `${lobMode ? 'Ocultar' : 'Mostrar'} línea de balance`, keywords: 'lob balance', run: () => setLobMode((v) => !v) },
           { id: 'ifc', section: 'BIM', label: 'Importar IFC…', keywords: 'modelo cargar abrir', run: () => fileInputRef.current?.click() },

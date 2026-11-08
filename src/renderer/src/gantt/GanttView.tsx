@@ -7,7 +7,8 @@ import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@share
 import { TodayLine } from './todayLine'
 import { toDay, weekCalendar } from '@shared/scheduling'
 import type { TaskSpan } from '@shared/bim4d'
-import type { SCurveTask } from '@shared/scurve'
+import { computeSCurve, localTodayDay, type SCurveTask } from '@shared/scurve'
+import { SCurveOverlay } from './scurveLayer'
 import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, dateToIso, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
 import './theme-light.css'
@@ -22,6 +23,8 @@ interface Props {
   autoScheduling: boolean
   /** Highlight the critical path. */
   showCritical: boolean
+  /** Draw the planned / real progress curve over the timeline. */
+  showScurve: boolean
   /** Called after every scheduling run. */
   onScheduled?: (outcome: AutoScheduleOutcome) => void
   /** Called with a snapshot after every user edit (not on load). */
@@ -64,7 +67,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, onScheduled, onChange, holidays, workWeek, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, onScheduled, onChange, holidays, workWeek, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -77,6 +80,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   autoSchedulingRef.current = autoScheduling
   const showCriticalRef = useRef(showCritical)
   showCriticalRef.current = showCritical
+  const scurveRef = useRef<SCurveOverlay | null>(null)
   const onScheduledRef = useRef(onScheduled)
   onScheduledRef.current = onScheduled
   const onChangeRef = useRef(onChange)
@@ -147,6 +151,19 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     notifyHistory()
     onChangeRef.current?.({ ...snap, holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek })
   }
+  // Detail tasks (no summaries, no milestones) with their span and progress: what the S-curve adds up.
+  const collectProgressTasks = (): SCurveTask[] => {
+    const gantt = ganttRef.current
+    const out: SCurveTask[] = []
+    gantt?.eachTask((t: any) => {
+      if (gantt.hasChild(t.id) || t.type === 'project' || !t.start_date || !t.end_date) return
+      out.push({ start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)), progress: Number(t.progress) || 0 })
+    })
+    return out
+  }
+  const collectRef = useRef(collectProgressTasks)
+  collectRef.current = collectProgressTasks
+
   useImperativeHandle(ref, () => ({
     undo: () => restore(historyRef.current.undo()),
     redo: () => restore(historyRef.current.redo()),
@@ -166,15 +183,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       })
       return out
     },
-    progressTasks: () => {
-      const gantt = ganttRef.current
-      const out: SCurveTask[] = []
-      gantt?.eachTask((t: any) => {
-        if (gantt.hasChild(t.id) || t.type === 'project' || !t.start_date || !t.end_date) return
-        out.push({ start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)), progress: Number(t.progress) || 0 })
-      })
-      return out
-    },
+    progressTasks: () => collectProgressTasks(),
     taskText: (id) => {
       const gantt = ganttRef.current
       return gantt && gantt.isTaskExists(id) ? String((gantt.getTask(id) as any).text ?? '') : undefined
@@ -326,12 +335,29 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       for (const id of eventIds) gantt.detachEvent(id)
       overlayRef.current?.destroy()
       overlayRef.current = null
+      scurveRef.current?.destroy()
+      scurveRef.current = null
       todayRef.current?.destroy()
       todayRef.current = null
       ganttRef.current = null
       gantt.destructor()
     }
   }, [])
+
+  // The curve drawn over the timeline, while it is switched on. Declared after the effect that creates the
+  // gantt: a gantt created with the curve already on (a new layout) must find it to draw on.
+  useEffect(() => {
+    const gantt = ganttRef.current
+    if (!gantt || !showScurve) return
+    const overlay = new SCurveOverlay(gantt, () => computeSCurve(collectRef.current(), calendarRef.current, localTodayDay()))
+    scurveRef.current = overlay
+    overlay.mount()
+    return () => {
+      overlay.destroy()
+      if (scurveRef.current === overlay) scurveRef.current = null
+    }
+  }, [showScurve])
+
 
   // Load the project whenever it changes, then lay it out on the calendar.
   useEffect(() => {

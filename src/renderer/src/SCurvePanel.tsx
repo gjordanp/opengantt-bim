@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { computeSCurve, type SCurve, type SCurveTask } from '@shared/scurve'
-import { toDay, weekCalendar } from '@shared/scheduling'
+import { computeSCurve, localTodayDay, type SCurve, type SCurveTask } from '@shared/scurve'
+import { weekCalendar } from '@shared/scheduling'
 
 interface Props {
   /** Detail tasks with span and progress, read from the gantt. */
@@ -18,7 +18,7 @@ const dayDate = (day: number): Date => new Date(day * MS_PER_DAY)
 const fmtDate = (day: number): string => dayDate(day).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const fmtMonth = (day: number): string => dayDate(day).toLocaleDateString('es-CL', { month: 'short', year: 'numeric', timeZone: 'UTC' })
 const pctText = (v: number | null): string => (v === null ? '—' : `${v.toFixed(1)} %`)
-const localToday = (): number => toDay(new Date().toLocaleDateString('sv-SE'))
+const localToday = localTodayDay
 
 /** Month starts inside the chart, thinned so the labels do not collide. */
 function monthTicks(from: number, length: number, width: number): number[] {

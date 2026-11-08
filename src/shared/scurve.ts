@@ -1,4 +1,7 @@
-import { countWorkDays, type Calendar } from './scheduling'
+import { countWorkDays, toDay, type Calendar } from './scheduling'
+
+/** Today's date (local) as a day number. */
+export const localTodayDay = (): number => toDay(new Date().toLocaleDateString('sv-SE'))
 
 /** A task as the S-curve sees it: its span (end exclusive, like the schedule) and how far along it is. */
 export interface SCurveTask {
