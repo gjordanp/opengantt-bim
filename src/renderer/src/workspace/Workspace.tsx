@@ -23,6 +23,10 @@ function CalendarPanelHost(): React.JSX.Element {
   return <div className="panel-fill panel-scroll">{useWorkspace().calendar}</div>
 }
 
+function SCurvePanelHost(): React.JSX.Element {
+  return <div className="panel-fill">{useWorkspace().scurve}</div>
+}
+
 /** A panel whose content is drawn elsewhere (by BimViewer) into this element. */
 function slotPanel(key: SlotKey): (p: IDockviewPanelProps) => React.JSX.Element {
   return function SlotPanel(): React.JSX.Element {
@@ -47,6 +51,7 @@ function Tab({ api }: IDockviewPanelHeaderProps): React.JSX.Element {
 const components = {
   gantt: GanttPanel,
   calendar: CalendarPanelHost,
+  scurve: SCurvePanelHost,
   viewer: slotPanel('viewer')
 }
 

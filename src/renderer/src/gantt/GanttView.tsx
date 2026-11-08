@@ -7,6 +7,7 @@ import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@share
 import { TodayLine } from './todayLine'
 import { toDay, weekCalendar } from '@shared/scheduling'
 import type { TaskSpan } from '@shared/bim4d'
+import type { SCurveTask } from '@shared/scurve'
 import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, dateToIso, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
 import './theme-light.css'
@@ -47,6 +48,8 @@ export interface GanttHandle {
   taskText(id: string): string | undefined
   /** Start and (exclusive) end of every task, in days since the epoch. */
   spans(): TaskSpan[]
+  /** The detail tasks (no summaries or milestones) with their span and progress, for the S-curve. */
+  progressTasks(): SCurveTask[]
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -160,6 +163,15 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         if (t.start_date && t.end_date) {
           out.push({ id: String(t.id), start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)) })
         }
+      })
+      return out
+    },
+    progressTasks: () => {
+      const gantt = ganttRef.current
+      const out: SCurveTask[] = []
+      gantt?.eachTask((t: any) => {
+        if (gantt.hasChild(t.id) || t.type === 'project' || !t.start_date || !t.end_date) return
+        out.push({ start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)), progress: Number(t.progress) || 0 })
       })
       return out
     },

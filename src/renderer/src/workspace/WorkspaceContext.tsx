@@ -8,6 +8,8 @@ export interface WorkspaceCtx {
   /** Buttons that act on the gantt; drawn in the gantt panel's own toolbar. */
   ganttToolbar: ReactNode
   calendar: ReactNode
+  /** Planned vs real progress curve. */
+  scurve: ReactNode
   setSlot: (key: SlotKey, el: HTMLElement | null) => void
 }
 

@@ -21,7 +21,8 @@ import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
-import { Activity, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
+import { Activity, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, TrendingUp, Undo2, Zap } from 'lucide-react'
+import SCurvePanel from './SCurvePanel'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
@@ -435,6 +436,11 @@ export default function App(): React.JSX.Element {
           <FileInput size={16} />
         </button>
       </Tooltip>
+      <Tooltip label="Curva S: avance planificado vs real">
+        <button className="icon-btn" onClick={() => dock && openPanel(dock, 'scurve')} aria-label="Curva S">
+          <TrendingUp size={16} />
+        </button>
+      </Tooltip>
       <Tooltip label="Calendario laboral y feriados">
         <button className="icon-btn" onClick={() => dock && openPanel(dock, 'calendar')} aria-label="Calendario">
           <CalendarDays size={16} />
@@ -448,6 +454,7 @@ export default function App(): React.JSX.Element {
     setSlot,
     ganttToolbar,
     calendar: <CalendarPanel value={calendar} onChange={setCalendar} />,
+    scurve: <SCurvePanel getTasks={() => ganttRef.current?.progressTasks() ?? []} version={scheduleVersion} holidays={calendar.holidays} workWeek={calendar.workWeek} />,
     gantt: (
       <GanttView
         holidays={calendar.holidays}

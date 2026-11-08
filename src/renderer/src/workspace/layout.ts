@@ -8,7 +8,8 @@ export interface PanelDef {
 export const PANELS: PanelDef[] = [
   { id: 'gantt', title: 'Gantt' },
   { id: 'viewer', title: 'Visor 3D' },
-  { id: 'calendar', title: 'Calendario' }
+  { id: 'calendar', title: 'Calendario' },
+  { id: 'scurve', title: 'Curva S' }
 ]
 
 export type PresetId = 'classic' | 'stacked' | 'bim' | 'gantt'
@@ -82,7 +83,10 @@ export function openPanel(api: DockviewApi, id: string): void {
     existing.api.setActive()
     return
   }
-  if (id === 'calendar' || !api.activePanel) {
+  if (id === 'scurve' && api.getPanel('gantt')) {
+    // The curve is read against the timeline: put it right under the gantt.
+    panel(api, id, { position: { referencePanel: 'gantt', direction: 'below' }, initialHeight: 260 })
+  } else if (id === 'calendar' || !api.activePanel) {
     panel(api, id, { floating: { width: 360, height: 340, x: 80, y: 90 } })
   } else {
     panel(api, id, { position: { referencePanel: api.activePanel.id, direction: 'within' } })
