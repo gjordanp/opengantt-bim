@@ -6,6 +6,9 @@
 #
 #   npm version minor      # bumps package.json and creates the tag v0.2.0
 #   git push --follow-tags
+#
+# Code signing (optional): when the repository variable SIGNPATH_ORGANIZATION_ID is set,
+# the installer is signed by SignPath before it is published. See docs/RELEASING.md.
 name: Release
 
 on:
@@ -43,7 +46,46 @@ jobs:
 
       - run: npm run build
 
-      - name: Build the installer and publish the release
-        run: npx electron-builder --win --publish always
+      - name: Build the installer
+        run: npx electron-builder --win --publish never
+
+      # ---- signing (only when SignPath is configured) ----
+      - name: Upload the unsigned installer
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        id: unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-unsigned
+          path: dist/*-Setup-*.exe
+
+      - name: Sign the installer with SignPath
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: opengantt-bim
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      - name: Use the signed installer
+        if: vars.SIGNPATH_ORGANIZATION_ID != ''
+        shell: bash
+        run: |
+          rm -f dist/*-Setup-*.exe dist/*.blockmap
+          cp signed/*-Setup-*.exe dist/
+          node scripts/write-latest-yml.mjs dist
+
+      # ---- publish ----
+      - name: Publish the release
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          files=(dist/*-Setup-*.exe dist/latest.yml)
+          # The blockmap lets installed apps download only what changed. A signed
+          # installer no longer matches the one it was made for, so it is left out.
+          if [ -z "${{ vars.SIGNPATH_ORGANIZATION_ID }}" ]; then files+=(dist/*.blockmap); fi
+          gh release create "$GITHUB_REF_NAME" "${files[@]}" --title "$GITHUB_REF_NAME" --generate-notes
