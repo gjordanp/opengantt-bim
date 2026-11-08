@@ -1198,3 +1198,21 @@ kbd {
   text-align: center;
   color: var(--muted-foreground);
 }
+
+/* ---------- confirmation dialog ---------- */
+.modal-small {
+  width: min(400px, calc(100vw - 32px));
+}
+.modal-small h2 {
+  margin-bottom: 10px;
+}
+.modal-message {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted-foreground);
+}
+.project-card .tt {
+  display: block;
+  min-width: 0;
+}

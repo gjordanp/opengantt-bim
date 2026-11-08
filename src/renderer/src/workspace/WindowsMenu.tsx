@@ -77,10 +77,12 @@ export default function WindowsMenu({ api }: { api: DockviewApi | null }): React
           <div className="menu-sep" />
           <div className="menu-title">Distribución</div>
           {PRESETS.map((p) => (
-            <button key={p.id} role="menuitem" className="menu-item" title={p.hint} onClick={() => preset(p.id)}>
-              <span className="menu-check" />
-              {p.label}
-            </button>
+            <Tooltip key={p.id} label={p.hint} side="left">
+              <button role="menuitem" className="menu-item" onClick={() => preset(p.id)}>
+                <span className="menu-check" />
+                {p.label}
+              </button>
+            </Tooltip>
           ))}
           <div className="menu-sep" />
           <button

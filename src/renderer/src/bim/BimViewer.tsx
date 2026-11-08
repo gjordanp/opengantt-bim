@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Box, ClipboardList, Info, Layers, PanelBottom, PanelRight, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
 import Dropdown from '../Dropdown'
+import ConfirmDialog from '../ConfirmDialog'
 import SuggestInput from '../SuggestInput'
 import * as OBC from '@thatopen/components'
 import * as FRAGS from '@thatopen/fragments'
@@ -61,6 +62,8 @@ interface Props {
   taskText: (taskId: string) => string | undefined
   /** Start/end of every task, for the 4D simulation. */
   getSpans: () => TaskSpan[]
+  /** Changes whenever task dates may have changed, so the 4D range is read again. */
+  scheduleVersion: number
   /** Open project; its models are stored under this id. Null in the plain-browser build. */
   projectId: string | null
   slots: BimSlots
@@ -118,6 +121,7 @@ export default function BimViewer({
   onSelectTask,
   taskText,
   getSpans,
+  scheduleVersion,
   projectId,
   slots,
   onImport
@@ -352,13 +356,15 @@ export default function BimViewer({
   }, [projectId, modelKey])
 
   const removeModel = async (ref: BimModelRef): Promise<void> => {
-    if (!window.confirm('¿Quitar el modelo «' + ref.name + '» del proyecto?')) return
     loadedRef.current.delete(ref.id)
     await componentsRef.current?.get(OBC.FragmentsManager).core.disposeModel(ref.id).catch(() => undefined)
     setElements((prev) => prev.filter((e) => e.modelId !== ref.id))
     if (window.api && projectId) await window.api.models.remove(projectId, ref.id)
     onBimChange({ ...bim, models: (bim.models ?? []).filter((m) => m.id !== ref.id) })
   }
+
+  // Destructive actions ask first, in an in-app dialog.
+  const [pendingRemoval, setPendingRemoval] = useState<{ kind: 'model'; ref: BimModelRef } | { kind: 'group'; id: string; name: string } | null>(null)
 
   // ---- search ----
   const query: Query | null = useMemo(
@@ -386,10 +392,10 @@ export default function BimViewer({
     if (!sim) return null
     const withElements = new Set([...guidsByTask].filter(([, g]) => g.size > 0).map(([id]) => id))
     return spanRange(getSpans(), withElements)
-  }, [sim, guidsByTask, getSpans])
+  }, [sim, guidsByTask, getSpans, scheduleVersion])
   const phases = useMemo(
     () => (sim && range ? phasesAt(simDay, getSpans(), guidsByTask) : null),
-    [sim, range, simDay, guidsByTask, getSpans]
+    [sim, range, simDay, guidsByTask, getSpans, scheduleVersion]
   )
   useEffect(() => {
     if (range && (simDay < range.from || simDay > range.to)) setSimDay(range.from)
@@ -611,7 +617,7 @@ export default function BimViewer({
           <span className="bim-group-name">
             {m.name} <span className="bim-muted">({(m.size / 1e6).toFixed(1)} MB)</span>
           </span>
-          <button onClick={() => void removeModel(m)}>Quitar</button>
+          <button onClick={() => setPendingRemoval({ kind: 'model', ref: m })}>Quitar</button>
         </div>
       ))}
     </div>
@@ -629,18 +635,22 @@ export default function BimViewer({
               return group ? (
                 <span key={id} className="bim-chip" style={{ borderColor: group.color }}>
                   {group.name}
-                  <button title="Quitar grupo" onClick={() => setLinks(removeGroupFromTask(links, task.id, id))}>
-                    ×
-                  </button>
+                  <Tooltip label="Quitar grupo de la tarea">
+                    <button aria-label="Quitar grupo" onClick={() => setLinks(removeGroupFromTask(links, task.id, id))}>
+                      ×
+                    </button>
+                  </Tooltip>
                 </span>
               ) : null
             })}
             {(link?.guids.length ?? 0) > 0 && (
               <span className="bim-chip">
                 {link?.guids.length} elementos sueltos
-                <button title="Quitar elementos sueltos" onClick={() => setLinks(removeElementsFromTask(links, task.id, link?.guids ?? []))}>
-                  ×
-                </button>
+                <Tooltip label="Quitar elementos sueltos">
+                  <button aria-label="Quitar elementos sueltos" onClick={() => setLinks(removeElementsFromTask(links, task.id, link?.guids ?? []))}>
+                    ×
+                  </button>
+                </Tooltip>
               </span>
             )}
             {taskSet.size === 0 && <span className="bim-muted">Sin elementos asignados</span>}
@@ -684,15 +694,7 @@ export default function BimViewer({
           >
             Asignar
           </button>
-          <button
-            onClick={() => {
-              if (window.confirm(`¿Eliminar el grupo «${group.name}»? Se quita de todas las tareas.`)) {
-                onBimChange(deleteGroup(bim, group.id))
-              }
-            }}
-          >
-            Eliminar
-          </button>
+          <button onClick={() => setPendingRemoval({ kind: 'group', id: group.id, name: group.name })}>Eliminar</button>
         </div>
       ))}
     </div>
@@ -700,6 +702,25 @@ export default function BimViewer({
 
   return (
     <>
+      {pendingRemoval && (
+        <ConfirmDialog
+          title={pendingRemoval.kind === 'model' ? 'Quitar modelo' : 'Eliminar grupo'}
+          message={
+            pendingRemoval.kind === 'model'
+              ? `¿Quitar el modelo «${pendingRemoval.ref.name}» del proyecto? Se borra el archivo convertido guardado con el proyecto.`
+              : `¿Eliminar el grupo «${pendingRemoval.name}»? Se quita de todas las tareas.`
+          }
+          confirmLabel={pendingRemoval.kind === 'model' ? 'Quitar' : 'Eliminar'}
+          danger
+          onCancel={() => setPendingRemoval(null)}
+          onConfirm={() => {
+            const target = pendingRemoval
+            setPendingRemoval(null)
+            if (target.kind === 'model') void removeModel(target.ref)
+            else onBimChange(deleteGroup(bim, target.id))
+          }}
+        />
+      )}
       {slots.viewer && createPortal(viewerUi, slots.viewer)}
       {overlayEl &&
         createPortal(

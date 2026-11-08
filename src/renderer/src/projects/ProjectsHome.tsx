@@ -1,3 +1,4 @@
+import Tooltip from '../Tooltip'
 import { useEffect, useRef, useState } from 'react'
 import type { ProjectSummary } from '@shared/repository'
 import { TEMPLATES, type TemplateId } from './templates'
@@ -125,7 +126,9 @@ function Card({
     <div className={`project-card${current ? ' current' : ''}`}>
       <div className="project-card-main" onDoubleClick={onOpen}>
         {renaming === null ? (
-          <h3 title={project.name}>{project.name}</h3>
+          <Tooltip label={project.name}>
+            <h3>{project.name}</h3>
+          </Tooltip>
         ) : (
           <input
             ref={input}

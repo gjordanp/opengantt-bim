@@ -89,6 +89,8 @@ export default function App(): React.JSX.Element {
   const [dock, setDock] = useState<DockviewApi | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
+  // Bumped whenever the gantt reports a change, so views that read task dates can refresh.
+  const [scheduleVersion, setScheduleVersion] = useState(0)
 
   useEffect(() => {
     if (!api) return
@@ -189,6 +191,8 @@ export default function App(): React.JSX.Element {
 
   const onChange = useCallback(
     (data: ProjectData) => {
+      // Task dates may have moved (edits, auto-schedule, undo): the 4D simulation re-reads them.
+      setScheduleVersion((v) => v + 1)
       if (!api || !projectIdRef.current) return
       schedule({ ...data, name: nameRef.current, bim: bimDataRef.current })
     },
@@ -544,6 +548,7 @@ export default function App(): React.JSX.Element {
         onSelectTask={(id) => ganttRef.current?.selectTask(id)}
         taskText={(id) => ganttRef.current?.taskText(id)}
         getSpans={getSpans}
+        scheduleVersion={scheduleVersion}
         projectId={api ? projectId : null}
       />
     </div>
