@@ -11,6 +11,8 @@ interface Props {
   elementCount: number
   saveState: SaveState
   update: UpdateStatus
+  /** Installed app version, shown at the right end. */
+  version: string | null
 }
 
 const SAVE_TEXT: Record<Exclude<SaveState, 'idle'>, string> = {
@@ -20,7 +22,7 @@ const SAVE_TEXT: Record<Exclude<SaveState, 'idle'>, string> = {
 }
 
 /** The thin strip at the bottom: connection, what's open, and what is being saved or updated. */
-export default function StatusBar({ db, projectName, modelCount, elementCount, saveState, update }: Props): React.JSX.Element {
+export default function StatusBar({ db, projectName, modelCount, elementCount, saveState, update, version }: Props): React.JSX.Element {
   const dbText = !db ? 'Conectando…' : db.connected ? (db.settings.mode === 'external' ? 'MongoDB externo' : 'Base de datos local') : 'Sin base de datos'
   const dbClass = !db ? 'pending' : db.connected ? 'ok' : 'error'
 
@@ -58,6 +60,7 @@ export default function StatusBar({ db, projectName, modelCount, elementCount, s
           {SAVE_TEXT[saveState]}
         </span>
       )}
+      {version && <span className="status-item">v{version}</span>}
     </div>
   )
 }

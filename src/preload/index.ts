@@ -20,6 +20,9 @@ const api: AppApi = {
   appearance: {
     setTheme: (theme) => ipcRenderer.invoke(IPC.appearanceSetTheme, theme)
   },
+  app: {
+    version: () => ipcRenderer.invoke(IPC.appVersion)
+  },
   updates: {
     status: () => ipcRenderer.invoke(IPC.updatesStatus),
     check: () => ipcRenderer.invoke(IPC.updatesCheck),

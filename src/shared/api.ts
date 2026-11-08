@@ -48,6 +48,10 @@ export interface AppApi {
   appearance: {
     setTheme(theme: 'light' | 'dark'): Promise<void>
   }
+  app: {
+    /** The installed version of the app. */
+    version(): Promise<string>
+  }
   updates: {
     status(): Promise<UpdateStatus>
     check(): Promise<void>
@@ -83,6 +87,7 @@ export const IPC = {
   filesOpenText: 'files:openText',
   filesSaveText: 'files:saveText',
   appearanceSetTheme: 'appearance:setTheme',
+  appVersion: 'app:version',
   updatesStatus: 'updates:status',
   updatesCheck: 'updates:check',
   updatesInstall: 'updates:install'

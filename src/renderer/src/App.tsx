@@ -106,6 +106,23 @@ export default function App(): React.JSX.Element {
     void api.updates.status().then(setUpdate)
     return api.updates.onStatus(setUpdate)
   }, [api])
+  // Installed version; when it changed since the last run, say so (updates install silently on close).
+  const [appVersion, setAppVersion] = useState<string | null>(null)
+  useEffect(() => {
+    if (!api?.app) return
+    void api.app.version().then((version) => {
+      setAppVersion(version)
+      try {
+        const previous = localStorage.getItem('ogbim.lastVersion')
+        localStorage.setItem('ogbim.lastVersion', version)
+        if (previous && previous !== version) {
+          setNotice({ title: 'Aplicación actualizada', message: `Opengantt BIM se actualizó a la versión ${version} (antes ${previous}).` })
+        }
+      } catch {
+        /* no storage: just skip the notice */
+      }
+    })
+  }, [api])
   const [slots, setSlots] = useState<BimSlots>({ viewer: null })
 
   const ganttRef = useRef<GanttHandle>(null)
@@ -662,6 +679,7 @@ export default function App(): React.JSX.Element {
         elementCount={bimElements.length}
         saveState={saveState}
         update={update}
+        version={appVersion}
       />
 
       <BimViewer
