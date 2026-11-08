@@ -59,8 +59,22 @@ jobs:
 
       - run: npm run build
 
+      # electron-builder downloads its packaging tools (NSIS, winCodeSign) from GitHub, which now
+      # and then answers 504. Keep them between runs and retry a few times before giving up.
+      - uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\electron-builder\Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: Build the installer
-        run: npx electron-builder --win --publish never
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4 5; do
+            npx electron-builder --win --publish never && exit 0
+            echo "electron-builder failed (attempt $attempt); retrying in $((attempt * 45)) s"
+            sleep $((attempt * 45))
+          done
+          exit 1
 
       # ---- signing (only when SignPath is configured) ----
       - name: Upload the unsigned installer
