@@ -21,8 +21,9 @@ import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
-import { Activity, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, TrendingUp, Undo2, Zap } from 'lucide-react'
+import { Activity, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import SCurvePanel from './SCurvePanel'
+import SCurveIcon from './SCurveIcon'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
@@ -439,7 +440,7 @@ export default function App(): React.JSX.Element {
       </Tooltip>
       <Tooltip label="Curva S sobre el Gantt: avance planificado vs real">
         <button className={`icon-btn${showScurve ? ' active' : ''}`} onClick={() => setShowScurve((v) => !v)} aria-label="Curva S" aria-pressed={showScurve}>
-          <TrendingUp size={16} />
+          <SCurveIcon size={16} />
         </button>
       </Tooltip>
       <Tooltip label="Calendario laboral y feriados">

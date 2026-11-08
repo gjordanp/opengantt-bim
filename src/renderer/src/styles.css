@@ -1526,3 +1526,30 @@ kbd {
 .scurve-on .gantt_task_link {
   opacity: 0.55;
 }
+
+/* S-curve overlay: dots, cursor and tooltip (the DHTMLX sample draws them with Chart.js). */
+.scurve-ov .ov-dot.planned {
+  fill: var(--curve-planned);
+}
+.scurve-ov .ov-dot.real,
+.scurve-ov .ov-dot.predicted {
+  fill: var(--curve-real);
+}
+.scurve-ov .ov-cursor {
+  stroke: var(--muted-foreground);
+  stroke-dasharray: 2 3;
+}
+.scurve-ov-tip {
+  position: absolute;
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 9px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--tooltip-fg);
+  background: var(--tooltip-bg);
+  border-radius: 6px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
