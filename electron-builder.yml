@@ -10,6 +10,12 @@ files:
 extraResources:
   - from: resources/mongod
     to: mongod
+  # Java runtime + MPXJ, used to read .mpp files. Run `npm run fetch:mpp` first.
+  - from: resources/mpp
+    to: mpp
+    filter:
+      - '**/*'
+      - '!.complete'
   - from: THIRD_PARTY_NOTICES.md
     to: THIRD_PARTY_NOTICES.md
 # Releases are published to GitHub; installed apps look there for newer versions

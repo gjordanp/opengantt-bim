@@ -189,7 +189,7 @@ export default function ProjectsHome({ projects, currentId, onOpen, onCreate, on
             <input type="search" placeholder="Buscar proyecto…" value={filter} onChange={(e) => setFilter(e.target.value)} />
           )}
           {onImportMsProject && (
-            <Tooltip label="Crea un proyecto desde un archivo de MS Project guardado como XML">
+            <Tooltip label="Crea un proyecto desde un archivo de MS Project (.mpp o XML)">
               <button onClick={() => void onImportMsProject()}>Importar de MS Project…</button>
             </Tooltip>
           )}

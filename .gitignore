@@ -12,6 +12,9 @@ graphify-out/
 # bundled MongoDB server binary (see npm run fetch:mongod)
 resources/mongod/
 
+# Java runtime + MPXJ for .mpp import (see npm run fetch:mpp)
+resources/mpp/
+
 # local IFC models used for testing (not redistributed)
 samples/
 

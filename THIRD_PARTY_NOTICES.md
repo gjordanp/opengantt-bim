@@ -10,6 +10,13 @@ MongoDB Community Server is licensed under the Server Side Public License,
 version 1 (SSPL). Source code and license text: https://github.com/mongodb/mongo
 and https://www.mongodb.com/legal/licensing/server-side-public-license
 
+## MPXJ, Apache POI and a Java runtime (.mpp import)
+
+To read binary MS Project (.mpp) files, the installer includes a minimal OpenJDK
+runtime (GPLv2 with Classpath Exception, Eclipse Temurin), MPXJ (LGPL-2.1,
+https://www.mpxj.org) and Apache POI plus its dependencies (Apache-2.0), unmodified,
+run as a separate process that converts the file to MS Project XML.
+
 ## Other
 
 DHTMLX Gantt Community (MIT), React (MIT), Electron (MIT), the MongoDB Node.js

@@ -2,6 +2,7 @@ import { BrowserWindow, dialog, type WebContents } from 'electron'
 import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename } from 'node:path'
 import type { FileFilter } from '../shared/api'
+import { mppToXml } from './mpp'
 
 const MAX_BYTES = 100 * 1024 * 1024
 
@@ -13,6 +14,8 @@ export async function openTextFile(sender: WebContents, filters: FileFilter[]): 
   const path = result.filePaths[0]
   if (result.canceled || !path) return null
   if ((await stat(path)).size > MAX_BYTES) throw new Error('El archivo es demasiado grande (más de 100 MB).')
+  // A binary MS Project file is turned into MS Project XML here, so the renderer only ever parses XML.
+  if (/\.mpp$/i.test(path)) return { name: basename(path), text: await mppToXml(path, process.resourcesPath) }
   return { name: basename(path), text: await readFile(path, 'utf8') }
 }
 

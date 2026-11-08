@@ -26,6 +26,7 @@ import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
 const MSP_FILTERS = [{ name: 'MS Project (XML)', extensions: ['xml'] }]
+const MSP_IMPORT_FILTERS = [{ name: 'MS Project (.mpp, .xml)', extensions: ['mpp', 'xml'] }, ...MSP_FILTERS]
 type SaveState = 'idle' | 'pending' | 'saved' | 'error'
 type View = 'home' | 'workspace'
 
@@ -273,7 +274,7 @@ export default function App(): React.JSX.Element {
   const importMsProject = async (): Promise<void> => {
     if (!api) return
     try {
-      const file = await api.files.openText(MSP_FILTERS)
+      const file = await api.files.openText(MSP_IMPORT_FILTERS)
       if (!file) return
       const { data, warnings } = parseMspdi(file.text)
       await flush()
@@ -456,7 +457,7 @@ export default function App(): React.JSX.Element {
     ...(api
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
-          { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project (XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
+          { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
           ...(projectId ? [{ id: 'msp-export', section: 'Proyectos', label: 'Exportar a MS Project (XML)…', keywords: 'microsoft project xml guardar', run: () => void exportMsProject() }] : []),
           ...(projectId ? [{ id: 'back', section: 'Proyectos', label: `Volver a «${projectName}»`, run: () => setView('workspace') }] : []),
           ...projects.map((p) => ({

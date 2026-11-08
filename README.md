@@ -8,6 +8,7 @@ Open-source desktop app (Electron) for construction scheduling: a Gantt chart, l
 - **Line of balance (LOB)** view, with rows scaled by surface.
 - **BIM / IFC**: import an IFC file, 3D viewer, element search by class, storey or name, saved groups, assign groups or single elements to tasks, and a **4D construction simulation** that plays the schedule on the model.
 - **Projects** stored locally and saved automatically. Converted IFC models are kept with their project.
+- **MS Project**: import `.mpp` or MS Project XML as a new project, and export XML that MS Project opens. Not carried over: constraints, resources and costs.
 - **Workspace** with dockable panels, a command palette (`Ctrl+K`) and floating BIM tools over the 3D view.
 - **Automatic updates** from the GitHub releases of this repository.
 

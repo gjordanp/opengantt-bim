@@ -44,6 +44,19 @@ jobs:
 
       - run: npm run fetch:mongod
 
+      # Java runtime + MPXJ for reading .mpp files; built from a JDK with jlink.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/cache@v4
+        with:
+          path: resources/mpp
+          key: mpp-${{ runner.os }}-${{ hashFiles('scripts/fetch-mpp-runtime.mjs', 'scripts/mpp/MppToXml.java') }}
+
+      - run: npm run fetch:mpp
+
       - run: npm run build
 
       - name: Build the installer
