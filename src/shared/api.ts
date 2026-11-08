@@ -32,6 +32,10 @@ export interface AppApi {
     load(projectId: string, modelId: string): Promise<Uint8Array | null>
     remove(projectId: string, modelId: string): Promise<void>
   }
+  /** The window chrome (title bar buttons, background) follows the app theme. */
+  appearance: {
+    setTheme(theme: 'light' | 'dark'): Promise<void>
+  }
   updates: {
     status(): Promise<UpdateStatus>
     check(): Promise<void>
@@ -64,6 +68,7 @@ export const IPC = {
   modelsSave: 'models:save',
   modelsLoad: 'models:load',
   modelsRemove: 'models:remove',
+  appearanceSetTheme: 'appearance:setTheme',
   updatesStatus: 'updates:status',
   updatesCheck: 'updates:check',
   updatesInstall: 'updates:install'

@@ -13,6 +13,9 @@ const api: AppApi = {
     load: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsLoad, projectId, modelId),
     remove: (projectId, modelId) => ipcRenderer.invoke(IPC.modelsRemove, projectId, modelId)
   },
+  appearance: {
+    setTheme: (theme) => ipcRenderer.invoke(IPC.appearanceSetTheme, theme)
+  },
   updates: {
     status: () => ipcRenderer.invoke(IPC.updatesStatus),
     check: () => ipcRenderer.invoke(IPC.updatesCheck),

@@ -7,15 +7,15 @@
 
 /* Contenedor principal del Gantt */
 .gantt_container {
-  background-color: #ffffff !important;
-  border: 0px solid #e2e8f0 !important;
+  background-color: var(--g-bg) !important;
+  border: 0px solid var(--g-border) !important;
   height: 100% !important;
 }
 
 /* Áreas principales del grid y tareas */
 .gantt_grid,
 .gantt_task {
-  background-color: #ffffff !important;
+  background-color: var(--g-bg) !important;
 }
 
 /* Grid transitions for smooth collapse/expand */
@@ -37,17 +37,17 @@
 /* Escalas de tiempo y cabeceras */
 .gantt_grid_scale,
 .gantt_task_scale {
-  background-color: #f8fafc !important;
-  color: #334155 !important;
+  background-color: var(--g-bg-soft) !important;
+  color: var(--g-text) !important;
   font-size: 12px !important;
   line-height: 30px !important;
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid var(--g-border) !important;
 }
 
 /* Celdas del grid */
 .gantt_grid_data .gantt_cell {
-  border-right: 1px solid #e2e8f0 !important;
-  color: #334155 !important;
+  border-right: 1px solid var(--g-border) !important;
+  color: var(--g-text) !important;
   font-size: 12px !important;
 }
 
@@ -55,7 +55,7 @@
 .gantt_task_line {
   /* background: linear-gradient(to right, #8b5cf6, #0ea5e9) !important; */
   background: #0ea5e9 !important;
-  border: 1px solid #e2e8f0 !important;
+  border: 1px solid var(--g-border) !important;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
   border-radius: 4px !important;
 }
@@ -69,7 +69,7 @@
 
 /* Progreso de las tareas */
 .gantt_task_progress {
-  background: rgba(255, 255, 255, 0.3) !important;
+  background: color-mix(in srgb, var(--g-bg) 30%, transparent) !important;
 }
 
 /* Tareas de tipo proyecto */
@@ -84,19 +84,19 @@
 /* Filas y celdas. La altura la fija el gantt (row_height): línea de balance la cambia por fila. */
 .gantt_row,
 .gantt_cell {
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid var(--g-border) !important;
 }
 
 /* Filas impares */
 .gantt_grid_data .gantt_row.odd,
 .gantt_task_row.odd {
-  background-color: #f8fafc !important;
+  background-color: var(--g-bg-soft) !important;
 }
 
 /* Filas pares */
 .gantt_grid_data .gantt_row,
 .gantt_task_row {
-  background-color: #ffffff !important;
+  background-color: var(--g-bg) !important;
 }
 
 /* Enlaces entre tareas */
@@ -112,7 +112,7 @@
 /* Tareas críticas */
 .gantt_critical_task .gantt_task_line {
   background: linear-gradient(to right, #ef4444, #f97316) !important;
-  border-color: #e2e8f0 !important;
+  border-color: var(--g-border) !important;
 }
 
 /* Iconos del árbol de tareas */
@@ -123,7 +123,7 @@
 .gantt_tree_icon.gantt_folder_open:before,
 .gantt_tree_icon.gantt_folder_closed:before,
 .gantt_tree_icon.gantt_file:before {
-  color: #64748b;
+  color: var(--g-text-muted);
   font-size: 14px;
   line-height: 28px;
   display: inline-block;
@@ -175,7 +175,7 @@
   margin-top: auto;
   margin-bottom: auto;
   margin-right: 5px;
-  /* background-color: #334155; */
+  /* background-color: var(--g-text); */
 }
 
 .gantt_tree_icon.gantt_open::after,
@@ -186,7 +186,7 @@
   position: absolute;
   width: 8px;
   height: 2px;
-  /* background: #ffffff; */
+  /* background: var(--g-bg); */
   background: currentColor;
   border-radius: 5px;
   top: 5px;
@@ -215,7 +215,7 @@
   margin-top: auto;
   margin-bottom: auto;
   margin-right: 5px;
-  /* background-color: #334155; */
+  /* background-color: var(--g-text); */
 }
 
 
@@ -226,7 +226,7 @@
   position: absolute;
   width: 8px;
   height: 2px;
-  /* background: #ffffff; */
+  /* background: var(--g-bg); */
   background: currentColor;
   border-radius: 5px;
   top: 5px;
@@ -240,7 +240,7 @@
 
 .gantt_grid_data .gantt_row:hover,
 .gantt_grid_data .gantt_row.odd:hover {
-  background-color: rgba(226, 232, 240, 0.6) !important;
+  background-color: color-mix(in srgb, var(--g-border) 60%, transparent) !important;
 }
 
 /* Marcador de hoy */
@@ -250,50 +250,50 @@
 
 /* Bordes y líneas de división */
 .gantt_task_scale .gantt_scale_cell {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid var(--g-border) !important;
 }
 
 .gantt_scale_cell {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid var(--g-border) !important;
 }
 
 .gantt_scale_line {
-  border-top: 1px solid #e2e8f0 !important;
+  border-top: 1px solid var(--g-border) !important;
 }
 
 .gantt_layout_cell_border_bottom {
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid var(--g-border) !important;
 }
 
 .gantt_rezizer_stick {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid var(--g-border) !important;
 }
 
 .gantt_task_row {
-  border-bottom: 1px solid #e2e8f0 !important;
+  border-bottom: 1px solid var(--g-border) !important;
 }
 
 .gantt_task_bg .gantt_task_vgrid {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid var(--g-border) !important;
 }
 
 .gantt_task_cell {
-  border-right: 1px solid #e2e8f0 !important;
+  border-right: 1px solid var(--g-border) !important;
 }
 
 .gantt_grid_divider,
 .gantt_grid_border_right {
-  background-color: rgba(226, 232, 240, 0.4) !important;
+  background-color: color-mix(in srgb, var(--g-border) 40%, transparent) !important;
 }
 
 .gantt_grid_column_resize_wrap .gantt_grid_column_resize {
-  background-color: rgba(226, 232, 240, 0.5) !important;
+  background-color: color-mix(in srgb, var(--g-border) 50%, transparent) !important;
 }
 
 /* Números de fila */
 .gantt_grid_data .gantt_row_number {
   text-align: center;
-  color: #64748b;
+  color: var(--g-text-muted);
   font-size: 11px;
 }
 
@@ -305,7 +305,7 @@
   width: 100vw !important;
   height: 100vh !important;
   z-index: 40 !important;
-  background-color: #ffffff !important;
+  background-color: var(--g-bg) !important;
 }
 
 /* Selección de filas */
@@ -349,7 +349,7 @@
 
 /* Contenedor principal del lightbox */
 .gantt_cal_light {
-  background-color: #ffffff !important;
+  background-color: var(--g-bg) !important;
   border: 1px solid rgba(139, 92, 246, 0.5) !important;
   border-radius: 16px !important;
   box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.2) !important;
@@ -372,7 +372,7 @@
 
 /* Área del contenido */
 .gantt_cal_light .gantt_cal_larea {
-  background-color: #ffffff !important;
+  background-color: var(--g-bg) !important;
   padding: 24px !important;
   border-radius: 0 0 16px 16px !important;
   height: max-content !important;
@@ -386,7 +386,7 @@
 }
 
 .gantt_cal_light .gantt_cal_lsection .gantt_cal_ltitle span {
-  color: #334155 !important;
+  color: var(--g-text) !important;
   font-weight: 500 !important;
   font-size: 14px !important;
   margin-bottom: 6px !important;
@@ -397,10 +397,10 @@
 .gantt_cal_light input[type="text"],
 .gantt_cal_light textarea,
 .gantt_cal_light select {
-  background-color: rgba(248, 250, 252, 0.8) !important;
+  background-color: color-mix(in srgb, var(--g-bg-soft) 80%, transparent) !important;
   border: 1px solid rgba(139, 92, 246, 0.5) !important;
   border-radius: 10px !important;
-  color: #334155 !important;
+  color: var(--g-text) !important;
   padding: 12px !important;
   font-size: 14px !important;
   width: 100% !important;
@@ -410,7 +410,7 @@
 .gantt_cal_light input[type="text"]:focus,
 .gantt_cal_light textarea:focus,
 .gantt_cal_light select:focus {
-  background-color: rgba(248, 250, 252, 1) !important;
+  background-color: color-mix(in srgb, var(--g-bg-soft) 100%, transparent) !important;
   border-color: rgba(139, 92, 246, 0.6) !important;
   outline: none !important;
   box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1) !important;
@@ -424,9 +424,9 @@
 
 /* Campos de entrada específicos de secciones */
 .gantt_cal_light .gantt_cal_lsection input[type="text"] {
-  background-color: rgba(248, 250, 252, 0.9) !important;
-  border: 1px solid #e2e8f0 !important;
-  color: #334155 !important;
+  background-color: color-mix(in srgb, var(--g-bg-soft) 90%, transparent) !important;
+  border: 1px solid var(--g-border) !important;
+  color: var(--g-text) !important;
 }
 
 /* Selectores */
@@ -442,7 +442,7 @@
 /* Contenedor de botones */
 .gantt_cal_light .gantt_btn_set {
   background-color: transparent !important;
-  border-top: 1px solid #e2e8f0 !important;
+  border-top: 1px solid var(--g-border) !important;
   padding: 16px 20px !important;
   margin: 0 -20px -20px -20px !important;
   border-radius: 0 0 12px 12px !important;
@@ -473,14 +473,14 @@
 
 /* Botón cancelar */
 .gantt_cal_light .gantt_btn_set div[onclick*="cancel"] {
-  background: rgba(148, 163, 184, 0.4) !important;
-  color: #334155 !important;
+  background: color-mix(in srgb, var(--g-hover) 40%, transparent) !important;
+  color: var(--g-text) !important;
 }
 
 .gantt_cal_light .gantt_btn_set div[onclick*="cancel"]:hover {
-  background: rgba(148, 163, 184, 0.6) !important;
-  color: #1e293b !important;
-  box-shadow: 0 6px 15px rgba(148, 163, 184, 0.4) !important;
+  background: color-mix(in srgb, var(--g-hover) 60%, transparent) !important;
+  color: var(--g-text-strong) !important;
+  box-shadow: 0 6px 15px color-mix(in srgb, var(--g-hover) 40%, transparent) !important;
 }
 
 /* Botón eliminar */
@@ -508,7 +508,7 @@
 /* Títulos de secciones */
 .gantt_cal_light .gantt_cal_lsection .gantt_cal_ltitle {
   background: none !important;
-  color: #334155 !important;
+  color: var(--g-text) !important;
   font-weight: 500 !important;
   padding: 0 !important;
   margin-bottom: 6px !important;
@@ -522,8 +522,8 @@
 
 /* Opciones de selectores */
 .gantt_cal_light .gantt_cal_lsection select option {
-  background-color: #ffffff !important;
-  color: #334155 !important;
+  background-color: var(--g-bg) !important;
+  color: var(--g-text) !important;
 }
 
 /* Estados de error */
@@ -536,22 +536,22 @@
 
 /* Selectores de tiempo */
 .gantt_cal_light .gantt_time {
-  background-color: rgba(248, 250, 252, 0.9) !important;
-  border: 1px solid #e2e8f0 !important;
+  background-color: color-mix(in srgb, var(--g-bg-soft) 90%, transparent) !important;
+  border: 1px solid var(--g-border) !important;
   border-radius: 8px !important;
-  color: #334155 !important;
+  color: var(--g-text) !important;
 }
 
 .gantt_cal_light .gantt_time select {
   background-color: transparent !important;
   border: none !important;
-  color: #334155 !important;
+  color: var(--g-text) !important;
   padding: 4px !important;
 }
 
 /* Controles deslizantes */
 .gantt_cal_light input[type="range"] {
-  background: rgba(226, 232, 240, 0.3) !important;
+  background: color-mix(in srgb, var(--g-border) 30%, transparent) !important;
   border-radius: 4px !important;
   height: 6px !important;
   outline: none !important;

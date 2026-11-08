@@ -17,7 +17,9 @@ import { PANELS, PRESETS, applyPreset, openPanel, resetLayout } from './workspac
 import ProjectsHome from './projects/ProjectsHome'
 import CommandPalette, { type Command } from './CommandPalette'
 import Tooltip from './Tooltip'
-import { Activity, CalendarDays, Flame, FolderKanban, Redo2, Search, Undo2, Zap } from 'lucide-react'
+import StatusBar from './StatusBar'
+import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
+import { Activity, CalendarDays, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
@@ -89,6 +91,7 @@ export default function App(): React.JSX.Element {
   const [dock, setDock] = useState<DockviewApi | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
+  const { pref: themePref } = useTheme()
   // Bumped whenever the gantt reports a change, so views that read task dates can refresh.
   const [scheduleVersion, setScheduleVersion] = useState(0)
 
@@ -388,7 +391,6 @@ export default function App(): React.JSX.Element {
     )
   }
 
-  const saveLabel = { idle: '', pending: 'Guardando…', saved: 'Guardado', error: 'Error al guardar' }[saveState]
   const inWorkspace = view === 'workspace'
 
   const updateCommands: Command[] = api
@@ -399,9 +401,19 @@ export default function App(): React.JSX.Element {
       ]
     : []
 
+  const THEME_LABEL: Record<ThemePref, string> = { system: 'Sistema', light: 'Claro', dark: 'Oscuro' }
+  const themeCommands: Command[] = (['system', 'light', 'dark'] as const).map((t) => ({
+    id: `theme-${t}`,
+    section: 'Aplicación',
+    label: `Tema: ${THEME_LABEL[t]}`,
+    keywords: 'apariencia oscuro claro dark light',
+    run: () => setThemePref(t)
+  }))
+
   const goHome = (): void => void flush().then(() => setView('home'))
   const commands: Command[] = [
     ...updateCommands,
+    ...themeCommands,
     ...(api
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
@@ -491,8 +503,6 @@ export default function App(): React.JSX.Element {
           <kbd>Ctrl K</kbd>
         </button>
         <div className="topbar-right">
-          {saveLabel && <span className={`save-state ${saveState}`}>{saveLabel}</span>}
-          {update.state === 'downloading' && <span className="save-state">Descargando actualización {update.percent ?? 0}%</span>}
           {update.state === 'ready' && api && (
             <Tooltip label="Se reiniciará la aplicación para instalarla">
               <button className="primary update-btn" onClick={() => void flush().then(() => api.updates.install())}>
@@ -500,6 +510,11 @@ export default function App(): React.JSX.Element {
               </button>
             </Tooltip>
           )}
+          <Tooltip label={`Tema: ${THEME_LABEL[themePref]} (clic para cambiar)`}>
+            <button className="icon-btn" onClick={() => setThemePref(nextThemePref(themePref))} aria-label="Cambiar tema">
+              {themePref === 'system' ? <Monitor size={16} /> : themePref === 'light' ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </Tooltip>
           {inWorkspace && <WindowsMenu api={dock} />}
         </div>
       </div>
@@ -536,6 +551,15 @@ export default function App(): React.JSX.Element {
           </WorkspaceContext.Provider>
         </div>
       </div>
+
+      <StatusBar
+        db={db}
+        projectName={projectId ? projectName : null}
+        modelCount={(bim.models ?? []).length}
+        elementCount={bimElements.length}
+        saveState={saveState}
+        update={update}
+      />
 
       <BimViewer
         ref={bimRef}

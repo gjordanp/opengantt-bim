@@ -4,6 +4,7 @@ import { Box, ClipboardList, Info, Layers, PanelBottom, PanelRight, Upload, X } 
 import Tooltip from '../Tooltip'
 import Dropdown from '../Dropdown'
 import ConfirmDialog from '../ConfirmDialog'
+import { useTheme } from '../theme'
 import SuggestInput from '../SuggestInput'
 import * as OBC from '@thatopen/components'
 import * as FRAGS from '@thatopen/fragments'
@@ -74,6 +75,9 @@ interface Props {
 type Status = { kind: 'idle' } | { kind: 'loading'; name: string; progress: number } | { kind: 'error'; message: string }
 type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>
 
+/** The 3D view's background follows the theme (--canvas in styles.css). */
+const canvasColor = (): string => getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f4f4f5'
+
 const SELECT_COLOR = new THREE.Color('#f59e0b')
 const MATCH_COLOR = new THREE.Color('#8b5cf6')
 const TASK_COLOR = new THREE.Color('#22c55e')
@@ -142,6 +146,11 @@ export default function BimViewer({
   const worldRef = useRef<World | null>(null)
   const readyRef = useRef<Promise<void> | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
+  const { theme } = useTheme()
+  useEffect(() => {
+    const scene = worldRef.current?.scene.three
+    if (scene) scene.background = new THREE.Color(canvasColor())
+  }, [theme])
   // The tools float over the 3D view, along its right edge or its bottom edge.
   const [tool, setTool] = useState<BimTool | null>(null)
   const [side, setSide] = useState<'right' | 'bottom'>(() => {
@@ -199,7 +208,7 @@ export default function BimViewer({
     const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>()
     world.scene = new OBC.SimpleScene(components)
     world.scene.setup()
-    world.scene.three.background = new THREE.Color(0xf4f4f5)
+    world.scene.three.background = new THREE.Color(canvasColor())
     world.renderer = new OBC.SimpleRenderer(components, host)
     world.camera = new OBC.OrthoPerspectiveCamera(components)
     worldRef.current = world
