@@ -26,6 +26,8 @@ import { countWorkDays, weekCalendar } from '@shared/scheduling'
 import { Activity, Box, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import SCurvePanel from './SCurvePanel'
 import SCurveIcon from './SCurveIcon'
+import GanttSettingsMenu from './gantt/GanttSettingsMenu'
+import { loadGanttSettings, saveGanttSettings, type GanttSettings } from './gantt/ganttSettings'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
 const AUTOSAVE_MS = 1000
@@ -88,6 +90,11 @@ export default function App(): React.JSX.Element {
   const [autoScheduling, setAutoScheduling] = useState(true)
   const [showCritical, setShowCritical] = useState(false)
   const [showScurve, setShowScurve] = useState(false)
+  const [ganttSettings, setGanttSettings] = useState<GanttSettings>(loadGanttSettings)
+  const changeGanttSettings = useCallback((next: GanttSettings) => {
+    setGanttSettings(next)
+    saveGanttSettings(next)
+  }, [])
   const [cycle, setCycle] = useState<string[]>([])
 
   const [db, setDb] = useState<DbStatus | null>(null)
@@ -496,6 +503,7 @@ export default function App(): React.JSX.Element {
           <CalendarDays size={16} />
         </button>
       </Tooltip>
+      <GanttSettingsMenu settings={ganttSettings} onChange={changeGanttSettings} />
       {cycle.length > 0 && <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>}
     </>
   )
@@ -517,6 +525,7 @@ export default function App(): React.JSX.Element {
         showCritical={showCritical}
         showScurve={showScurve}
         volumeWeights={volumeWeights}
+        settings={ganttSettings}
         onScheduled={onScheduled}
         onChange={onChange}
         onTaskSelect={setSelectedTask}

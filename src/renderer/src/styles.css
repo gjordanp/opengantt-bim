@@ -553,6 +553,10 @@ kbd {
   text-align: left;
   font-weight: 400;
 }
+.menu-locked {
+  color: var(--muted-foreground);
+  cursor: default;
+}
 .menu-check {
   width: 18px;
   font-size: 12px;
