@@ -560,6 +560,7 @@ export default function App(): React.JSX.Element {
         showScurve={showScurve}
         volumeWeights={volumeWeights}
         settings={ganttSettings}
+        onColumnsChange={(columns) => changeGanttSettings({ ...ganttSettings, columns })}
         onScheduled={onScheduled}
         onChange={onChange}
         onTaskSelect={setSelectedTask}

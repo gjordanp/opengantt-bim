@@ -15,7 +15,7 @@ import { lateness, previousDay } from '@shared/plan'
 import { CONSTRAINT_TYPES, constraintNeedsDate, constraintShort } from '@shared/constraints'
 import { isoToDate } from './localDates'
 import { fromDay, nextWorkingDay, toDay, weekCalendar } from '@shared/scheduling'
-import type { ColumnId, GanttSettings } from './ganttSettings'
+import { COLUMN_DEFS, type ColumnId, type GanttSettings } from './ganttSettings'
 import type { TaskSpan } from '@shared/bim4d'
 import { computeSCurve, localTodayDay, type SCurveTask } from '@shared/scurve'
 import { SCurveOverlay } from './scurveLayer'
@@ -60,6 +60,8 @@ interface Props {
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
   /** Called by the handle at the left edge of the chart, which hides or shows the table. */
   onToggleTable?: () => void
+  /** Columns shown or hidden from the table header's right-click menu. */
+  onColumnsChange?: (columns: GanttSettings['columns']) => void
 }
 
 export interface GanttHandle {
@@ -180,7 +182,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, ref, onHistoryChange, onToggleTable }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -188,6 +190,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const planRef = useRef<PlanOverlay | null>(null)
   const multiRef = useRef<MultiSelect | null>(null)
   const placeholderRef = useRef<Placeholder | null>(null)
+  const onColumnsChangeRef = useRef(onColumnsChange)
+  onColumnsChangeRef.current = onColumnsChange
   const onToggleTableRef = useRef(onToggleTable)
   onToggleTableRef.current = onToggleTable
   // The layout the gantt was created with (table and chart); the chart-only one drops the table and its resizer.
@@ -597,6 +601,58 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.init(host)
     installIgnoreTime(gantt)
     stopEditors = installInlineEditors(gantt)
+    // Right-click on the table header: choose which columns stay visible.
+    const onHeaderMenu = (e: MouseEvent): void => {
+      if (!(e.target as HTMLElement).closest?.('.gantt_grid_head_cell')) return
+      e.preventDefault()
+      document.getElementById('gantt-columns-menu')?.remove()
+      const pop = document.createElement('div')
+      pop.id = 'gantt-columns-menu'
+      pop.className = 'menu-pop'
+      pop.setAttribute('role', 'menu')
+      pop.style.cssText = `position:fixed;top:${e.clientY}px;left:${e.clientX}px;right:auto;width:200px`
+      const title = document.createElement('div')
+      title.className = 'menu-title'
+      title.textContent = 'Columnas'
+      pop.appendChild(title)
+      const add = (label: string, on: boolean, locked: boolean, toggle: () => void): void => {
+        const b = document.createElement('button')
+        b.className = 'menu-item'
+        b.setAttribute('role', 'menuitemcheckbox')
+        b.setAttribute('aria-checked', String(on))
+        b.disabled = locked
+        b.innerHTML = `<span class="menu-check">${on ? '✓' : ''}</span>`
+        b.appendChild(document.createTextNode(label))
+        b.onclick = (): void => {
+          toggle()
+          close()
+        }
+        pop.appendChild(b)
+      }
+      add('Tarea', true, true, () => undefined)
+      for (const def of COLUMN_DEFS) {
+        const on = ganttSettingsRef.current.columns[def.id] !== false
+        add(def.label, on, false, () => onColumnsChangeRef.current?.({ ...ganttSettingsRef.current.columns, [def.id]: !on }))
+      }
+      const close = (): void => {
+        pop.remove()
+        window.removeEventListener('mousedown', away, true)
+        window.removeEventListener('keydown', esc, true)
+      }
+      const away = (ev: MouseEvent): void => {
+        if (!pop.contains(ev.target as Node)) close()
+      }
+      const esc = (ev: KeyboardEvent): void => {
+        if (ev.key === 'Escape') close()
+      }
+      document.body.appendChild(pop)
+      const r = pop.getBoundingClientRect()
+      pop.style.left = `${Math.max(4, Math.min(e.clientX, window.innerWidth - r.width - 4))}px`
+      pop.style.top = `${Math.max(4, Math.min(e.clientY, window.innerHeight - r.height - 4))}px`
+      window.addEventListener('mousedown', away, true)
+      window.addEventListener('keydown', esc, true)
+    }
+    host.addEventListener('contextmenu', onHeaderMenu)
     mountTableHandle(gantt, appliedCollapsedRef.current, () => onToggleTableRef.current?.())
     installWorkTime(gantt, () => calendarRef.current)
     multiRef.current = installMultiSelect(gantt)
@@ -717,6 +773,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       stopDrag()
       multiRef.current?.destroy()
       stopEditors()
+      host.removeEventListener('contextmenu', onHeaderMenu)
+      document.getElementById('gantt-columns-menu')?.remove()
       placeholderRef.current?.destroy()
       placeholderRef.current = null
       multiRef.current = null
