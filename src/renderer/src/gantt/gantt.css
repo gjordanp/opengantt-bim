@@ -121,6 +121,34 @@
   border: 2px solid #e5484d !important;
 }
 
+/* The handle on the left edge of the chart that hides or shows the table. */
+.table-handle {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 40px;
+  padding: 0;
+  transform: translateY(-50%);
+  color: #fff;
+  background: var(--brand, #8b5cf6);
+  border: 0;
+  border-radius: 0 8px 8px 0;
+  box-shadow: 0 2px 8px rgb(126 58 242 / 0.25);
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.15s, width 0.15s;
+}
+.table-handle:hover,
+.table-handle:focus-visible {
+  opacity: 1;
+  width: 20px;
+  outline: none;
+}
+
 /* The empty row at the end of the table: "Nueva tarea…", filled in to add a task. */
 .gantt_row.placeholder-row .gantt_cell:not(:first-child) {
   visibility: hidden;

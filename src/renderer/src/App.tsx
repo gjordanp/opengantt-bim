@@ -550,6 +550,7 @@ export default function App(): React.JSX.Element {
         holidays={calendar.holidays}
         workWeek={calendar.workWeek}
         planning={calendar}
+        onToggleTable={() => changeGanttSettings({ ...ganttSettings, tableCollapsed: !ganttSettings.tableCollapsed })}
         ref={ganttRef}
         onHistoryChange={setHistory}
         project={project}
@@ -642,6 +643,7 @@ export default function App(): React.JSX.Element {
           { id: 'baseline-all', section: 'Planificación', label: 'Fijar línea base de todo el proyecto', keywords: 'linea base plan original guardar', run: () => void ganttRef.current?.setBaselines('all') },
           { id: 'baseline-missing', section: 'Planificación', label: 'Fijar línea base solo en las tareas sin ella', keywords: 'linea base plan original', run: () => void ganttRef.current?.setBaselines('missing') },
           { id: 'baseline-clear', section: 'Planificación', label: 'Quitar la línea base de todo el proyecto', keywords: 'linea base borrar eliminar', run: () => void ganttRef.current?.setBaselines('clear') },
+          { id: 'table-toggle', section: 'Planificación', label: `${ganttSettings.tableCollapsed ? 'Mostrar' : 'Ocultar'} la tabla del Gantt`, keywords: 'columnas tabla grid colapsar ocultar mas espacio', run: () => changeGanttSettings({ ...ganttSettings, tableCollapsed: !ganttSettings.tableCollapsed }) },
           { id: 'scurve-overlay', section: 'Planificación', label: `${showScurve ? 'Ocultar' : 'Mostrar'} curva S sobre el Gantt`, keywords: 'curva s avance progreso planificado real', run: () => setShowScurve((v) => !v) },
           { id: 'critical', section: 'Planificación', label: `${showCritical ? 'Ocultar' : 'Mostrar'} ruta crítica`, keywords: 'critical path', run: () => setShowCritical((v) => !v) },
           { id: 'lob', section: 'Planificación', label: `${lobMode ? 'Ocultar' : 'Mostrar'} línea de balance`, keywords: 'lob balance', run: () => setLobMode((v) => !v) },

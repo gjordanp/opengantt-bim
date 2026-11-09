@@ -72,6 +72,10 @@ export default function GanttSettingsMenu({ settings, onChange }: Props): React.
               Ocultar días no laborables
             </button>
             <p className="menu-hint">Quita de la escala los días que el calendario laboral no trabaja (fines de semana y feriados); la curva S deja de hacer escalones.</p>
+            <button role="menuitemcheckbox" aria-checked={settings.tableCollapsed} className="menu-item" onClick={() => onChange({ ...settings, tableCollapsed: !settings.tableCollapsed })}>
+              <span className="menu-check">{settings.tableCollapsed ? '✓' : ''}</span>
+              Ocultar la tabla (más espacio para el gráfico)
+            </button>
             <div className="menu-sep" />
             <div className="menu-title">Barras</div>
             <button role="menuitemcheckbox" aria-checked={settings.barText} className="menu-item" onClick={() => onChange({ ...settings, barText: !settings.barText })}>

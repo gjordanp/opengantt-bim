@@ -57,6 +57,8 @@ interface Props {
   ref?: Ref<GanttHandle>
   /** Called when undo/redo availability changes. */
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
+  /** Called by the handle at the left edge of the chart, which hides or shows the table. */
+  onToggleTable?: () => void
 }
 
 export interface GanttHandle {
@@ -109,6 +111,43 @@ function planningFields(p: { projectStart?: string; projectEnd?: string; schedul
   }
 }
 
+/** The layout without the table: just the timeline and its scrollbars. */
+function chartOnlyLayout(): Record<string, unknown> {
+  return {
+    css: 'gantt_container',
+    rows: [
+      { cols: [{ view: 'timeline', scrollX: 'scrollHor', scrollY: 'scrollVer' }, { view: 'scrollbar', id: 'scrollVer' }] },
+      { view: 'scrollbar', id: 'scrollHor', height: 20 }
+    ],
+    id: 'main'
+  }
+}
+
+/**
+ * The small handle on the left edge of the chart that hides or shows the table (the original Opengantt had one).
+ * It lives inside the gantt's own DOM, so it is made again after every `init`.
+ */
+function mountTableHandle(gantt: GanttStatic, collapsed: boolean, toggle: () => void): void {
+  const cell = (gantt as unknown as { $root: HTMLElement }).$root?.querySelector('.timeline_cell') as HTMLElement | null
+  if (!cell) return
+  cell.querySelector('.table-handle')?.remove()
+  const button = document.createElement('button')
+  button.className = 'table-handle'
+  button.type = 'button'
+  const label = collapsed ? 'Mostrar la tabla' : 'Ocultar la tabla'
+  button.title = label
+  button.setAttribute('aria-label', label)
+  button.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="${collapsed ? 'M9 5l7 7-7 7' : 'M15 19l-7-7 7-7'}"/></svg>`
+  button.addEventListener('mousedown', (e) => e.stopPropagation())
+  button.addEventListener('click', (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+    toggle()
+  })
+  cell.style.position = 'relative'
+  cell.appendChild(button)
+}
+
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   const inputs: LobTaskInput[] = []
   gantt.eachTask((task: any) => {
@@ -122,7 +161,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, ref, onHistoryChange, onToggleTable }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -130,6 +169,12 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const planRef = useRef<PlanOverlay | null>(null)
   const multiRef = useRef<MultiSelect | null>(null)
   const placeholderRef = useRef<Placeholder | null>(null)
+  const onToggleTableRef = useRef(onToggleTable)
+  onToggleTableRef.current = onToggleTable
+  // The layout the gantt was created with (table and chart); the chart-only one drops the table and its resizer.
+  const fullLayoutRef = useRef<unknown>(null)
+  const appliedCollapsedRef = useRef(false)
+  const zoomConfigRef = useRef<{ levels: { name: string }[] } | null>(null)
   // Read by the gantt callbacks, which are bound once at init.
   const lobSectionsRef = useRef<Set<string>>(new Set())
   const lobModeRef = useRef(lobMode)
@@ -513,8 +558,12 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       { name: 'deadline', map_to: { start_date: 'deadline' }, button: true, type: 'duration_optional', single_date: true }
     ] as unknown as typeof gantt.config.lightbox.sections
 
+    fullLayoutRef.current = structuredClone(gantt.config.layout)
+    appliedCollapsedRef.current = ganttSettingsRef.current.tableCollapsed
+    if (appliedCollapsedRef.current) gantt.config.layout = chartOnlyLayout()
     gantt.init(host)
     installIgnoreTime(gantt)
+    mountTableHandle(gantt, appliedCollapsedRef.current, () => onToggleTableRef.current?.())
     installWorkTime(gantt, () => calendarRef.current)
     multiRef.current = installMultiSelect(gantt)
     // The empty row: typing a name there adds a task after the last one, in the same group, starting the working day after it.
@@ -584,7 +633,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       if (!schedulingRef.current) reschedule()
     })
 
-    gantt.ext.zoom.init({
+    const zoomConfig = {
       levels: [
         { name: 'year', scale_height: 50, min_column_width: 80, scales: [{ unit: 'year', step: 1, format: '%Y' }] },
         {
@@ -618,7 +667,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       useKey: 'ctrlKey',
       trigger: 'wheel',
       element: () => gantt.$root.querySelector('.gantt_task') as HTMLElement
-    })
+    }
+    zoomConfigRef.current = zoomConfig
+    gantt.ext.zoom.init(zoomConfig as never)
     gantt.ext.zoom.setLevel('month')
 
     return () => {
@@ -640,6 +691,27 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       gantt.destructor()
     }
   }, [])
+
+  // Hide or show the table: the gantt is started again with the other layout.
+  useEffect(() => {
+    const gantt = ganttRef.current
+    const host = hostRef.current
+    if (!gantt || !host || appliedCollapsedRef.current === settings.tableCollapsed) return
+    appliedCollapsedRef.current = settings.tableCollapsed
+    gantt.config.layout = settings.tableCollapsed ? chartOnlyLayout() : structuredClone(fullLayoutRef.current)
+    gantt.init(host)
+    // The new timeline view needs the hidden-days hook again.
+    installIgnoreTime(gantt)
+    // Ctrl + wheel zoom was bound to the old timeline: bind it to the new one, at the same level.
+    const zoom = zoomConfigRef.current
+    if (zoom) {
+      const level = zoom.levels[gantt.ext.zoom.getCurrentLevel()]?.name
+      gantt.ext.zoom.init(zoom as never)
+      if (level) gantt.ext.zoom.setLevel(level)
+    }
+    mountTableHandle(gantt, settings.tableCollapsed, () => onToggleTableRef.current?.())
+    gantt.render()
+  }, [settings.tableCollapsed])
 
   // Non-working days and columns, whenever the settings (or the calendar they depend on) change.
   useEffect(() => {

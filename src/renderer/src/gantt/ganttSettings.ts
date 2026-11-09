@@ -21,6 +21,8 @@ export interface GanttSettings {
   scurvePlan: 'current' | 'baseline'
   /** The name of the task inside its bar. */
   barText: boolean
+  /** The table on the left is hidden, so the chart has the whole width. */
+  tableCollapsed: boolean
   /** Parent tasks: a plain bar or a summary bracket like MS Project's. */
   summaryStyle: 'bar' | 'bracket'
 }
@@ -29,6 +31,7 @@ export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   hideWeekends: false,
   scurvePlan: 'current',
   barText: true,
+  tableCollapsed: false,
   summaryStyle: 'bar',
   columns: { start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, deadline: false, constraint: false }
 }
@@ -43,6 +46,7 @@ export function loadGanttSettings(): GanttSettings {
       hideWeekends: raw.hideWeekends === true,
       scurvePlan: raw.scurvePlan === 'baseline' ? 'baseline' : 'current',
       barText: raw.barText !== false,
+      tableCollapsed: raw.tableCollapsed === true,
       summaryStyle: raw.summaryStyle === 'bracket' ? 'bracket' : 'bar',
       // Columns added later keep their default.
       columns: { ...DEFAULT_GANTT_SETTINGS.columns, ...(raw.columns ?? {}) }
