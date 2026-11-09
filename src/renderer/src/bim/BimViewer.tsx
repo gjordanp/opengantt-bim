@@ -9,7 +9,7 @@ import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as OBF from '@thatopen/components-front'
 import ViewerSettingsMenu from './ViewerSettingsMenu'
-import { CAMERA_FEEL, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
+import { CAMERA_FEEL, EDGE_WIDTH, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
@@ -253,6 +253,7 @@ export default function BimViewer({
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
     renderer.cssSize = false
     pp.edgesPass.color = new THREE.Color(viewer.edgeColor)
+    pp.edgesPass.width = EDGE_WIDTH
     renderer.adaptiveResolution = viewer.adaptive
   }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
   // The camera follows the mouse almost directly: no gliding after the pointer stops.

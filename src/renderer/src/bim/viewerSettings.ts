@@ -26,6 +26,9 @@ export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0
 
 export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, edgeColor: '#000000', modelColors: true, elementColor: '#e5e7eb' }
 
+/** Thickness of the edge lines (the library's own default is 1). */
+export const EDGE_WIDTH = 0.6
+
 /** Ambient-occlusion parameters, on top of the library's defaults. */
 export const SHADOW_PARAMS = { radius: 0.2, scale: 1.1 }
 
