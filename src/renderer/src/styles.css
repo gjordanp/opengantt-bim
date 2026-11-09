@@ -675,6 +675,43 @@ kbd {
   margin: 6px 0;
   background: var(--border);
 }
+.layout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px 6px 6px;
+}
+.layout-grid .tt {
+  display: block;
+}
+.layout-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  height: auto;
+  padding: 8px 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: center;
+  cursor: pointer;
+}
+.layout-card .layout-thumb {
+  flex: none;
+}
+.menu-pop:has(.layout-grid) {
+  width: 270px;
+}
+.layout-card:hover {
+  background: var(--accent);
+  color: var(--foreground);
+  border-color: var(--brand);
+}
 .menu-hint {
   margin: 6px 8px 4px;
   font-size: 11px;

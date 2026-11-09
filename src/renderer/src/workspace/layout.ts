@@ -12,13 +12,14 @@ export const PANELS: PanelDef[] = [
   { id: 'scurve', title: 'Curva S (panel)' }
 ]
 
-export type PresetId = 'classic' | 'stacked' | 'bim' | 'gantt'
+export type PresetId = 'classic' | 'stacked' | 'bim' | 'gantt' | 'viewer'
 
 export const PRESETS: { id: PresetId; label: string; hint: string }[] = [
-  { id: 'classic', label: 'Gantt | Visor', hint: 'Gantt a la izquierda, visor y herramientas a la derecha' },
-  { id: 'stacked', label: 'Gantt / Visor', hint: 'Gantt arriba, visor y herramientas abajo' },
-  { id: 'bim', label: 'Visor grande', hint: 'Visor 3D protagonista, Gantt abajo' },
-  { id: 'gantt', label: 'Solo Gantt', hint: 'Solo el cronograma' }
+  { id: 'classic', label: 'Lado a lado', hint: 'Gantt a la izquierda, visor 3D y herramientas a la derecha' },
+  { id: 'stacked', label: 'Uno sobre otro', hint: 'Gantt arriba, visor 3D y herramientas abajo' },
+  { id: 'bim', label: 'Visor arriba', hint: 'Visor 3D grande arriba, Gantt abajo' },
+  { id: 'gantt', label: 'Solo Gantt', hint: 'Solo el cronograma' },
+  { id: 'viewer', label: 'Solo visor', hint: 'Solo el modelo 3D y sus herramientas' }
 ]
 
 const LAYOUT_KEY = 'ogbim.layout.v4'
@@ -31,6 +32,10 @@ const panel = (api: DockviewApi, id: string, extra: Record<string, unknown> = {}
 
 export function applyPreset(api: DockviewApi, preset: PresetId): void {
   api.clear()
+  if (preset === 'viewer') {
+    panel(api, 'viewer')
+    return
+  }
   panel(api, 'gantt')
   if (preset === 'gantt') return
   if (preset === 'classic') {
