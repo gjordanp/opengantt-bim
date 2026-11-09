@@ -333,7 +333,7 @@ const TOPICS: Topic[] = [
         </p>
         <h3>Configuración del visor</h3>
         <p>
-          El último icono de la barra del visor (los controles deslizantes) reúne los ajustes: <b>bordes</b> de los elementos (con su grosor), <b>sombras</b> en las esquinas y huecos, <b>resaltar al pasar el mouse</b>, la <b>calidad</b> (suavizado de bordes y fluidez en modelos pesados) y la <b>respuesta de la cámara</b> (Ágil, Normal o Suave) al girar, mover y acercar.
+          El último icono de la barra del visor (los controles deslizantes) reúne los ajustes: <b>bordes</b> de los elementos, <b>sombras</b> en las esquinas y huecos, <b>resaltar al pasar el mouse</b> y la <b>calidad</b> (suavizado de bordes y fluidez en modelos pesados). Cada ajuste se enciende o se apaga.
         </p>
         <h3>Buscar por propiedades</h3>
         <p>

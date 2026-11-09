@@ -9,7 +9,7 @@ import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as OBF from '@thatopen/components-front'
 import ViewerSettingsMenu from './ViewerSettingsMenu'
-import { CAMERA_FEEL, EDGE_WIDTH, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
+import { CAMERA_FEEL, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
@@ -245,22 +245,21 @@ export default function BimViewer({
     const pp = renderer?.postproduction
     if (!renderer || !pp) return
     const A = OBF.PostproductionAspect
-    pp.style = viewer.edges ? (viewer.shadows !== 'off' ? A.COLOR_PEN_SHADOWS : A.COLOR_PEN) : viewer.shadows !== 'off' ? A.COLOR_SHADOWS : A.COLOR
-    pp.edgesPass.width = EDGE_WIDTH[viewer.edgeWidth]
-    // Changing the style resets nothing of the AO tuning, but its strength is ours to set.
-    if (viewer.shadows !== 'off') pp.aoPass.updateGtaoMaterial({ ...pp.defaultAoParameters, ...SHADOW_PARAMS[viewer.shadows] })
-    pp.smaaEnabled = viewer.antialiasing === 'fast'
-    pp.msaaEnabled = viewer.antialiasing === 'high'
+    pp.style = viewer.edges ? (viewer.shadows ? A.COLOR_PEN_SHADOWS : A.COLOR_PEN) : viewer.shadows ? A.COLOR_SHADOWS : A.COLOR
+    if (viewer.shadows) pp.aoPass.updateGtaoMaterial({ ...pp.defaultAoParameters, ...SHADOW_PARAMS })
+    pp.smaaEnabled = viewer.antialiasing
+    pp.msaaEnabled = false
+    // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
+    renderer.cssSize = false
     renderer.adaptiveResolution = viewer.adaptive
-  }, [viewer.edges, viewer.shadows, viewer.edgeWidth, viewer.antialiasing, viewer.adaptive])
-  // Camera feel: how much the controls smooth the mouse motion.
+  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive])
+  // The camera follows the mouse almost directly: no gliding after the pointer stops.
   useEffect(() => {
     const controls = worldRef.current?.camera.controls
     if (!controls) return
-    const feel = CAMERA_FEEL[viewer.camera]
-    controls.smoothTime = feel.smoothTime
-    controls.draggingSmoothTime = feel.draggingSmoothTime
-  }, [viewer.camera])
+    controls.smoothTime = CAMERA_FEEL.smoothTime
+    controls.draggingSmoothTime = CAMERA_FEEL.draggingSmoothTime
+  }, [])
   useEffect(() => {
     if (!viewer.hover) clearHoverRef.current()
   }, [viewer.hover])
