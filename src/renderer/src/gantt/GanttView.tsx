@@ -10,6 +10,8 @@ import { installWorkTime } from './workTime'
 import { installDragDurations, installMultiSelect, type MultiSelect } from './multiSelect'
 import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './planLayer'
 import { lateness, previousDay } from '@shared/plan'
+import { CONSTRAINT_TYPES, constraintNeedsDate, constraintShort } from '@shared/constraints'
+import { isoToDate } from './localDates'
 import { toDay, weekCalendar } from '@shared/scheduling'
 import type { ColumnId, GanttSettings } from './ganttSettings'
 import type { TaskSpan } from '@shared/bim4d'
@@ -126,7 +128,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         ...(t.open !== undefined ? { open: Boolean(t.open) } : {}),
         ...(Number(t.location_surface) ? { location_surface: Number(t.location_surface) } : {}),
         ...(t.baseline_start && t.baseline_end ? { baseline_start: String(t.baseline_start), baseline_end: String(t.baseline_end) } : {}),
-        ...(t.deadline ? { deadline: String(t.deadline) } : {})
+        ...(t.deadline ? { deadline: String(t.deadline) } : {}),
+        ...(t.constraint_type && t.constraint_type !== 'asap'
+          ? { constraint_type: String(t.constraint_type), ...(t.constraint_date ? { constraint_date: String(t.constraint_date) } : {}) }
+          : {})
       })),
       links: links.map((l) => ({
         id: String(l.id),
@@ -220,6 +225,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const emitChangeRef = useRef(emitChange)
   emitChangeRef.current = emitChange
   const criticalRef = useRef<Set<string>>(new Set())
+  const conflictsRef = useRef<Set<string>>(new Set())
   // True while we write scheduled dates back, so the update events that
   // triggers don't start another scheduling run.
   const schedulingRef = useRef(false)
@@ -231,6 +237,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     try {
       const outcome = autoSchedule(gantt, calendarRef.current)
       criticalRef.current = outcome.critical
+      conflictsRef.current = outcome.conflicts
       gantt.render()
       onScheduledRef.current?.(outcome)
     } finally {
@@ -284,6 +291,19 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
           const late = lateness(task)?.kind === 'deadline'
           return `${late ? '<span class="overdue-mark" title="Fuera de plazo">!</span> ' : ''}${dateToIso(task.deadline)}`
         }
+      },
+      {
+        name: 'constraint',
+        label: 'Restricción',
+        align: 'center',
+        width: 120,
+        resize: true,
+        template: (task: any) => {
+          if (!task.constraint_type || task.constraint_type === 'asap') return ''
+          const conflict = conflictsRef.current.has(String(task.id)) ? '<span class="overdue-mark" title="En conflicto con sus vínculos">!</span> ' : ''
+          const date = constraintNeedsDate(task.constraint_type) && task.constraint_date ? ` ${dateToIso(task.constraint_date)}` : ''
+          return `${conflict}${constraintShort(task.constraint_type)}${date}`
+        }
       }
     ]
     // The Community edition has no column `hide`: the table shows exactly the columns in this list.
@@ -309,6 +329,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.templates.task_class = (_start: Date, end: Date, task: any) => {
       const classes = planTaskClasses(end, task)
       if (showCriticalRef.current && criticalRef.current.has(String(task.id))) classes.unshift('critical-task')
+      if (conflictsRef.current.has(String(task.id))) classes.push('constraint-conflict')
       return classes.join(' ')
     }
     gantt.templates.rightside_text = (_start: Date, end: Date, task: any) => planSideText(end, task)
@@ -319,10 +340,40 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.locale.labels.baseline_disable_button = 'Quitar'
     gantt.locale.labels.deadline_enable_button = 'Fijar'
     gantt.locale.labels.deadline_disable_button = 'Quitar'
+    gantt.locale.labels.section_constraint = 'Restricción'
+    // The edit window's constraint section: a type and, for most types, a date. The Community edition has none.
+    ;(gantt as any).form_blocks.constraint = {
+      render: (section: { name: string }) =>
+        `<div class="gantt_cal_ltext gantt_section_${section.name} constraint-section" style="height:42px">` +
+        `<select class="constraint-type">${CONSTRAINT_TYPES.map((t) => `<option value="${t.id}">${t.label}</option>`).join('')}</select>` +
+        `<input type="date" class="constraint-date"></div>`,
+      set_value: (node: HTMLElement, _value: unknown, task: any) => {
+        const type = node.querySelector<HTMLSelectElement>('.constraint-type')!
+        const date = node.querySelector<HTMLInputElement>('.constraint-date')!
+        type.value = task.constraint_type || 'asap'
+        date.value = task.constraint_date ? dateToIso(task.constraint_date) : ''
+        const sync = (): void => {
+          date.style.display = constraintNeedsDate(type.value) ? '' : 'none'
+        }
+        type.onchange = sync
+        sync()
+      },
+      // The gantt maps the two fields of the returned object onto the task (`constraint_type`, `constraint_date`).
+      get_value: (node: HTMLElement) => {
+        const type = node.querySelector<HTMLSelectElement>('.constraint-type')!.value
+        const date = node.querySelector<HTMLInputElement>('.constraint-date')!.value
+        return {
+          constraint_type: type === 'asap' ? null : type,
+          constraint_date: constraintNeedsDate(type) && date ? isoToDate(date) : null
+        }
+      },
+      focus: () => undefined
+    }
     // The typings only know the plain sections; the optional-duration ones take an object for `map_to`.
     gantt.config.lightbox.sections = [
       { name: 'description', height: 70, map_to: 'text', type: 'textarea', focus: true },
       { name: 'time', map_to: 'auto', type: 'duration' },
+      { name: 'constraint', height: 42, map_to: 'constraint_type', type: 'constraint' },
       { name: 'baseline', map_to: { start_date: 'baseline_start', end_date: 'baseline_end' }, button: true, type: 'duration_optional' },
       { name: 'deadline', map_to: { start_date: 'deadline' }, button: true, type: 'duration_optional', single_date: true }
     ] as unknown as typeof gantt.config.lightbox.sections

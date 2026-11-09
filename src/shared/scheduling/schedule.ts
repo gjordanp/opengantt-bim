@@ -14,6 +14,21 @@ import {
 /** Finish-to-start `0`, start-to-start `1`, finish-to-finish `2`, start-to-finish `3`. */
 export type LinkKind = '0' | '1' | '2' | '3'
 
+/**
+ * How a task is tied to a date, like the constraints of DHTMLX Pro / MS Project: as soon as possible (default),
+ * as late as possible, start/finish no earlier/later than, must start/finish on.
+ */
+export type ConstraintType = 'asap' | 'alap' | 'snet' | 'snlt' | 'fnet' | 'fnlt' | 'mso' | 'mfo'
+
+export interface SchedConstraint {
+  type: ConstraintType
+  /**
+   * `YYYY-MM-DD`. Not used by `asap` and `alap`. For the finish constraints it is an end like the task's own
+   * (exclusive: the day after the last working day), the way Pro reads it.
+   */
+  date?: string
+}
+
 export interface SchedTask {
   id: string
   /** `YYYY-MM-DD`. Only used for tasks with no predecessors (or in non-strict mode). */
@@ -22,6 +37,7 @@ export interface SchedTask {
   duration: number
   /** Parent id; absent or `'0'` for a root task. */
   parent?: string
+  constraint?: SchedConstraint
 }
 
 export interface SchedLink {
@@ -74,6 +90,8 @@ export interface ScheduleResult {
   skippedLinks: SchedLink[]
   /** End (exclusive) of the last task, or `null` for an empty project. */
   projectEnd: string | null
+  /** Tasks that could not respect a constraint, or a link, at the same time as their constraint. */
+  conflicts: Set<string>
 }
 
 const isRoot = (parent: string | undefined): boolean => parent === undefined || parent === '0' || parent === ''
@@ -136,6 +154,9 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
   const cycle = leaves.filter((t) => !scheduledIds.has(t.id)).map((t) => t.id)
 
   // Forward pass.
+  const conflicts = new Set<string>()
+  // What the links alone ask of each task's start (raw, `-Infinity` for none).
+  const linkBound = new Map<string, number>()
   const start = new Map<string, number>()
   const end = new Map<string, number>()
   for (const id of order) {
@@ -169,6 +190,7 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
       }
     }
     const lower = Math.max(fromStartLinks, fromEndLinks)
+    linkBound.set(id, lower)
     const own = toDay(task.start)
     let s: number
     if (lower === -Infinity) s = snapFixedStarts ? nextWorkingDay(cal, own) : own
@@ -181,6 +203,21 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
       s = strict ? found : Math.max(own, found)
     } else {
       s = nextWorkingDay(cal, strict ? lower : Math.max(own, lower))
+    }
+    const c = task.constraint
+    if (c && c.date && c.type !== 'asap' && c.type !== 'alap') {
+      // Like Pro: the start from the links (or the task's own start) is pushed to the earliest start the
+      // constraint allows, or pulled back to the latest one. A pull-back may break a link: that is a conflict.
+      const d = toDay(c.date)
+      const byEnd = c.type === 'fnet' || c.type === 'fnlt' || c.type === 'mfo'
+      const limit = byEnd ? startFromEnd(cal, d, duration) : d
+      const earliest = c.type === 'snet' || c.type === 'fnet' || c.type === 'mso' || c.type === 'mfo' ? limit : undefined
+      const latest = c.type === 'snlt' || c.type === 'fnlt' || c.type === 'mso' || c.type === 'mfo' ? limit : undefined
+      const effective = lower === -Infinity ? own : s
+      const from = s
+      if (earliest !== undefined && effective < earliest) s = earliest
+      if (latest !== undefined && effective > latest) s = latest
+      if (lower !== -Infinity && s < from) conflicts.add(id)
     }
     start.set(id, s)
     end.set(id, endFromStart(cal, s, duration))
@@ -222,9 +259,43 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
     lateEnd.set(id, endFromStart(cal, ls, duration))
   }
 
+  // Tasks set to "as late as possible" slide towards their successors (Pro's second pass, from the end).
+  // Like Pro it looks at the successor's start only, whatever the link type; a task with no successor stays put.
+  const early = new Map(start)
+  const workingBoundary = (day: number, dir: 'past' | 'future'): number =>
+    cal.isWorkingDay(day) ? day : dir === 'past' ? prevWorkingDay(cal, day) + 1 : nextWorkingDay(cal, day)
+  for (const id of [...order].reverse()) {
+    const task = byId.get(id)!
+    if (task.constraint?.type !== 'alap') continue
+    const duration = Math.max(0, task.duration)
+    let latestEnd: number | null = null
+    for (const l of outgoing.get(id)!) {
+      let bound = workingBoundary(start.get(l.target)!, 'past')
+      if (l.lag) bound = shiftWorkDays(cal, bound, -l.lag)
+      if (latestEnd === null || bound < latestEnd) latestEnd = bound
+    }
+    // A task that has to move for its predecessors never moves back: it keeps its own start unless they push it.
+    const bound = linkBound.get(id)! === -Infinity ? -Infinity : early.get(id)!
+    const own = toDay(task.start)
+    if (latestEnd === null) {
+      const kept = bound !== -Infinity && own < bound ? bound : own
+      start.set(id, kept)
+      end.set(id, endFromStart(cal, kept, duration))
+      continue
+    }
+    let s: number
+    if (duration > 0) s = startFromEnd(cal, workingBoundary(latestEnd, 'future'), duration)
+    else s = workingBoundary(latestEnd, 'past')
+    const limit = duration > 0 ? startFromEnd(cal, latestEnd, duration) : latestEnd
+    if (s > limit) s = limit
+    if (bound !== -Infinity && s < bound) s = bound
+    start.set(id, s)
+    end.set(id, endFromStart(cal, s, duration))
+  }
+
   const result = new Map<string, ScheduledTask>()
   const floatOf = (id: string): number => {
-    const es = start.get(id)!
+    const es = early.get(id)!
     const ls = lateStart.get(id)!
     return ls >= es ? countWorkDays(cal, es, ls) : -countWorkDays(cal, ls, es)
   }
@@ -277,6 +348,7 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
     tasks: result,
     cycle: cycle.length > 0 ? cycle : null,
     skippedLinks,
-    projectEnd: projectEnd === null ? null : fromDay(projectEnd)
+    projectEnd: projectEnd === null ? null : fromDay(projectEnd),
+    conflicts
   }
 }

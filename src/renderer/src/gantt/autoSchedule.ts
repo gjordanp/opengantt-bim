@@ -11,6 +11,7 @@ import {
   type SchedTask
 } from '@shared/scheduling'
 
+import { engineConstraint } from '@shared/constraints'
 import { dateToIso, isoToDate } from './localDates'
 
 export { dateToIso, isoToDate }
@@ -22,6 +23,8 @@ export interface AutoScheduleOutcome {
   cycle: string[]
   /** How many tasks changed dates. */
   moved: number
+  /** Tasks that could not respect their constraint and their links together. */
+  conflicts: Set<string>
 }
 
 /**
@@ -35,11 +38,13 @@ export interface AutoScheduleOutcome {
 export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalendar()): AutoScheduleOutcome {
   const tasks: SchedTask[] = []
   gantt.eachTask((t: any) => {
+    const constraint = engineConstraint(t.constraint_type, t.constraint_date ? dateToIso(t.constraint_date) : null, (iso) => fromDay(toDay(iso) + 1))
     tasks.push({
       id: String(t.id),
       start: dateToIso(t.start_date),
       duration: Number(t.duration) || 0,
-      parent: String(t.parent)
+      parent: String(t.parent),
+      ...(constraint ? { constraint } : {})
     })
   })
   const links: SchedLink[] = (gantt.getLinks() as any[]).map((l) => ({
@@ -71,7 +76,7 @@ export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalend
     }
   })
 
-  return { critical, cycle: result.cycle ?? [], moved }
+  return { critical, cycle: result.cycle ?? [], moved, conflicts: result.conflicts }
 }
 
 /**

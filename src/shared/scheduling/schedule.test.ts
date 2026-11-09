@@ -240,3 +240,60 @@ describe('schedule: float and critical path', () => {
     expect(lagged.tasks.get('B')!.critical).toBe(false)
   })
 })
+
+// Expected dates are what DHTMLX Pro 8.0.6 (auto_scheduling, work_time) gives for the same project.
+describe('constraints', () => {
+  const june = (id: string, duration: number, constraint?: SchedTask['constraint'], start = '2026-06-01'): SchedTask => ({ id, start, duration, constraint })
+  const after = (id: string): SchedLink => link('base', id)
+
+  it('SNET waits for its date, never moves a task earlier, and keeps a weekend date', () => {
+    const r = schedule(
+      [june('base', 5), june('wait', 4, { type: 'snet', date: '2026-06-15' }), june('early', 3, { type: 'snet', date: '2026-06-02' }), june('sat', 3, { type: 'snet', date: '2026-06-13' })],
+      [after('wait'), after('early'), after('sat')]
+    )
+    expect(dates(r, 'wait')).toEqual(['2026-06-15', '2026-06-19'])
+    expect(dates(r, 'early')).toEqual(['2026-06-08', '2026-06-11'])
+    expect(dates(r, 'sat')).toEqual(['2026-06-13', '2026-06-18'])
+  })
+
+  it('SNLT pulls a task back to its date, even past its predecessor, and flags the conflict', () => {
+    const r = schedule([june('base', 5), june('late', 4, { type: 'snlt', date: '2026-06-03' }), june('ok', 3, { type: 'snlt', date: '2026-06-20' })], [after('late'), after('ok')])
+    expect(r.tasks.get('late')!.start).toBe('2026-06-03')
+    expect(r.conflicts.has('late')).toBe(true)
+    expect(dates(r, 'ok')).toEqual(['2026-06-08', '2026-06-11'])
+    expect(r.conflicts.has('ok')).toBe(false)
+  })
+
+  it('FNET, FNLT and MFO read their date as an end (the day after the last working day)', () => {
+    const r = schedule(
+      [june('fnet', 4, { type: 'fnet', date: '2026-06-24' }), june('fnlt', 5, { type: 'fnlt', date: '2026-06-26' }, '2026-06-22'), june('mfo', 3, { type: 'mfo', date: '2026-06-12' }, '2026-06-02')],
+      []
+    )
+    expect(dates(r, 'fnet')).toEqual(['2026-06-18', '2026-06-24'])
+    expect(dates(r, 'fnlt')).toEqual(['2026-06-19', '2026-06-26'])
+    expect(dates(r, 'mfo')).toEqual(['2026-06-09', '2026-06-12'])
+  })
+
+  it('MSO moves a task to its date, earlier or later than its links allow', () => {
+    const r = schedule([june('base', 5), june('earlier', 3, { type: 'mso', date: '2026-06-03' }), june('later', 3, { type: 'mso', date: '2026-06-17' })], [after('earlier'), after('later')])
+    expect(r.tasks.get('earlier')!.start).toBe('2026-06-03')
+    expect(r.tasks.get('later')!.start).toBe('2026-06-17')
+  })
+
+  it('ALAP slides a task towards its successor; with none it stays, pushed only by its predecessors', () => {
+    const r = schedule(
+      [june('a', 3), june('b', 2, { type: 'alap' }), june('long', 10), june('c', 4)],
+      [link('a', 'b'), link('b', 'c'), link('long', 'c')]
+    )
+    // c waits for `long` (Mon 15th); b, which is free to slide, finishes just before it.
+    expect(r.tasks.get('c')!.start).toBe('2026-06-15')
+    expect(dates(r, 'b')).toEqual(['2026-06-11', '2026-06-13'])
+    const alone = schedule([june('solo', 3, { type: 'alap' }, '2026-06-10')], [])
+    expect(dates(alone, 'solo')).toEqual(['2026-06-10', '2026-06-13'])
+  })
+
+  it('ignores a constraint that needs a date and has none', () => {
+    const r = schedule([june('x', 3, { type: 'snet' })], [])
+    expect(dates(r, 'x')).toEqual(['2026-06-01', '2026-06-04'])
+  })
+})

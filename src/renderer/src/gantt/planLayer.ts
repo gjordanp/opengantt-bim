@@ -1,5 +1,6 @@
 import type { GanttStatic } from 'dhtmlx-gantt'
 import { lateness, previousDay } from '@shared/plan'
+import { CONSTRAINT_TYPES, constraintIsFinish, constraintNeedsDate } from '@shared/constraints'
 
 /**
  * Draws the baseline (a pale bar under the task's bar) and the deadline (a ring on its day) of every visible task.
@@ -69,13 +70,28 @@ export class PlanOverlay {
         ring.title = `Plazo: ${format(task.deadline)}`
         el.appendChild(ring)
       }
+      if (constraintNeedsDate(task.constraint_type) && task.constraint_date) {
+        // A start constraint marks its date; a finish constraint marks the end of its last day.
+        const finish = constraintIsFinish(task.constraint_type)
+        const at = finish ? new Date(task.constraint_date.getFullYear(), task.constraint_date.getMonth(), task.constraint_date.getDate() + 1) : task.constraint_date
+        const pos = gantt.getTaskPosition(task, at) as { left: number; top: number; height: number }
+        const mark = document.createElement('div')
+        mark.className = 'constraint-mark'
+        mark.dataset.kind = /nlt$/.test(task.constraint_type) ? '≤' : /net$/.test(task.constraint_type) ? '≥' : '='
+        mark.style.left = `${pos.left}px`
+        mark.style.top = `${pos.top}px`
+        mark.style.height = `${pos.height}px`
+        const label = CONSTRAINT_TYPES.find((t) => t.id === task.constraint_type)?.label ?? ''
+        mark.title = `${label} ${format(task.constraint_date)}`
+        el.appendChild(mark)
+      }
     })
   }
 }
 
 /** The gantt reads these dates as text: turn them into dates (`onTaskLoading`). */
 export function parsePlanDates(gantt: GanttStatic, task: any): void {
-  for (const key of ['baseline_start', 'baseline_end', 'deadline']) {
+  for (const key of ['baseline_start', 'baseline_end', 'deadline', 'constraint_date']) {
     if (typeof task[key] === 'string' && task[key]) task[key] = gantt.templates.parse_date(task[key])
     else if (!task[key]) task[key] = null
   }
