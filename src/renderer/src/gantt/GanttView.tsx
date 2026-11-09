@@ -7,6 +7,7 @@ import { installInlineEditors } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
+import { TodayLine } from './todayLine'
 import { installWorkTime } from './workTime'
 import { installDragDurations, installMultiSelect, type MultiSelect } from './multiSelect'
 import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './planLayer'
@@ -183,6 +184,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
+  const todayRef = useRef<TodayLine | null>(null)
   const planRef = useRef<PlanOverlay | null>(null)
   const multiRef = useRef<MultiSelect | null>(null)
   const placeholderRef = useRef<Placeholder | null>(null)
@@ -614,6 +616,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       if (ganttRef.current === gantt) gantt.setSizes()
     })
     resizeObserver.observe(host)
+    todayRef.current = new TodayLine(gantt)
+    todayRef.current.mount()
     planRef.current = new PlanOverlay(gantt)
     planRef.current.mount()
     // Handy for poking at the instance from the devtools console while developing.
@@ -710,6 +714,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       overlayRef.current = null
       scurveRef.current?.destroy()
       scurveRef.current = null
+      todayRef.current?.destroy()
+      todayRef.current = null
       planRef.current?.destroy()
       planRef.current = null
       ganttRef.current = null

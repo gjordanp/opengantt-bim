@@ -13,6 +13,17 @@
   background: rgba(0, 0, 0, 0.25) !important;
 }
 
+.today-line {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #e67e22;
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 4;
+}
+
 /* Dark theme: DHTMLX draws a lot of its chrome from its own variables, so point them at ours. */
 :root[data-theme='dark'] .gantt_container {
   --dhx-gantt-base-colors-border: var(--g-border);
