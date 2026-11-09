@@ -512,7 +512,7 @@ export default function App(): React.JSX.Element {
     setSlot,
     ganttToolbar,
     calendar: <CalendarPanel value={calendar} onChange={setCalendar} />,
-    scurve: <SCurvePanel getTasks={() => ganttRef.current?.progressTasks() ?? []} version={scheduleVersion} basis={volumeWeights} holidays={calendar.holidays} workWeek={calendar.workWeek} />,
+    scurve: <SCurvePanel getTasks={() => ganttRef.current?.progressTasks() ?? []} version={scheduleVersion} basis={volumeWeights} plan={ganttSettings.scurvePlan} holidays={calendar.holidays} workWeek={calendar.workWeek} />,
     gantt: (
       <GanttView
         holidays={calendar.holidays}

@@ -73,6 +73,18 @@ export default function GanttSettingsMenu({ settings, onChange }: Props): React.
             </button>
             <p className="menu-hint">Quita de la escala los días que el calendario laboral no trabaja (fines de semana y feriados); la curva S deja de hacer escalones.</p>
             <div className="menu-sep" />
+            <div className="menu-title">Curva S</div>
+            <button
+              role="menuitemcheckbox"
+              aria-checked={settings.scurvePlan === 'baseline'}
+              className="menu-item"
+              onClick={() => onChange({ ...settings, scurvePlan: settings.scurvePlan === 'baseline' ? 'current' : 'baseline' })}
+            >
+              <span className="menu-check">{settings.scurvePlan === 'baseline' ? '✓' : ''}</span>
+              Planificado según la línea base
+            </button>
+            <p className="menu-hint">La curva planificada sigue las fechas de la línea base (las tareas sin línea base usan sus fechas actuales), así no se corre cuando una tarea se atrasa.</p>
+            <div className="menu-sep" />
             <div className="menu-title">Columnas</div>
             <div className="menu-item menu-locked">
               <span className="menu-check">✓</span>

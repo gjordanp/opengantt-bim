@@ -17,10 +17,13 @@ export interface GanttSettings {
   /** Leave the non-working weekdays of the calendar out of the timeline. */
   hideWeekends: boolean
   columns: Record<ColumnId, boolean>
+  /** What the S-curve's planned line follows: the tasks' current dates (like PRO) or their baseline. */
+  scurvePlan: 'current' | 'baseline'
 }
 
 export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   hideWeekends: false,
+  scurvePlan: 'current',
   columns: { start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, deadline: false, constraint: false }
 }
 
@@ -32,6 +35,7 @@ export function loadGanttSettings(): GanttSettings {
     if (!raw) return DEFAULT_GANTT_SETTINGS
     return {
       hideWeekends: raw.hideWeekends === true,
+      scurvePlan: raw.scurvePlan === 'baseline' ? 'baseline' : 'current',
       // Columns added later keep their default.
       columns: { ...DEFAULT_GANTT_SETTINGS.columns, ...(raw.columns ?? {}) }
     }

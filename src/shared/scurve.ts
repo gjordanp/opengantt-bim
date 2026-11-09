@@ -17,7 +17,13 @@ export interface SCurveTask {
    * S-curve does; later, the volume of the elements built by the task.
    */
   weight?: number
+  /** Baseline span (end exclusive), same units as `start`/`end`; used when the plan follows the baseline. */
+  plannedStart?: number
+  plannedEnd?: number
 }
+
+/** What the planned curve is drawn from: the tasks' current dates (like DHTMLX PRO) or their baseline. */
+export type PlanBasis = 'current' | 'baseline'
 
 export interface SCurve {
   /** First day of the chart. Entry `k` of the arrays below is the start of day `from + k`, so there is one more entry than days. */
@@ -50,15 +56,29 @@ export interface SCurve {
  *   the pace being the real progress at today's start over the days elapsed, today included.
  * Tasks without span or weight (milestones, summaries the caller left out) are skipped.
  */
-export function computeSCurve(tasks: SCurveTask[], cal: Calendar, today: number): SCurve | null {
+export function computeSCurve(tasks: SCurveTask[], cal: Calendar, today: number, plan: PlanBasis = 'current'): SCurve | null {
   const items = tasks
     .filter((t) => t.end > t.start)
-    .map((t) => ({ ...t, days: countWorkDays(cal, t.start, t.end) }))
+    .map((t) => {
+      const days = countWorkDays(cal, t.start, t.end)
+      // With the plan on the baseline, a task that has one is planned over its baseline span (when that has
+      // working days); the others, and the real progress, keep the current dates.
+      const hasBaseline = plan === 'baseline' && t.plannedStart !== undefined && t.plannedEnd !== undefined && t.plannedEnd > t.plannedStart
+      const plannedDays = hasBaseline ? countWorkDays(cal, t.plannedStart!, t.plannedEnd!) : 0
+      const useBaseline = plannedDays > 0
+      return {
+        ...t,
+        days,
+        planStart: useBaseline ? t.plannedStart! : t.start,
+        planEnd: useBaseline ? t.plannedEnd! : t.end,
+        planDays: useBaseline ? plannedDays : days
+      }
+    })
     .filter((t) => t.days > 0)
   if (items.length === 0) return null
 
-  const from = Math.min(...items.map((t) => t.start))
-  const to = Math.max(...items.map((t) => t.end)) // exclusive
+  const from = Math.min(...items.map((t) => Math.min(t.start, t.planStart)))
+  const to = Math.max(...items.map((t) => Math.max(t.end, t.planEnd))) // exclusive
   const n = to - from
   const plannedDay = new Array<number>(n).fill(0)
   const doneDay = new Array<number>(n).fill(0)
@@ -67,14 +87,12 @@ export function computeSCurve(tasks: SCurveTask[], cal: Calendar, today: number)
   for (const t of items) {
     const weight = t.weight ?? t.days
     if (!(weight > 0)) continue
-    const perDay = weight / t.days
     const progress = Math.min(1, Math.max(0, t.progress))
-    for (let d = t.start; d < t.end; d++) {
-      if (!cal.isWorkingDay(d)) continue
-      plannedDay[d - from] += perDay
-      if (d <= today) doneDay[d - from] += perDay * progress
-      total += perDay
-    }
+    const perPlanDay = weight / t.planDays
+    for (let d = t.planStart; d < t.planEnd; d++) if (cal.isWorkingDay(d)) plannedDay[d - from] += perPlanDay
+    const perDay = weight / t.days
+    for (let d = t.start; d < t.end; d++) if (cal.isWorkingDay(d) && d <= today) doneDay[d - from] += perDay * progress
+    total += weight
   }
   if (total === 0) return null
 
@@ -115,6 +133,6 @@ export function computeSCurve(tasks: SCurveTask[], cal: Calendar, today: number)
     plannedToday: inRange ? planned[at] : null,
     realToday,
     projectedFinish,
-    plannedFinish: to - 1
+    plannedFinish: Math.max(...items.map((t) => t.planEnd)) - 1
   }
 }

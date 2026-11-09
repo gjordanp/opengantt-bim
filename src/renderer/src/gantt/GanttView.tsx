@@ -190,7 +190,11 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         end: toDay(dateToIso(t.end_date)),
         progress: Number(t.progress) || 0,
         // By volume: what the task's elements are worth; without a weight the curve falls back to working days.
-        ...(weights ? { weight: weights.get(String(t.id)) ?? 0 } : {})
+        ...(weights ? { weight: weights.get(String(t.id)) ?? 0 } : {}),
+        // The baseline span, for a plan that follows it.
+        ...(t.baseline_start && t.baseline_end
+          ? { plannedStart: toDay(dateToIso(t.baseline_start)), plannedEnd: toDay(dateToIso(t.baseline_end)) }
+          : {})
       })
     })
     return out
@@ -522,14 +526,14 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   useEffect(() => {
     const gantt = ganttRef.current
     if (!gantt || !showScurve) return
-    const overlay = new SCurveOverlay(gantt, () => computeSCurve(collectRef.current(), calendarRef.current, localTodayDay()))
+    const overlay = new SCurveOverlay(gantt, () => computeSCurve(collectRef.current(), calendarRef.current, localTodayDay(), ganttSettingsRef.current.scurvePlan))
     scurveRef.current = overlay
     overlay.mount()
     return () => {
       overlay.destroy()
       if (scurveRef.current === overlay) scurveRef.current = null
     }
-  }, [showScurve, volumeWeights])
+  }, [showScurve, volumeWeights, settings.scurvePlan])
 
 
   // Load the project whenever it changes, then lay it out on the calendar.

@@ -142,3 +142,37 @@ describe('computeSCurve against DHTMLX’s PRO sample', () => {
     expect(c.predicted.map((v) => (v === null ? null : Math.round(v)))).toEqual(predicted)
   })
 })
+
+describe('computeSCurve: plan on the baseline', () => {
+  // A 10-day task that started on time (baseline = Jan 5-16) but slipped two weeks (now Jan 19-30), 50 % done.
+  const slipped = (): SCurveTask => ({
+    start: toDay('2026-01-19'),
+    end: toDay('2026-01-31'),
+    progress: 0.5,
+    plannedStart: monday,
+    plannedEnd: toDay('2026-01-17')
+  })
+  const today = toDay('2026-01-26')
+
+  it('by default the plan follows the current dates, so a slip hides itself', () => {
+    const c = computeSCurve([slipped()], week, today)!
+    expect(c.from).toBe(toDay('2026-01-19'))
+    expect(c.plannedToday).toBeCloseTo(50) // 5 of its 10 days passed, the plan moved with the task
+  })
+
+  it('on the baseline the plan stays where it was: the slip shows as a gap', () => {
+    const c = computeSCurve([slipped()], week, today, 'baseline')!
+    expect(c.from).toBe(monday) // the chart starts at the baseline
+    expect(c.plannedToday).toBeCloseTo(100) // the baseline said it would be done by now
+    expect(c.realToday).toBeLessThan(30)
+    expect(c.plannedFinish).toBe(toDay('2026-01-16'))
+  })
+
+  it('tasks without a baseline keep their current dates', () => {
+    const plain = task(monday, 10, 0)
+    const c = computeSCurve([plain, slipped()], week, today, 'baseline')!
+    const current = computeSCurve([plain, slipped()], week, today, 'current')!
+    expect(c.planned.length).toBeGreaterThanOrEqual(current.planned.length - 10)
+    expect(c.planned[c.planned.length - 1]).toBeCloseTo(100)
+  })
+})

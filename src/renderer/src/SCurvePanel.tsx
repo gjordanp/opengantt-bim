@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { computeSCurve, localTodayDay, type SCurve, type SCurveTask } from '@shared/scurve'
+import { computeSCurve, localTodayDay, type PlanBasis, type SCurve, type SCurveTask } from '@shared/scurve'
 import { weekCalendar } from '@shared/scheduling'
 
 interface Props {
@@ -11,6 +11,8 @@ interface Props {
   basis?: unknown
   holidays: string[]
   workWeek: number[]
+  /** What the planned line follows: current dates or the baseline. */
+  plan?: PlanBasis
 }
 
 const MARGIN = { top: 14, right: 44, bottom: 26, left: 40 }
@@ -33,7 +35,7 @@ function monthTicks(from: number, length: number, width: number): number[] {
 }
 
 /** Planned vs real progress over time, with the pace so far carried forward (like DHTMLX's S-curve sample). */
-export default function SCurvePanel({ getTasks, version, basis, holidays, workWeek }: Props): React.JSX.Element {
+export default function SCurvePanel({ getTasks, version, basis, holidays, workWeek, plan = 'current' }: Props): React.JSX.Element {
   const host = useRef<HTMLDivElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const [hover, setHover] = useState<number | null>(null)
@@ -48,10 +50,10 @@ export default function SCurvePanel({ getTasks, version, basis, holidays, workWe
 
   const today = localToday()
   const curve: SCurve | null = useMemo(
-    () => computeSCurve(getTasks(), weekCalendar({ holidays, workWeek: workWeek.length ? workWeek : undefined }), today),
+    () => computeSCurve(getTasks(), weekCalendar({ holidays, workWeek: workWeek.length ? workWeek : undefined }), today, plan),
     // `version` stands for "the gantt changed": getTasks reads live state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [version, basis, holidays, workWeek, today]
+    [version, basis, holidays, workWeek, today, plan]
   )
 
   const plotW = Math.max(0, size.w - MARGIN.left - MARGIN.right)
@@ -86,7 +88,7 @@ export default function SCurvePanel({ getTasks, version, basis, holidays, workWe
     <div className="scurve">
       <div className="scurve-head">
         <span className="scurve-legend">
-          <i className="swatch planned" /> Planificado
+          <i className="swatch planned" /> {plan === 'baseline' ? 'Planificado (línea base)' : 'Planificado'}
         </span>
         <span className="scurve-legend">
           <i className="swatch real" /> Real
