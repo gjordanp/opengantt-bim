@@ -379,15 +379,17 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     }
   }, [])
 
-  // Weekends and columns, whenever the settings (or the work week they depend on) change.
+  // Non-working days and columns, whenever the settings (or the calendar they depend on) change.
   useEffect(() => {
     const gantt = ganttRef.current
     if (!gantt) return
     gantt.config.columns = visibleColumns(allColumnsRef.current, settings)
-    const workDays = workWeek?.length ? workWeek : [1, 2, 3, 4, 5]
-    gantt.ignore_time = settings.hideWeekends ? (date: Date) => !workDays.includes(date.getDay()) : () => false
+    // Hide every day the project calendar does not work (weekends and holidays), as the calendar's own rule says.
+    gantt.ignore_time = settings.hideWeekends
+      ? (date: Date) => !calendarRef.current.isWorkingDay(Math.floor(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86_400_000))
+      : () => false
     gantt.render()
-  }, [settings, workWeek])
+  }, [settings, workWeek, holidays])
 
   // The curve drawn over the timeline, while it is switched on. Declared after the effect that creates the
   // gantt: a gantt created with the curve already on (a new layout) must find it to draw on.

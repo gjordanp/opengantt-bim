@@ -69,9 +69,9 @@ export default function GanttSettingsMenu({ settings, onChange }: Props): React.
               onClick={() => onChange({ ...settings, hideWeekends: !settings.hideWeekends })}
             >
               <span className="menu-check">{settings.hideWeekends ? '✓' : ''}</span>
-              Ocultar fines de semana
+              Ocultar días no laborables
             </button>
-            <p className="menu-hint">Quita de la escala los días que el calendario laboral no trabaja; la curva S deja de hacer escalones.</p>
+            <p className="menu-hint">Quita de la escala los días que el calendario laboral no trabaja (fines de semana y feriados); la curva S deja de hacer escalones.</p>
             <div className="menu-sep" />
             <div className="menu-title">Columnas</div>
             <div className="menu-item menu-locked">
