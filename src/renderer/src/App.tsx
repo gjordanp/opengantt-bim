@@ -27,6 +27,7 @@ import { Activity, Box, CalendarDays, FileInput, Flame, FolderKanban, Monitor, M
 import SCurvePanel from './SCurvePanel'
 import SCurveIcon from './SCurveIcon'
 import GanttSettingsMenu from './gantt/GanttSettingsMenu'
+import BaselineMenu from './gantt/BaselineMenu'
 import { loadGanttSettings, saveGanttSettings, type GanttSettings } from './gantt/ganttSettings'
 import { buildTemplate, type TemplateId } from './projects/templates'
 
@@ -503,6 +504,7 @@ export default function App(): React.JSX.Element {
           <CalendarDays size={16} />
         </button>
       </Tooltip>
+      <BaselineMenu info={() => ganttRef.current?.baselineInfo() ?? { tasks: 0, withBaseline: 0 }} apply={(mode) => ganttRef.current?.setBaselines(mode) ?? 0} />
       <GanttSettingsMenu settings={ganttSettings} onChange={changeGanttSettings} />
       {cycle.length > 0 && <span className="warning">Dependencia circular en {cycle.length} tareas: no se programaron.</span>}
     </>
@@ -606,6 +608,9 @@ export default function App(): React.JSX.Element {
           { id: 'undo', section: 'Edición', label: 'Deshacer', shortcut: 'Ctrl+Z', disabled: !history.canUndo, run: () => ganttRef.current?.undo() },
           { id: 'redo', section: 'Edición', label: 'Rehacer', shortcut: 'Ctrl+Y', disabled: !history.canRedo, run: () => ganttRef.current?.redo() },
           { id: 'auto', section: 'Planificación', label: `${autoScheduling ? 'Desactivar' : 'Activar'} auto-schedule`, keywords: 'programar automatico', run: () => setAutoScheduling((v) => !v) },
+          { id: 'baseline-all', section: 'Planificación', label: 'Fijar línea base de todo el proyecto', keywords: 'linea base plan original guardar', run: () => void ganttRef.current?.setBaselines('all') },
+          { id: 'baseline-missing', section: 'Planificación', label: 'Fijar línea base solo en las tareas sin ella', keywords: 'linea base plan original', run: () => void ganttRef.current?.setBaselines('missing') },
+          { id: 'baseline-clear', section: 'Planificación', label: 'Quitar la línea base de todo el proyecto', keywords: 'linea base borrar eliminar', run: () => void ganttRef.current?.setBaselines('clear') },
           { id: 'scurve-overlay', section: 'Planificación', label: `${showScurve ? 'Ocultar' : 'Mostrar'} curva S sobre el Gantt`, keywords: 'curva s avance progreso planificado real', run: () => setShowScurve((v) => !v) },
           { id: 'critical', section: 'Planificación', label: `${showCritical ? 'Ocultar' : 'Mostrar'} ruta crítica`, keywords: 'critical path', run: () => setShowCritical((v) => !v) },
           { id: 'lob', section: 'Planificación', label: `${lobMode ? 'Ocultar' : 'Mostrar'} línea de balance`, keywords: 'lob balance', run: () => setLobMode((v) => !v) },

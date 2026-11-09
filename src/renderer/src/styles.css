@@ -553,6 +553,18 @@ kbd {
   text-align: left;
   font-weight: 400;
 }
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.baseline-pop {
+  width: 310px;
+}
+.baseline-pop .menu-item {
+  height: auto;
+  min-height: 30px;
+  padding: 6px 8px;
+}
 .menu-locked {
   color: var(--muted-foreground);
   cursor: default;

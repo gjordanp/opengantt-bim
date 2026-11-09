@@ -66,6 +66,13 @@ export interface GanttHandle {
   spans(): TaskSpan[]
   /** The detail tasks (no summaries or milestones) with their span and progress, for the S-curve. */
   progressTasks(): SCurveTask[]
+  /**
+   * Sets the baseline of every task from its current dates (`all`), only of those that have none (`missing`), or
+   * removes every baseline (`clear`). Returns how many tasks changed. One undo step.
+   */
+  setBaselines(mode: 'all' | 'missing' | 'clear'): number
+  /** How many tasks can have a baseline, and how many have one. */
+  baselineInfo(): { tasks: number; withBaseline: number }
 }
 
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
@@ -222,6 +229,40 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       return out
     },
     progressTasks: () => collectProgressTasks(),
+    setBaselines: (mode) => {
+      const gantt = ganttRef.current
+      if (!gantt) return 0
+      let changed = 0
+      gantt.eachTask((t: any) => {
+        const has = Boolean(t.baseline_start && t.baseline_end)
+        if (mode === 'clear') {
+          if (!has) return
+          t.baseline_start = null
+          t.baseline_end = null
+        } else {
+          // A task with no span (a milestone) has nothing to draw a baseline over.
+          if (!t.start_date || !t.end_date || t.end_date <= t.start_date || (mode === 'missing' && has)) return
+          t.baseline_start = new Date(t.start_date)
+          t.baseline_end = new Date(t.end_date)
+        }
+        changed++
+      })
+      if (changed) {
+        gantt.render()
+        emitChangeRef.current()
+      }
+      return changed
+    },
+    baselineInfo: () => {
+      const gantt = ganttRef.current
+      let tasks = 0
+      let withBaseline = 0
+      gantt?.eachTask((t: any) => {
+        if (t.start_date && t.end_date && t.end_date > t.start_date) tasks++
+        if (t.baseline_start && t.baseline_end) withBaseline++
+      })
+      return { tasks, withBaseline }
+    },
     taskText: (id) => {
       const gantt = ganttRef.current
       return gantt && gantt.isTaskExists(id) ? String((gantt.getTask(id) as any).text ?? '') : undefined
