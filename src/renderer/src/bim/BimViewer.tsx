@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Check, ClipboardList, Eye, Info, Layers, PanelBottom, PanelRight, Plus, Search, Trash2, Upload, X } from 'lucide-react'
+import { Box, Check, ClipboardList, Eye, Info, Layers, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
 import ConfirmDialog from '../ConfirmDialog'
 import { useTheme } from '../theme'
@@ -44,7 +44,9 @@ const TOOLS: { id: BimTool; label: string; icon: React.ReactNode }[] = [
   { id: 'props', label: 'Propiedades del elemento', icon: <Info size={16} /> },
   { id: 'models', label: 'Modelos del proyecto', icon: <Box size={16} /> }
 ]
-const SIDE_KEY = 'ogbim.toolsSide'
+const PANEL_W = 320
+const PANEL_GAP = 12
+type Pos = { x: number; y: number }
 
 export interface BimViewerHandle {
   /** Converts an IFC file to fragments in the browser and shows it. */
@@ -224,22 +226,88 @@ export default function BimViewer({
     if (scene) scene.background = new THREE.Color(canvasColor())
   }, [theme])
   // The tools float over the 3D view, along its right edge or its bottom edge.
-  const [tool, setTool] = useState<BimTool | null>(null)
-  const [side, setSide] = useState<'right' | 'bottom'>(() => {
-    try {
-      return localStorage.getItem(SIDE_KEY) === 'bottom' ? 'bottom' : 'right'
-    } catch {
-      return 'right'
-    }
-  })
+  // The tools open as floating windows over the 3D view: any number at once, each draggable.
+  const [openTools, setOpenTools] = useState<BimTool[]>([]) // stacking order, last on top
+  const [toolPos, setToolPos] = useState<Partial<Record<BimTool, Pos>>>({})
+  const movedTools = useRef<Set<BimTool>>(new Set()) // windows the user dragged keep their place
+  const panelRefs = useRef<Partial<Record<BimTool, HTMLDivElement | null>>>({})
   const [overlayEl, setOverlayEl] = useState<HTMLDivElement | null>(null)
-  const changeSide = (next: 'right' | 'bottom'): void => {
-    setSide(next)
-    try {
-      localStorage.setItem(SIDE_KEY, next)
-    } catch {
-      /* the choice just won't be remembered */
+  const [overlaySize, setOverlaySize] = useState({ w: 0, h: 0 })
+  useEffect(() => {
+    if (!overlayEl) return
+    const read = (): void => setOverlaySize({ w: overlayEl.clientWidth, h: overlayEl.clientHeight })
+    read()
+    const ro = new ResizeObserver(read)
+    ro.observe(overlayEl)
+    return () => ro.disconnect()
+  }, [overlayEl])
+  const clampPos = (p: Pos, w: number, h: number): Pos => ({
+    x: Math.max(0, Math.min(p.x, Math.max(0, overlaySize.w - w))),
+    y: Math.max(0, Math.min(p.y, Math.max(0, overlaySize.h - Math.min(h, 60))))
+  })
+  /** Where a window opens: the first free column from the right edge, else cascaded from the last one. */
+  const placeTool = (id: BimTool, open: BimTool[], positions: Partial<Record<BimTool, Pos>>): Pos => {
+    if (movedTools.current.has(id) && positions[id]) return clampPos(positions[id]!, PANEL_W, 80)
+    const taken = open
+      .map((t) => ({ p: positions[t], el: panelRefs.current[t] }))
+      .filter((r): r is { p: Pos; el: HTMLDivElement } => !!r.p && !!r.el)
+      .map((r) => ({ x: r.p.x, y: r.p.y, w: r.el.offsetWidth, h: r.el.offsetHeight }))
+    for (let k = 0; ; k++) {
+      const x = overlaySize.w - PANEL_GAP - PANEL_W - k * (PANEL_W + PANEL_GAP)
+      if (x < PANEL_GAP) break
+      if (!taken.some((r) => r.x < x + PANEL_W && r.x + r.w > x)) return { x, y: PANEL_GAP }
     }
+    const last = taken[taken.length - 1]
+    return clampPos({ x: (last?.x ?? overlaySize.w - PANEL_W - PANEL_GAP) - 28, y: (last?.y ?? PANEL_GAP) + 32 }, PANEL_W, 80)
+  }
+  const raiseTool = (id: BimTool): void => setOpenTools((cur) => (cur[cur.length - 1] === id ? cur : [...cur.filter((t) => t !== id), id]))
+  const showTool = (id: BimTool): void => {
+    if (openTools.includes(id)) return raiseTool(id)
+    setToolPos((pos) => ({ ...pos, [id]: placeTool(id, openTools, pos) }))
+    setOpenTools((cur) => [...cur, id])
+  }
+  const hideTool = (id: BimTool): void => setOpenTools((cur) => cur.filter((t) => t !== id))
+  const toggleTool = (id: BimTool): void => (openTools.includes(id) ? hideTool(id) : showTool(id))
+  // A window never ends up out of view when the 3D area shrinks.
+  useEffect(() => {
+    setToolPos((pos) => {
+      let changed = false
+      const next = { ...pos }
+      for (const id of openTools) {
+        const p = pos[id]
+        const el = panelRefs.current[id]
+        if (!p || !el) continue
+        const c = clampPos(p, el.offsetWidth, el.offsetHeight)
+        if (c.x !== p.x || c.y !== p.y) {
+          next[id] = c
+          changed = true
+        }
+      }
+      return changed ? next : pos
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlaySize.w, overlaySize.h])
+  const startDrag = (id: BimTool) => (e: React.PointerEvent<HTMLDivElement>): void => {
+    if ((e.target as HTMLElement).closest('button')) return
+    const el = panelRefs.current[id]
+    const start = toolPos[id]
+    if (!el || !start) return
+    e.preventDefault()
+    raiseTool(id)
+    const origin = { x: e.clientX, y: e.clientY }
+    el.classList.add('dragging')
+    const move = (ev: PointerEvent): void => {
+      const next = clampPos({ x: start.x + ev.clientX - origin.x, y: start.y + ev.clientY - origin.y }, el.offsetWidth, el.offsetHeight)
+      setToolPos((pos) => ({ ...pos, [id]: next }))
+    }
+    const up = (): void => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+      el.classList.remove('dragging')
+      movedTools.current.add(id)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
   }
   const [elements, setElements] = useState<BimElement[]>([])
   const [selected, setSelected] = useState<Selected | null>(null)
@@ -398,7 +466,7 @@ export default function BimViewer({
 
   useImperativeHandle(ref, () => ({
     openTool(next: BimTool) {
-      setTool(next)
+      showTool(next)
     },
     async loadIfc(file: File) {
       const components = componentsRef.current
@@ -681,7 +749,7 @@ export default function BimViewer({
               <button
                 onClick={() => {
                   setGroupSource('selection')
-                  setTool('groups')
+                  showTool('groups')
                 }}
               >
                 Crear grupo
@@ -707,9 +775,23 @@ export default function BimViewer({
             <Upload size={16} />
           </button>
         </Tooltip>
-        <button className={`bim-searchbtn${tool === 'search' ? ' active' : ''}`} disabled={elements.length === 0} onClick={() => setTool((cur) => (cur === 'search' ? null : 'search'))}>
-          <Search size={14} /> {query ? <span className="bim-searchbtn-text">{queryText}</span> : 'Buscar elementos…'}
-        </button>
+        <span className="sep" />
+        <div className="bim-toolbar" role="toolbar" aria-label="Herramientas BIM">
+          {TOOLS.map((t) => (
+            <Tooltip key={t.id} label={t.label} side="bottom">
+              <button className={`icon-btn${openTools.includes(t.id) ? ' active' : ''}`} aria-label={t.label} aria-pressed={openTools.includes(t.id)} onClick={() => toggleTool(t.id)}>
+                {t.icon}
+              </button>
+            </Tooltip>
+          ))}
+        </div>
+        {query ? (
+          <button className="bim-searchbtn" onClick={() => showTool('search')}>
+            <Search size={14} /> <span className="bim-searchbtn-text">{queryText}</span>
+          </button>
+        ) : (
+          <span className="bim-spacer" />
+        )}
         {query && (
           <Tooltip label="Quitar la búsqueda">
             <button className="icon-btn" aria-label="Quitar la búsqueda" onClick={clearSearch}>
@@ -901,7 +983,7 @@ export default function BimViewer({
             disabled={results.length === 0}
             onClick={() => {
               setGroupSource('search')
-              setTool('groups')
+              showTool('groups')
             }}
           >
             Crear grupo
@@ -1163,37 +1245,33 @@ export default function BimViewer({
         createPortal(
           <>
             {selectionBar}
-            <div className={`bim-tools bim-tools-${side}`} role="toolbar" aria-label="Herramientas BIM">
-              {TOOLS.map((t) => (
-                <Tooltip key={t.id} label={t.label} side={side === 'right' ? 'left' : 'top'}>
-                  <button
-                    className={`icon-btn${tool === t.id ? ' active' : ''}`}
-                    aria-label={t.label}
-                    aria-pressed={tool === t.id}
-                    onClick={() => setTool((cur) => (cur === t.id ? null : t.id))}
-                  >
-                    {t.icon}
-                  </button>
-                </Tooltip>
-              ))}
-              <span className="sep" />
-              <Tooltip label={side === 'right' ? 'Mover la barra abajo' : 'Mover la barra a la derecha'} side={side === 'right' ? 'left' : 'top'}>
-                <button className="icon-btn" aria-label="Mover la barra de herramientas" onClick={() => changeSide(side === 'right' ? 'bottom' : 'right')}>
-                  {side === 'right' ? <PanelBottom size={16} /> : <PanelRight size={16} />}
-                </button>
-              </Tooltip>
-            </div>
-            {tool && (
-              <div className={`bim-tool-panel bim-tool-panel-${side}`} role="dialog" aria-label={TOOLS.find((t) => t.id === tool)?.label}>
-                <div className="bim-tool-head">
-                  <b>{TOOLS.find((t) => t.id === tool)?.label}</b>
-                  <button className="icon-btn" aria-label="Cerrar" onClick={() => setTool(null)}>
-                    <X size={14} />
-                  </button>
+            {openTools.map((id, i) => {
+              const def = TOOLS.find((t) => t.id === id)!
+              const pos = toolPos[id] ?? { x: Math.max(0, overlaySize.w - PANEL_W - PANEL_GAP), y: PANEL_GAP }
+              return (
+                <div
+                  key={id}
+                  ref={(el) => {
+                    panelRefs.current[id] = el
+                  }}
+                  className="bim-tool-panel"
+                  style={{ left: pos.x, top: pos.y, zIndex: 10 + i, maxHeight: Math.max(160, overlaySize.h - 24) }}
+                  role="dialog"
+                  aria-label={def.label}
+                  onPointerDown={() => raiseTool(id)}
+                >
+                  <div className="bim-tool-head" onPointerDown={startDrag(id)}>
+                    <b>
+                      {def.icon} {def.label}
+                    </b>
+                    <button className="icon-btn" aria-label="Cerrar" onClick={() => hideTool(id)}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                  <div className="bim-tool-body">{{ search: searchUi, task: taskUi, groups: groupsUi, props: propsUi, models: modelsUi }[id]}</div>
                 </div>
-                <div className="bim-tool-body">{{ search: searchUi, task: taskUi, groups: groupsUi, props: propsUi, models: modelsUi }[tool]}</div>
-              </div>
-            )}
+              )
+            })}
           </>,
           overlayEl
         )}

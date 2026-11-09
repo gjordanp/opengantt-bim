@@ -1271,40 +1271,6 @@ kbd {
 .bim-overlay > * {
   pointer-events: auto;
 }
-.bim-tools {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 4px;
-  background: color-mix(in srgb, var(--background) 92%, transparent);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
-}
-.bim-tools-right {
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  flex-direction: column;
-}
-.bim-tools-bottom {
-  bottom: 14px;
-  left: 50%;
-  transform: translateX(-50%);
-  flex-direction: row;
-}
-.bim-tools-right .sep {
-  width: 18px;
-  height: 1px;
-  margin: 3px 0;
-}
-.bim-tools-bottom .sep {
-  width: 1px;
-  height: 18px;
-  margin: 0 3px;
-}
 .bim-tool-panel {
   position: absolute;
   display: flex;
@@ -1315,16 +1281,6 @@ kbd {
   border-radius: 10px;
   box-shadow: var(--shadow);
   overflow: hidden;
-}
-.bim-tool-panel-right {
-  right: 68px;
-  top: 12px;
-  max-height: calc(100% - 24px);
-}
-.bim-tool-panel-bottom {
-  right: 12px;
-  top: 12px;
-  max-height: calc(100% - 82px);
 }
 .bim-tool-head {
   display: flex;
@@ -2372,4 +2328,40 @@ kbd {
 
 .bim-rule-row .dd-trigger.block {
   flex: 1;
+}
+
+/* ---------- BIM tools: toolbar on top, floating draggable windows ---------- */
+.bim-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.bim-search .sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 2px;
+}
+.bim-spacer {
+  flex: 1;
+}
+.bim-tool-panel {
+  position: absolute;
+  width: 320px;
+}
+.bim-tool-head {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.bim-tool-head b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bim-tool-panel.dragging {
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.25);
+}
+.bim-tool-panel.dragging .bim-tool-head {
+  cursor: grabbing;
 }
