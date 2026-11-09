@@ -63,6 +63,27 @@ export interface ScheduleOptions {
    * given (even on a weekend) and only its end is computed on the calendar.
    */
   snapFixedStarts?: boolean
+  /**
+   * A task with no explicit constraint (or ASAP) takes the one of its nearest parent that has one, like PRO's
+   * `auto_scheduling_project_constraint`. Default `false`.
+   */
+  inheritConstraints?: boolean
+  /**
+   * `YYYY-MM-DD`. A task with no predecessors that starts before this date is moved to it (PRO's `project_start`).
+   * With `strictProjectStart`, one that starts after it is moved back too.
+   */
+  projectStart?: string
+  strictProjectStart?: boolean
+  /**
+   * `YYYY-MM-DD`, an end like the tasks' own (exclusive: the day after the last working day), as PRO's `project_end`.
+   * A task with no successors that ends earlier is moved to end at it, when it is as late as possible.
+   */
+  projectEnd?: string
+  /**
+   * Schedule from the end (PRO's `schedule_from_end`): a task with no constraint (or none but ASAP) is as late as
+   * possible, so the tasks line up against their successors and the project end.
+   */
+  scheduleFromEnd?: boolean
 }
 
 export interface ScheduledTask {
@@ -104,6 +125,12 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
   const cal = options.calendar ?? weekCalendar()
   const strict = options.strict ?? true
   const snapFixedStarts = options.snapFixedStarts ?? false
+  const inherit = options.inheritConstraints ?? false
+  const projectStart = options.projectStart ? toDay(options.projectStart) : null
+  const limitEnd = options.projectEnd ? toDay(options.projectEnd) : null
+  const fromEnd = options.scheduleFromEnd === true
+  // The constraint a task has when it has none: ASAP, or ALAP when scheduling from the end.
+  const defaultType: ConstraintType = fromEnd ? 'alap' : 'asap'
 
   const byId = new Map(tasks.map((t) => [t.id, t]))
   const children = new Map<string, string[]>()
@@ -114,6 +141,38 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
     else children.set(t.parent!, [t.id])
   }
   const isSummary = (id: string): boolean => children.has(id)
+
+  // The constraint that applies to a task: its own, or (with `inheritConstraints`, when it has none or ASAP) the one
+  // of its nearest parent that has a constraint other than ASAP.
+  const constraintOf = (task: SchedTask): SchedConstraint | undefined => {
+    const own = task.constraint
+    if (!inherit || (own && own.type !== defaultType)) return own
+    for (let p = task.parent; !isRoot(p) && byId.has(p!); p = byId.get(p!)!.parent) {
+      const c = byId.get(p!)!.constraint
+      if (c && c.type !== defaultType) return c
+    }
+    return own
+  }
+  // Tasks that go as soon as possible; the rest are as late as possible (PRO: `isAsapTask`).
+  const isAsap = (task: SchedTask): boolean => {
+    const type = constraintOf(task)?.type
+    return fromEnd ? type === 'asap' : type !== 'alap'
+  }
+  // The earliest and latest start a start/finish constraint allows (PRO's `processConstraint`).
+  const constraintBounds = (task: SchedTask, duration: number): { earliest?: number; latest?: number } => {
+    const c = constraintOf(task)
+    if (!c || !c.date || c.type === 'asap' || c.type === 'alap') return {}
+    const d = toDay(c.date)
+    const byEnd = c.type === 'fnet' || c.type === 'fnlt' || c.type === 'mfo'
+    const limit = byEnd ? startFromEnd(cal, d, duration) : d
+    return {
+      earliest: c.type === 'snet' || c.type === 'fnet' || c.type === 'mso' || c.type === 'mfo' ? limit : undefined,
+      latest: c.type === 'snlt' || c.type === 'fnlt' || c.type === 'mso' || c.type === 'mfo' ? limit : undefined
+    }
+  }
+  // The closest moment of working time, in the past or the future (PRO: `getClosestWorkTime`).
+  const workingBoundary = (day: number, dir: 'past' | 'future'): number =>
+    cal.isWorkingDay(day) ? day : dir === 'past' ? prevWorkingDay(cal, day) + 1 : nextWorkingDay(cal, day)
 
   // Only links between two leaf tasks drive the scheduling.
   const usable: SchedLink[] = []
@@ -159,8 +218,56 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
   const linkBound = new Map<string, number>()
   const start = new Map<string, number>()
   const end = new Map<string, number>()
+
+  // The latest start of an as-late-as-possible task: its end can't pass the start of any successor (PRO looks at
+  // that start only, whatever the link type), nor the project end for a task with no successors; `null` when
+  // nothing moves it. `startOf` gives a successor's current start; `bound` is the earliest start its links allow.
+  const alapStart = (id: string, startOf: (target: string) => number, bound: number): number | null => {
+    const task = byId.get(id)!
+    const duration = Math.max(0, task.duration)
+    let latestEnd: number | null = null
+    for (const l of outgoing.get(id)!) {
+      let b = workingBoundary(startOf(l.target), 'past')
+      // PRO turns SS, FF and SF links into finish-to-start ones with a longer lead: by the task's own duration
+      // (SS), the successor's (FF) or both (SF).
+      const own = Math.max(0, task.duration)
+      const next = Math.max(0, byId.get(l.target)!.duration)
+      const lag = (l.lag ?? 0) + (l.type === '1' ? -own : l.type === '2' ? -next : l.type === '3' ? -own - next : 0)
+      if (lag) b = shiftWorkDays(cal, b, -lag)
+      if (latestEnd === null || b < latestEnd) latestEnd = b
+    }
+    if (latestEnd === null && limitEnd !== null && countWorkDays(cal, endFromStart(cal, toDay(task.start), duration), limitEnd) > 0) latestEnd = limitEnd
+    if (latestEnd === null) return null
+    let s = duration > 0 ? startFromEnd(cal, workingBoundary(latestEnd, 'future'), duration) : workingBoundary(latestEnd, 'past')
+    const limit = duration > 0 ? startFromEnd(cal, latestEnd, duration) : latestEnd
+    if (s > limit) s = limit
+    if (bound !== -Infinity && s < bound) s = bound
+    return s
+  }
+
+  // Scheduling from the end: every task but the explicit ASAP ones is placed first, from the last one back.
+  // An ASAP task's place is only a plan its predecessors look at; it is moved in the forward pass below.
+  const plan = new Map<string, number>()
+  if (fromEnd) {
+    for (const id of [...order].reverse()) {
+      const task = byId.get(id)!
+      const duration = Math.max(0, task.duration)
+      const own = toDay(task.start)
+      const found = alapStart(id, (t) => plan.get(t) ?? toDay(byId.get(t)!.start), -Infinity)
+      const { earliest, latest } = constraintBounds(task, duration)
+      const effective = found ?? own
+      let final = found
+      if (earliest !== undefined && effective < earliest) final = earliest
+      if (latest !== undefined && effective > latest) final = latest
+      if (final !== null) plan.set(id, final)
+      start.set(id, final ?? own)
+      end.set(id, endFromStart(cal, final ?? own, duration))
+    }
+  }
+
   for (const id of order) {
     const task = byId.get(id)!
+    if (fromEnd && !isAsap(task)) continue
     const duration = Math.max(0, task.duration)
     // Earliest start allowed by links that fix the start (FS, SS) and by links
     // that fix the end (FF, SF), kept apart for the milestone rule below.
@@ -193,7 +300,11 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
     linkBound.set(id, lower)
     const own = toDay(task.start)
     let s: number
-    if (lower === -Infinity) s = snapFixedStarts ? nextWorkingDay(cal, own) : own
+    // PRO's `project_start`: a task with no predecessors is moved up to it (strictly, also back to it), but only when
+    // there is working time between the two dates (a Saturday start before a Monday project start stays).
+    const toProjectStart = lower === -Infinity && projectStart !== null && (countWorkDays(cal, own, projectStart) > 0 || (options.strictProjectStart === true && countWorkDays(cal, projectStart, own) > 0))
+    if (toProjectStart) s = duration > 0 ? nextWorkingDay(cal, projectStart!) : cal.isWorkingDay(projectStart!) ? projectStart! : prevWorkingDay(cal, projectStart!) + 1
+    else if (lower === -Infinity) s = snapFixedStarts ? nextWorkingDay(cal, own) : own
     else if (duration === 0) {
       // A milestone takes no working time. Like DHTMLX Pro, a date forced by an
       // end-driven link (FF, SF), or by a start-driven link with a positive lag,
@@ -204,16 +315,11 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
     } else {
       s = nextWorkingDay(cal, strict ? lower : Math.max(own, lower))
     }
-    const c = task.constraint
-    if (c && c.date && c.type !== 'asap' && c.type !== 'alap') {
+    const { earliest, latest } = constraintBounds(task, duration)
+    if (earliest !== undefined || latest !== undefined) {
       // Like Pro: the start from the links (or the task's own start) is pushed to the earliest start the
       // constraint allows, or pulled back to the latest one. A pull-back may break a link: that is a conflict.
-      const d = toDay(c.date)
-      const byEnd = c.type === 'fnet' || c.type === 'fnlt' || c.type === 'mfo'
-      const limit = byEnd ? startFromEnd(cal, d, duration) : d
-      const earliest = c.type === 'snet' || c.type === 'fnet' || c.type === 'mso' || c.type === 'mfo' ? limit : undefined
-      const latest = c.type === 'snlt' || c.type === 'fnlt' || c.type === 'mso' || c.type === 'mfo' ? limit : undefined
-      const effective = lower === -Infinity ? own : s
+      const effective = lower === -Infinity && !toProjectStart ? own : s
       const from = s
       if (earliest !== undefined && effective < earliest) s = earliest
       if (latest !== undefined && effective > latest) s = latest
@@ -260,37 +366,23 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
   }
 
   // Tasks set to "as late as possible" slide towards their successors (Pro's second pass, from the end).
-  // Like Pro it looks at the successor's start only, whatever the link type; a task with no successor stays put.
+  // Like Pro it looks at the successor's start only, whatever the link type; a task with no successor stays put
+  // (unless the project end pulls it) and is only pushed by its predecessors.
   const early = new Map(start)
-  const workingBoundary = (day: number, dir: 'past' | 'future'): number =>
-    cal.isWorkingDay(day) ? day : dir === 'past' ? prevWorkingDay(cal, day) + 1 : nextWorkingDay(cal, day)
-  for (const id of [...order].reverse()) {
-    const task = byId.get(id)!
-    if (task.constraint?.type !== 'alap') continue
-    const duration = Math.max(0, task.duration)
-    let latestEnd: number | null = null
-    for (const l of outgoing.get(id)!) {
-      let bound = workingBoundary(start.get(l.target)!, 'past')
-      if (l.lag) bound = shiftWorkDays(cal, bound, -l.lag)
-      if (latestEnd === null || bound < latestEnd) latestEnd = bound
-    }
-    // A task that has to move for its predecessors never moves back: it keeps its own start unless they push it.
-    const bound = linkBound.get(id)! === -Infinity ? -Infinity : early.get(id)!
-    const own = toDay(task.start)
-    if (latestEnd === null) {
+  if (!fromEnd) {
+    for (const id of [...order].reverse()) {
+      const task = byId.get(id)!
+      if (isAsap(task)) continue
+      const duration = Math.max(0, task.duration)
+      // A task that has to move for its predecessors never moves back: it keeps its own start unless they push it.
+      const bound = linkBound.get(id)! === -Infinity ? -Infinity : early.get(id)!
+      const own = toDay(task.start)
+      const found = alapStart(id, (t) => start.get(t)!, bound)
       const kept = bound !== -Infinity && own < bound ? bound : own
-      start.set(id, kept)
-      end.set(id, endFromStart(cal, kept, duration))
-      continue
+      const final = found ?? kept
+      start.set(id, final)
+      end.set(id, endFromStart(cal, final, duration))
     }
-    let s: number
-    if (duration > 0) s = startFromEnd(cal, workingBoundary(latestEnd, 'future'), duration)
-    else s = workingBoundary(latestEnd, 'past')
-    const limit = duration > 0 ? startFromEnd(cal, latestEnd, duration) : latestEnd
-    if (s > limit) s = limit
-    if (bound !== -Infinity && s < bound) s = bound
-    start.set(id, s)
-    end.set(id, endFromStart(cal, s, duration))
   }
 
   const result = new Map<string, ScheduledTask>()

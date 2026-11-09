@@ -44,6 +44,12 @@ export interface ProjectData {
   holidays?: string[]
   /** Working weekdays, 0=Sunday..6=Saturday. Defaults to Mon-Fri. */
   workWeek?: number[]
+  /** `YYYY-MM-DD`. Tasks with no predecessor that start earlier are moved here (PRO's `project_start`). */
+  projectStart?: string
+  /** `YYYY-MM-DD`, the last day of work. "As late as possible" tasks with no successor end here (PRO's `project_end`). */
+  projectEnd?: string
+  /** Tasks with no constraint go as late as possible (PRO's `schedule_from_end`). */
+  scheduleFromEnd?: boolean
   tasks: ProjectTask[]
   links: ProjectLink[]
 }

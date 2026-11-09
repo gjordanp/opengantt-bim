@@ -297,3 +297,72 @@ describe('constraints', () => {
     expect(dates(r, 'x')).toEqual(['2026-06-01', '2026-06-04'])
   })
 })
+
+// Expected dates are what DHTMLX Pro 8.0.6 (auto_scheduling, work_time) gives for the same project.
+describe('constraints of parents, project start/end and scheduling from the end', () => {
+  const t = (id: string, duration: number, extra: Partial<SchedTask> = {}, start = '2026-06-01'): SchedTask => ({ id, start, duration, ...extra })
+
+  it('a child takes the constraint of its parent when it has none (or ASAP), and keeps its own otherwise', () => {
+    const tasks = [
+      t('fase', 0, { constraint: { type: 'snet', date: '2026-06-15' } }),
+      t('a', 3, { parent: 'fase' }),
+      t('b', 4, { parent: 'fase', constraint: { type: 'asap' } }),
+      t('c', 2, { parent: 'fase', constraint: { type: 'snet', date: '2026-06-22' } }),
+      t('free', 2)
+    ]
+    const without = schedule(tasks, [])
+    expect(without.tasks.get('a')!.start).toBe('2026-06-01')
+    const r = schedule(tasks, [], { inheritConstraints: true })
+    expect(dates(r, 'a')).toEqual(['2026-06-15', '2026-06-18'])
+    expect(dates(r, 'b')).toEqual(['2026-06-15', '2026-06-19'])
+    expect(dates(r, 'c')).toEqual(['2026-06-22', '2026-06-24'])
+    expect(dates(r, 'free')).toEqual(['2026-06-01', '2026-06-03'])
+  })
+
+  it('the project start moves up tasks with no predecessor, but not a Saturday start before a Monday', () => {
+    const r = schedule(
+      [t('before', 3), t('later', 3, {}, '2026-06-17'), t('sat', 2, {}, '2026-06-06'), t('after', 2), t('linked', 2)],
+      [link('after', 'linked')],
+      { projectStart: '2026-06-08' }
+    )
+    expect(dates(r, 'before')).toEqual(['2026-06-08', '2026-06-11'])
+    expect(dates(r, 'later')).toEqual(['2026-06-17', '2026-06-20'])
+    expect(dates(r, 'sat')).toEqual(['2026-06-06', '2026-06-10'])
+    expect(r.tasks.get('linked')!.start).toBe('2026-06-10')
+  })
+
+  it('strict project start also pulls back the tasks that start after it', () => {
+    const r = schedule([t('later', 3, {}, '2026-06-17')], [], { projectStart: '2026-06-08', strictProjectStart: true })
+    expect(dates(r, 'later')).toEqual(['2026-06-08', '2026-06-11'])
+  })
+
+  it('scheduling from the end lines the chain up against the project end', () => {
+    const r = schedule(
+      [t('a', 4), t('b', 5), t('c', 3), t('d', 6), t('e', 2)],
+      [link('a', 'b'), link('b', 'c'), link('d', 'c')],
+      { scheduleFromEnd: true, projectEnd: '2026-07-10' }
+    )
+    expect(dates(r, 'a')).toEqual(['2026-06-24', '2026-06-30'])
+    expect(dates(r, 'b')).toEqual(['2026-06-30', '2026-07-07'])
+    expect(dates(r, 'c')).toEqual(['2026-07-07', '2026-07-10'])
+    expect(dates(r, 'd')).toEqual(['2026-06-29', '2026-07-07'])
+    expect(dates(r, 'e')).toEqual(['2026-07-08', '2026-07-10'])
+  })
+
+  it('from the end, a start-to-start link puts the predecessor at the successor start', () => {
+    const r = schedule([t('a', 4), t('b', 5)], [link('a', 'b', '1')], { scheduleFromEnd: true, projectEnd: '2026-07-10' })
+    expect(dates(r, 'a')).toEqual(['2026-07-03', '2026-07-09'])
+    expect(dates(r, 'b')).toEqual(['2026-07-03', '2026-07-10'])
+  })
+
+  it('the project end pulls an ALAP task with no successor towards it, and leaves one already past it', () => {
+    const r = schedule(
+      [t('free', 3, { constraint: { type: 'alap' } }), t('past', 4, { constraint: { type: 'alap' } }, '2026-06-24'), t('asap', 3)],
+      [],
+      { projectEnd: '2026-06-26' }
+    )
+    expect(r.tasks.get('free')!.end).toBe('2026-06-26')
+    expect(r.tasks.get('past')!.start).toBe('2026-06-24')
+    expect(r.tasks.get('asap')!.start).toBe('2026-06-01')
+  })
+})

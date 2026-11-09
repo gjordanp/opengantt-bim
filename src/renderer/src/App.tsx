@@ -50,7 +50,19 @@ const DAYS = [
 interface CalendarValue {
   holidays: string[]
   workWeek: number[]
+  projectStart?: string
+  projectEnd?: string
+  scheduleFromEnd?: boolean
 }
+
+/** The calendar and planning dates a project brings. */
+const calendarOf = (data: ProjectData): CalendarValue => ({
+  holidays: data.holidays ?? [],
+  workWeek: data.workWeek ?? [1, 2, 3, 4, 5],
+  ...(data.projectStart ? { projectStart: data.projectStart } : {}),
+  ...(data.projectEnd ? { projectEnd: data.projectEnd } : {}),
+  ...(data.scheduleFromEnd ? { scheduleFromEnd: true } : {})
+})
 
 function CalendarPanel({ value, onChange }: { value: CalendarValue; onChange: (v: CalendarValue) => void }): React.JSX.Element {
   const [text, setText] = useState(value.holidays.join('\n'))
@@ -79,6 +91,24 @@ function CalendarPanel({ value, onChange }: { value: CalendarValue; onChange: (v
       <div className="field">
         <span>Feriados (uno por línea, AAAA-MM-DD)</span>
         <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} onBlur={applyHolidays} />
+      </div>
+      <div className="field">
+        <span>Fechas del proyecto</span>
+        <label className="plan-row">
+          Inicio
+          <input type="date" value={value.projectStart ?? ''} onChange={(e) => onChange({ ...value, projectStart: e.target.value || undefined })} />
+        </label>
+        <p className="hint">Las tareas sin predecesora que empiezan antes se mueven a esta fecha.</p>
+        <label className="plan-row">
+          Fin
+          <input type="date" value={value.projectEnd ?? ''} onChange={(e) => onChange({ ...value, projectEnd: e.target.value || undefined })} />
+        </label>
+        <p className="hint">Último día de trabajo. Las tareas «lo más tarde posible» sin sucesora terminan aquí.</p>
+        <label className="plan-row check">
+          <input type="checkbox" checked={value.scheduleFromEnd === true} onChange={(e) => onChange({ ...value, scheduleFromEnd: e.target.checked || undefined })} />
+          Programar desde el fin
+        </label>
+        <p className="hint">Las tareas sin restricción van lo más tarde posible: se alinean contra sus sucesoras y el fin del proyecto.</p>
       </div>
     </div>
   )
@@ -191,7 +221,7 @@ export default function App(): React.JSX.Element {
       if (!data) return
       setProjectId(id)
       setProjectName(data.name)
-      setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
+      setCalendar(calendarOf(data))
       loadBim(data)
       setProject(data)
       setSaveState('idle')
@@ -358,7 +388,7 @@ export default function App(): React.JSX.Element {
       await api.projects.save(id, data)
       lastDataRef.current = data
       latestRef.current = null
-      setCalendar({ holidays: data.holidays ?? [], workWeek: data.workWeek ?? [1, 2, 3, 4, 5] })
+      setCalendar(calendarOf(data))
       loadBim(data)
       setProject(data)
       setSaveState('saved')
@@ -519,6 +549,7 @@ export default function App(): React.JSX.Element {
       <GanttView
         holidays={calendar.holidays}
         workWeek={calendar.workWeek}
+        planning={calendar}
         ref={ganttRef}
         onHistoryChange={setHistory}
         project={project}

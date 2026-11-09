@@ -9,6 +9,9 @@ interface ProjectDoc {
   name: string
   holidays?: string[]
   workWeek?: number[]
+  projectStart?: string | null
+  projectEnd?: string | null
+  scheduleFromEnd?: boolean | null
   bim?: ProjectData['bim']
   tasks: ProjectTask[]
   links: ProjectLink[]
@@ -72,7 +75,17 @@ export class MongoProjectRepository implements ProjectRepository {
   async load(id: string): Promise<ProjectData | null> {
     const doc = await this.projects.findOne({ _id: id })
     return doc
-      ? { name: doc.name, holidays: doc.holidays ?? [], workWeek: doc.workWeek, bim: doc.bim, tasks: doc.tasks, links: doc.links }
+      ? {
+          name: doc.name,
+          holidays: doc.holidays ?? [],
+          workWeek: doc.workWeek,
+          ...(doc.projectStart ? { projectStart: doc.projectStart } : {}),
+          ...(doc.projectEnd ? { projectEnd: doc.projectEnd } : {}),
+          ...(doc.scheduleFromEnd ? { scheduleFromEnd: true } : {}),
+          bim: doc.bim,
+          tasks: doc.tasks,
+          links: doc.links
+        }
       : null
   }
 
@@ -98,6 +111,9 @@ export class MongoProjectRepository implements ProjectRepository {
           name: data.name,
           holidays: data.holidays ?? [],
           ...(data.workWeek ? { workWeek: data.workWeek } : {}),
+          projectStart: data.projectStart ?? null,
+          projectEnd: data.projectEnd ?? null,
+          scheduleFromEnd: data.scheduleFromEnd ?? null,
           ...(data.bim ? { bim: data.bim } : {}),
           tasks: data.tasks,
           links: data.links,

@@ -8,7 +8,8 @@ import {
   type Calendar,
   type LinkKind,
   type SchedLink,
-  type SchedTask
+  type SchedTask,
+  type ScheduleOptions
 } from '@shared/scheduling'
 
 import { engineConstraint } from '@shared/constraints'
@@ -35,7 +36,7 @@ export interface AutoScheduleOutcome {
  * moves tasks around. Callers must guard against the update events this
  * triggers (see `GanttView`).
  */
-export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalendar()): AutoScheduleOutcome {
+export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalendar(), options: ScheduleOptions = {}): AutoScheduleOutcome {
   const tasks: SchedTask[] = []
   gantt.eachTask((t: any) => {
     if (t.type === 'placeholder') return
@@ -55,7 +56,7 @@ export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalend
     lag: Number(l.lag) || 0
   }))
 
-  const result = schedule(tasks, links, { calendar })
+  const result = schedule(tasks, links, { calendar, ...options })
 
   let moved = 0
   const critical = new Set<string>()

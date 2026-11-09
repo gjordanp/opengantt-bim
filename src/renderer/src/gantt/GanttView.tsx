@@ -20,6 +20,7 @@ import { computeSCurve, localTodayDay, type SCurveTask } from '@shared/scurve'
 import { SCurveOverlay } from './scurveLayer'
 import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, dateToIso, type AutoScheduleOutcome } from './autoSchedule'
+import type { ScheduleOptions } from '@shared/scheduling'
 import './theme-light.css'
 import './gantt.css'
 import './lightbox.css'
@@ -47,6 +48,8 @@ interface Props {
   /** Non-working days and working weekdays; drive the scheduler. */
   holidays?: string[]
   workWeek?: number[]
+  /** Project start and end, and scheduling from the end (PRO's `project_start`, `project_end`, `schedule_from_end`). */
+  planning?: { projectStart?: string; projectEnd?: string; scheduleFromEnd?: boolean }
   /** Called when the user selects a task (null when the selection is cleared). */
   onTaskSelect?: (task: { id: string; text: string } | null) => void
   /** Number of BIM elements tied to each task id; shown in the BIM column. */
@@ -93,6 +96,19 @@ function bracketBar(gantt: GanttStatic, task: any): HTMLElement {
   return el
 }
 
+/** The project-level planning fields of a snapshot (only the ones that are set). */
+function planningFields(p: { projectStart?: string; projectEnd?: string; scheduleFromEnd?: boolean } | undefined): {
+  projectStart?: string
+  projectEnd?: string
+  scheduleFromEnd?: boolean
+} {
+  return {
+    ...(p?.projectStart ? { projectStart: p.projectStart } : {}),
+    ...(p?.projectEnd ? { projectEnd: p.projectEnd } : {}),
+    ...(p?.scheduleFromEnd ? { scheduleFromEnd: true } : {})
+  }
+}
+
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   const inputs: LobTaskInput[] = []
   gantt.eachTask((task: any) => {
@@ -106,7 +122,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, ref, onHistoryChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -137,6 +153,19 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   calendarRef.current = calendar
   const settingsRef = useRef({ holidays, workWeek })
   settingsRef.current = { holidays, workWeek }
+  const planningRef = useRef(planning)
+  planningRef.current = planning
+  // What the scheduling engine is told besides the tasks and links: constraints of parents always count (PRO's
+  // `auto_scheduling_project_constraint`), and the project dates. The project end is the last day of work.
+  const scheduleOptions = (): ScheduleOptions => {
+    const p = planningRef.current
+    return {
+      inheritConstraints: true,
+      ...(p?.projectStart ? { projectStart: p.projectStart } : {}),
+      ...(p?.projectEnd ? { projectEnd: fromDay(toDay(p.projectEnd) + 1) } : {}),
+      ...(p?.scheduleFromEnd ? { scheduleFromEnd: true } : {})
+    }
+  }
   const snapshot = (): ProjectData | null => {
     const gantt = ganttRef.current
     if (!gantt) return null
@@ -145,6 +174,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       name: project.name,
       holidays: settingsRef.current.holidays ?? [],
       ...(settingsRef.current.workWeek ? { workWeek: settingsRef.current.workWeek } : {}),
+      ...(planningRef.current?.projectStart ? { projectStart: planningRef.current.projectStart } : {}),
+      ...(planningRef.current?.projectEnd ? { projectEnd: planningRef.current.projectEnd } : {}),
+      ...(planningRef.current?.scheduleFromEnd ? { scheduleFromEnd: true } : {}),
       tasks: data.filter((t) => !isPlaceholder(t)).map((t) => ({
         id: String(t.id),
         text: String(t.text ?? ''),
@@ -196,7 +228,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       loadingRef.current = false
     }
     notifyHistory()
-    onChangeRef.current?.({ ...snap, holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek })
+    onChangeRef.current?.({ ...snap, holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek, ...planningFields(planningRef.current) })
   }
   const allColumnsRef = useRef<any[]>([])
   const visibleColumns = (all: any[], s: GanttSettings): any[] => all.filter((c) => c.name === 'text' || s.columns[c.name as ColumnId] !== false)
@@ -303,7 +335,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     if (!gantt || schedulingRef.current) return
     schedulingRef.current = true
     try {
-      const outcome = autoSchedule(gantt, calendarRef.current)
+      const outcome = autoSchedule(gantt, calendarRef.current, scheduleOptions())
       criticalRef.current = outcome.critical
       conflictsRef.current = outcome.conflicts
       gantt.render()
@@ -666,7 +698,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   }, [showCritical, bimCounts])
 
   // A calendar change reschedules and is saved like any other edit.
-  const calendarKey = `${holidays?.join(',') ?? ''}|${workWeek?.join(',') ?? ''}`
+  const calendarKey = `${holidays?.join(',') ?? ''}|${workWeek?.join(',') ?? ''}|${planning?.projectStart ?? ''}|${planning?.projectEnd ?? ''}|${planning?.scheduleFromEnd ? 1 : 0}`
   const calendarProjectRef = useRef(project)
   useEffect(() => {
     // Opening another project brings its own calendar: that's a load, not an edit.
