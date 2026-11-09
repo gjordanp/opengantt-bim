@@ -557,15 +557,110 @@ kbd {
   opacity: 0.45;
   cursor: default;
 }
-.baseline-pop,
-.gantt-settings-pop {
+.baseline-pop {
   width: 310px;
 }
-.baseline-pop .menu-item,
-.gantt-settings-pop .menu-item {
+.baseline-pop .menu-item {
   height: auto;
   min-height: 30px;
   padding: 6px 8px;
+}
+
+/* Gantt settings: switches for the options, chips for the columns. */
+.gantt-settings-pop {
+  width: 340px;
+  padding: 8px;
+}
+.gantt-settings-pop .menu-title {
+  padding: 6px 8px 4px;
+}
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.switch-row:hover {
+  background: var(--accent);
+}
+.switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.switch-label {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+.switch-hint {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted-foreground);
+}
+.switch {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--border);
+  transition: background 0.15s;
+}
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.3);
+  transition: transform 0.15s;
+}
+.switch-row[aria-checked='true'] .switch {
+  background: var(--brand);
+}
+.switch-row[aria-checked='true'] .switch::after {
+  transform: translateX(14px);
+}
+.col-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 8px 8px;
+}
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 12px;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.chip:hover {
+  background: var(--accent);
+}
+.chip.on {
+  border-color: var(--brand);
+  background: color-mix(in srgb, var(--brand) 16%, transparent);
+  color: var(--foreground);
+}
+.chip.locked {
+  cursor: default;
+  border-style: dashed;
 }
 .menu-locked {
   color: var(--muted-foreground);

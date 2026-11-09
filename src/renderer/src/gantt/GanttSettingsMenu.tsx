@@ -9,6 +9,19 @@ interface Props {
   onChange: (next: GanttSettings) => void
 }
 
+/** A setting that is on or off: its name, a line saying what it does, and a switch. */
+function SwitchRow({ label, hint, on, onToggle }: { label: string; hint: string; on: boolean; onToggle: () => void }): React.JSX.Element {
+  return (
+    <button type="button" role="switch" aria-checked={on} className="switch-row" onClick={onToggle}>
+      <span className="switch-text">
+        <span className="switch-label">{label}</span>
+        <span className="switch-hint">{hint}</span>
+      </span>
+      <span className="switch" aria-hidden="true" />
+    </button>
+  )
+}
+
 /** The "Configuración" button of the gantt: timeline options and the columns of the table. */
 export default function GanttSettingsMenu({ settings, onChange }: Props): React.JSX.Element {
   const [open, setOpen] = useState(false)
@@ -60,62 +73,52 @@ export default function GanttSettingsMenu({ settings, onChange }: Props): React.
       {open &&
         pos &&
         createPortal(
-          <div className="menu-pop gantt-settings-pop" role="menu" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
-            <div className="menu-title">Línea de tiempo</div>
-            <button
-              role="menuitemcheckbox"
-              aria-checked={settings.hideWeekends}
-              className="menu-item"
-              onClick={() => onChange({ ...settings, hideWeekends: !settings.hideWeekends })}
-            >
-              <span className="menu-check">{settings.hideWeekends ? '✓' : ''}</span>
-              Ocultar días no laborables
-            </button>
-            <p className="menu-hint">Quita de la escala los días que el calendario laboral no trabaja (fines de semana y feriados); la curva S deja de hacer escalones.</p>
-            <button role="menuitemcheckbox" aria-checked={settings.tableCollapsed} className="menu-item" onClick={() => onChange({ ...settings, tableCollapsed: !settings.tableCollapsed })}>
-              <span className="menu-check">{settings.tableCollapsed ? '✓' : ''}</span>
-              Ocultar la tabla (más espacio para el gráfico)
-            </button>
-            <div className="menu-sep" />
-            <div className="menu-title">Barras</div>
-            <button role="menuitemcheckbox" aria-checked={settings.barText} className="menu-item" onClick={() => onChange({ ...settings, barText: !settings.barText })}>
-              <span className="menu-check">{settings.barText ? '✓' : ''}</span>
-              Mostrar el nombre dentro de las barras
-            </button>
-            <button
-              role="menuitemcheckbox"
-              aria-checked={settings.summaryStyle === 'bracket'}
-              className="menu-item"
-              onClick={() => onChange({ ...settings, summaryStyle: settings.summaryStyle === 'bracket' ? 'bar' : 'bracket' })}
-            >
-              <span className="menu-check">{settings.summaryStyle === 'bracket' ? '✓' : ''}</span>
-              Tareas padre como resumen (estilo MS Project)
-            </button>
-            <p className="menu-hint">El resumen es una barra delgada con un triángulo en cada extremo, sin texto.</p>
+          <div className="menu-pop gantt-settings-pop" role="dialog" aria-label="Configuración del Gantt" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
+            <div className="menu-title">Vista</div>
+            <SwitchRow
+              label="Mostrar la tabla"
+              hint="Si la ocultas, el gráfico usa todo el ancho"
+              on={!settings.tableCollapsed}
+              onToggle={() => onChange({ ...settings, tableCollapsed: !settings.tableCollapsed })}
+            />
+            <SwitchRow
+              label="Nombre dentro de las barras"
+              hint="Si la apagas, quedan solo las barras"
+              on={settings.barText}
+              onToggle={() => onChange({ ...settings, barText: !settings.barText })}
+            />
+            <SwitchRow
+              label="Padres como resumen"
+              hint="Barra delgada con triángulos, como MS Project"
+              on={settings.summaryStyle === 'bracket'}
+              onToggle={() => onChange({ ...settings, summaryStyle: settings.summaryStyle === 'bracket' ? 'bar' : 'bracket' })}
+            />
+            <SwitchRow
+              label="Ocultar días no laborables"
+              hint="Quita fines de semana y feriados de la escala"
+              on={settings.hideWeekends}
+              onToggle={() => onChange({ ...settings, hideWeekends: !settings.hideWeekends })}
+            />
             <div className="menu-sep" />
             <div className="menu-title">Curva S</div>
-            <button
-              role="menuitemcheckbox"
-              aria-checked={settings.scurvePlan === 'baseline'}
-              className="menu-item"
-              onClick={() => onChange({ ...settings, scurvePlan: settings.scurvePlan === 'baseline' ? 'current' : 'baseline' })}
-            >
-              <span className="menu-check">{settings.scurvePlan === 'baseline' ? '✓' : ''}</span>
-              Planificado según la línea base
-            </button>
-            <p className="menu-hint">La curva planificada sigue las fechas de la línea base (las tareas sin línea base usan sus fechas actuales), así no se corre cuando una tarea se atrasa.</p>
+            <SwitchRow
+              label="Plan según la línea base"
+              hint="La curva planificada no se corre con los atrasos"
+              on={settings.scurvePlan === 'baseline'}
+              onToggle={() => onChange({ ...settings, scurvePlan: settings.scurvePlan === 'baseline' ? 'current' : 'baseline' })}
+            />
             <div className="menu-sep" />
-            <div className="menu-title">Columnas</div>
-            <div className="menu-item menu-locked">
-              <span className="menu-check">✓</span>
-              Tarea
+            <div className="menu-title">Columnas de la tabla</div>
+            <div className="col-chips" role="group" aria-label="Columnas">
+              <span className="chip locked" title="La columna Tarea siempre se muestra">
+                Tarea
+              </span>
+              {COLUMN_DEFS.map((c) => (
+                <button key={c.id} type="button" className={`chip${settings.columns[c.id] ? ' on' : ''}`} aria-pressed={settings.columns[c.id]} onClick={() => toggleColumn(c.id)}>
+                  {c.label}
+                </button>
+              ))}
             </div>
-            {COLUMN_DEFS.map((c) => (
-              <button key={c.id} role="menuitemcheckbox" aria-checked={settings.columns[c.id]} className="menu-item" onClick={() => toggleColumn(c.id)}>
-                <span className="menu-check">{settings.columns[c.id] ? '✓' : ''}</span>
-                {c.label}
-              </button>
-            ))}
           </div>,
           document.body
         )}
