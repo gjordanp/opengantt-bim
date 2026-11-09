@@ -118,29 +118,5 @@
 }
 /* A task that cannot respect both its constraint and its links. */
 .gantt_task_line.constraint-conflict {
-  outline: 2px solid #e5484d;
-  outline-offset: 1px;
-}
-.gantt_cal_light .constraint-section select {
-  width: 58% !important;
-  display: inline-block;
-  vertical-align: middle;
-}
-.gantt_cal_light .constraint-section input[type='date'] {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 8px;
-  padding: 6px 10px;
-  font-size: 14px;
-  color: var(--g-text);
-  color-scheme: dark light;
-  background-color: color-mix(in srgb, var(--g-bg-soft) 90%, transparent);
-  border: 1px solid var(--g-border);
-  border-radius: 10px;
-}
-
-/* The edit window's selects were clipped (12px padding on a 32px box): less padding above and below. */
-.gantt_cal_light select {
-  padding-top: 6px !important;
-  padding-bottom: 6px !important;
+  border: 2px solid #e5484d !important;
 }

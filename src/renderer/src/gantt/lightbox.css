@@ -1,0 +1,377 @@
+/*
+ * The edit window of a task (DHTMLX "lightbox"). It lives in <body>, outside the gantt container, so it takes
+ * the app's own tokens (styles.css) and looks like the other dialogs (.modal).
+ */
+.gantt_cal_cover {
+  background: var(--backdrop) !important;
+  backdrop-filter: none !important;
+}
+
+.gantt_cal_light,
+.gantt_cal_light * {
+  font-family: 'Inter Variable', Inter, ui-sans-serif, system-ui, sans-serif !important;
+  box-sizing: border-box;
+}
+
+.gantt_cal_light {
+  width: 560px !important;
+  max-width: calc(100vw - 32px) !important;
+  height: auto !important;
+  padding: 0 !important;
+  overflow: hidden;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow) !important;
+}
+
+/* Header: the task's name, then its dates, and the close button. */
+.gantt_cal_light .gantt_cal_ltitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: auto !important;
+  padding: 14px 16px 14px 20px !important;
+  background: var(--muted) !important;
+  border-bottom: 1px solid var(--border) !important;
+  border-radius: 0 !important;
+  color: var(--foreground) !important;
+  cursor: default !important;
+}
+.gantt_cal_light .dhx_cal_ltitle_descr {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  min-width: 0;
+}
+.gantt_cal_light .gantt_mark {
+  display: none;
+}
+.gantt_cal_light .dhx_title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--foreground) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.gantt_cal_light .gantt_cal_ltitle .gantt_time {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted-foreground) !important;
+}
+.gantt_cal_light .gantt_cal_ltitle_controls {
+  display: flex;
+}
+.gantt_cal_light .gantt_cal_ltitle_close_btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin: 0 !important;
+  border-radius: 6px;
+  color: var(--muted-foreground) !important;
+  opacity: 1 !important;
+  cursor: pointer;
+}
+.gantt_cal_light .gantt_cal_ltitle_close_btn:hover {
+  background: var(--accent);
+  color: var(--foreground) !important;
+}
+
+/* Body: a label above each field. */
+.gantt_cal_light .gantt_cal_larea {
+  height: auto !important;
+  padding: 6px 20px 12px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+.gantt_cal_light .gantt_cal_lsection {
+  display: block;
+  float: none !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 14px 0 6px !important;
+  padding: 0 !important;
+  color: var(--muted-foreground) !important;
+  font-size: 12px !important;
+  font-weight: 500;
+}
+.gantt_cal_light .gantt_cal_lsection label {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 24px;
+  color: inherit !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+.gantt_cal_light .gantt_cal_ltext,
+.gantt_cal_light .gantt_section_time,
+.gantt_cal_light .gantt_section_duration {
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* The "Fijar / Quitar" switch of optional sections. */
+.gantt_cal_light .gantt_custom_button {
+  order: 2;
+  margin-left: auto !important;
+  display: inline-flex !important;
+  align-items: center;
+  float: none !important;
+  height: 24px !important;
+  width: auto !important;
+  padding: 0 10px !important;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 12px;
+  cursor: pointer;
+}
+.gantt_cal_light .gantt_custom_button:hover {
+  background: var(--accent);
+}
+.gantt_cal_light .gantt_custom_button > div:first-child {
+  display: none !important;
+}
+.gantt_cal_light .gantt_custom_button_label {
+  position: static !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: 12px !important;
+  line-height: 1 !important;
+  color: inherit !important;
+}
+
+/* Fields. */
+.gantt_cal_light textarea,
+.gantt_cal_light select,
+.gantt_cal_light input[type='text'],
+.gantt_cal_light input[type='date'] {
+  height: 34px;
+  padding: 6px 10px !important;
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  box-shadow: none !important;
+  color-scheme: inherit;
+}
+.gantt_cal_light textarea {
+  width: 100% !important;
+  height: 64px !important;
+  min-height: 64px !important;
+  resize: vertical;
+  line-height: 1.45 !important;
+}
+.gantt_cal_light select {
+  appearance: none;
+  padding-right: 28px !important;
+  background-image: url("data:image/svg+xml;charset=US-ASCII,<svg xmlns='http://www.w3.org/2000/svg' fill='none' stroke='%238b8b94' stroke-width='1.6' viewBox='0 0 12 12'><path d='M3 4.5 6 7.5 9 4.5'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 8px center !important;
+  background-size: 12px !important;
+  cursor: pointer;
+}
+.gantt_cal_light select option {
+  background: var(--background);
+  color: var(--foreground);
+}
+.gantt_cal_light textarea:focus,
+.gantt_cal_light select:focus,
+.gantt_cal_light input[type='text']:focus,
+.gantt_cal_light input[type='date']:focus {
+  outline: none !important;
+  border-color: var(--brand) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 25%, transparent) !important;
+}
+.gantt_cal_light ::selection {
+  background: color-mix(in srgb, var(--brand) 35%, transparent);
+  color: inherit;
+}
+
+/* Dates: day, month and year selects in one row. */
+.gantt_cal_light .gantt_time_selects {
+  display: grid;
+  grid-template-columns: 72px 1fr 92px;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+.gantt_cal_light .gantt_time_selects select {
+  width: 100% !important;
+  margin: 0 !important;
+}
+
+/* Duration: [-] value [+] and the end date. */
+.gantt_cal_light .gantt_duration {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: auto !important;
+  margin: 0 !important;
+}
+.gantt_cal_light .gantt_duration_inputs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: auto !important;
+}
+.gantt_cal_light .gantt_duration_inputs input {
+  float: none !important;
+  margin: 0 !important;
+}
+.gantt_cal_light .gantt_duration_dec,
+.gantt_cal_light .gantt_duration_inc {
+  width: 34px !important;
+  height: 34px !important;
+  padding: 0 !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  font-size: 16px !important;
+  line-height: 1 !important;
+  cursor: pointer;
+}
+.gantt_cal_light .gantt_duration_dec:hover,
+.gantt_cal_light .gantt_duration_inc:hover {
+  background: var(--accent) !important;
+}
+.gantt_cal_light .gantt_duration_value {
+  width: 96px !important;
+  text-align: center;
+}
+.gantt_cal_light .gantt_duration_end_date {
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--muted-foreground) !important;
+  font-size: 12px !important;
+}
+.gantt_cal_light .gantt_duration_end_date span {
+  color: var(--foreground);
+}
+
+/* Constraint: the type and, when it needs one, a date. */
+.gantt_cal_light .constraint-section {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.gantt_cal_light .constraint-section select {
+  width: 100% !important;
+}
+.gantt_cal_light .constraint-section input[type='date'] {
+  width: 150px;
+}
+
+/* Buttons: delete on the left, cancel and save on the right. */
+.gantt_cal_light .gantt_cal_lcontrols {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  height: auto !important;
+  padding: 12px 20px !important;
+  border-top: 1px solid var(--border) !important;
+  background: var(--muted) !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_cal_lcontrols_push_right {
+  flex: 1;
+  order: 2;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_btn_set {
+  float: none !important;
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_btn_set > div:first-child {
+  display: none !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_btn_set > div:last-child {
+  float: none !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 7px 16px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  text-align: center;
+  cursor: pointer;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_btn_set > div:last-child:hover {
+  background: var(--accent) !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_delete_btn_set {
+  order: 0;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_delete_btn_set > div:last-child {
+  color: var(--destructive) !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_delete_btn_set > div:last-child:hover {
+  background: color-mix(in srgb, var(--destructive) 12%, transparent) !important;
+  border-color: color-mix(in srgb, var(--destructive) 50%, var(--border)) !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_cancel_btn_set {
+  order: 3;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_save_btn_set {
+  order: 4;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_save_btn_set > div:last-child {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}
+.gantt_cal_light .gantt_cal_lcontrols .gantt_save_btn_set > div:last-child:hover {
+  opacity: 0.9;
+  background: var(--primary) !important;
+}
+
+/* Confirmation boxes of the gantt (delete a task or a link). */
+.gantt_modal_box {
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  box-shadow: var(--shadow) !important;
+}
+.gantt_modal_box .gantt_popup_title {
+  border: 0 !important;
+  color: var(--foreground) !important;
+  font-weight: 600;
+}
+.gantt_modal_box .gantt_popup_text {
+  color: var(--foreground) !important;
+}
+.gantt_modal_box .gantt_popup_controls .gantt_popup_button {
+  border: 1px solid var(--border) !important;
+  border-radius: 8px !important;
+  background: var(--background) !important;
+  color: var(--foreground) !important;
+}
+.gantt_modal_box .gantt_popup_controls .gantt_popup_button.gantt_ok_button {
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+}

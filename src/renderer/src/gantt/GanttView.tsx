@@ -21,6 +21,7 @@ import { LobOverlay, colorsByName } from './lobLayer'
 import { autoSchedule, dateToIso, type AutoScheduleOutcome } from './autoSchedule'
 import './theme-light.css'
 import './gantt.css'
+import './lightbox.css'
 
 const BASE_ROW_HEIGHT = 30
 
@@ -341,6 +342,31 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.locale.labels.deadline_enable_button = 'Fijar'
     gantt.locale.labels.deadline_disable_button = 'Quitar'
     gantt.locale.labels.section_constraint = 'Restricción'
+    // The rest of the edit window and the dates of the timeline, in Spanish.
+    Object.assign(gantt.locale.labels, {
+      section_description: 'Descripción',
+      section_time: 'Período',
+      gantt_save_btn: 'Guardar',
+      gantt_cancel_btn: 'Cancelar',
+      gantt_delete_btn: 'Eliminar',
+      icon_save: 'Guardar',
+      icon_cancel: 'Cancelar',
+      icon_delete: 'Eliminar',
+      message_ok: 'Aceptar',
+      message_cancel: 'Cancelar',
+      confirm_deleting: 'La tarea se eliminará definitivamente. ¿Continuar?',
+      confirm_link_deleting: 'El vínculo se eliminará. ¿Continuar?',
+      confirm_deleting_title: 'Eliminar',
+      days: 'días, hasta el',
+      hours: 'horas',
+      minutes: 'minutos'
+    })
+    Object.assign(gantt.locale.date, {
+      month_full: ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'],
+      month_short: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'],
+      day_full: ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'],
+      day_short: ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+    })
     // The edit window's constraint section: a type and, for most types, a date. The Community edition has none.
     ;(gantt as any).form_blocks.constraint = {
       render: (section: { name: string }) =>
