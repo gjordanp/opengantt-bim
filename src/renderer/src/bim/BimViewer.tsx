@@ -9,7 +9,7 @@ import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as OBF from '@thatopen/components-front'
 import ViewerSettingsMenu from './ViewerSettingsMenu'
-import { CAMERA_FEEL, EDGE_WIDTH, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
+import { CAMERA_FEEL, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
@@ -241,28 +241,32 @@ export default function BimViewer({
   const clearHoverRef = useRef<() => void>(() => undefined)
 
   // Look of the view, from the postproduction pipeline: pen-line edges, ambient-occlusion shadows and anti-aliasing.
-  useEffect(() => {
-    const renderer = worldRef.current?.renderer
+  // Applied once when the view is created and again whenever a setting changes (the effect below runs before the view exists on first render).
+  const applyLook = (): void => {
+    const world = worldRef.current
+    const renderer = world?.renderer
     const pp = renderer?.postproduction
-    if (!renderer || !pp) return
+    if (!world || !renderer || !pp) return
+    const v = viewerRef.current
     const A = OBF.PostproductionAspect
-    pp.style = viewer.edges ? (viewer.shadows ? A.COLOR_PEN_SHADOWS : A.COLOR_PEN) : viewer.shadows ? A.COLOR_SHADOWS : A.COLOR
-    if (viewer.shadows) pp.aoPass.updateGtaoMaterial({ ...pp.defaultAoParameters, ...SHADOW_PARAMS })
-    pp.smaaEnabled = viewer.antialiasing
+    pp.style = v.edges ? (v.shadows ? A.COLOR_PEN_SHADOWS : A.COLOR_PEN) : v.shadows ? A.COLOR_SHADOWS : A.COLOR
+    if (v.shadows) pp.aoPass.updateGtaoMaterial({ ...pp.defaultAoParameters, ...SHADOW_PARAMS })
+    pp.smaaEnabled = v.antialiasing
     pp.msaaEnabled = false
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
     renderer.cssSize = false
-    pp.edgesPass.color = new THREE.Color(viewer.edgeColor)
-    pp.edgesPass.width = EDGE_WIDTH
-    renderer.adaptiveResolution = viewer.adaptive
-  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
-  // The camera follows the mouse almost directly: no gliding after the pointer stops.
+    pp.edgesPass.color = new THREE.Color(v.edgeColor)
+    renderer.adaptiveResolution = v.adaptive
+    // The camera follows the mouse almost directly: no gliding after the pointer stops.
+    world.camera.controls.smoothTime = CAMERA_FEEL.smoothTime
+    world.camera.controls.draggingSmoothTime = CAMERA_FEEL.draggingSmoothTime
+  }
+  const applyLookRef = useRef(applyLook)
+  applyLookRef.current = applyLook
   useEffect(() => {
-    const controls = worldRef.current?.camera.controls
-    if (!controls) return
-    controls.smoothTime = CAMERA_FEEL.smoothTime
-    controls.draggingSmoothTime = CAMERA_FEEL.draggingSmoothTime
-  }, [])
+    applyLook()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
   useEffect(() => {
     if (!viewer.hover) clearHoverRef.current()
   }, [viewer.hover])
@@ -418,6 +422,7 @@ export default function BimViewer({
     // The outline pass lives in the postproduction pipeline, so that has to be up before the Outliner is used.
     world.renderer.postproduction.enabled = true
     world.renderer.postproduction.style = viewerRef.current.edges ? OBF.PostproductionAspect.COLOR_PEN : OBF.PostproductionAspect.COLOR
+    applyLookRef.current()
     const outliner = components.get(OBF.Outliner)
     outliner.world = world
     outliner.enabled = true

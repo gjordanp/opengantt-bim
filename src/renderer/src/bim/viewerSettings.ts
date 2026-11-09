@@ -19,15 +19,13 @@ export interface ViewerSettings {
 }
 
 /** Colors offered for the edges and for the uniform element color. */
-export const EDGE_COLORS = ['#000000', '#334155', '#8b5cf6', '#0ea5e9', '#ef4444', '#ffffff']
+export const EDGE_COLORS = ['#000000', '#475569', '#8b5cf6', '#0ea5e9', '#ef4444', '#ffffff']
 export const ELEMENT_COLORS = ['#e5e7eb', '#cbd5e1', '#fde68a', '#bbf7d0', '#bae6fd', '#fecaca']
 
 export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
 
-export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, edgeColor: '#000000', modelColors: true, elementColor: '#e5e7eb' }
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, edgeColor: '#475569', modelColors: true, elementColor: '#e5e7eb' }
 
-/** Thickness of the edge lines (the library's own default is 1). */
-export const EDGE_WIDTH = 0.4
 
 /** Ambient-occlusion parameters, on top of the library's defaults. */
 export const SHADOW_PARAMS = { radius: 0.2, scale: 1.1 }
