@@ -5,6 +5,7 @@ import Tooltip from '../Tooltip'
 import ConfirmDialog from '../ConfirmDialog'
 import { useTheme } from '../theme'
 import SuggestInput from '../SuggestInput'
+import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
@@ -845,32 +846,15 @@ export default function BimViewer({
     </div>
   )
 
-  const fieldOptions = (
-    <>
-      <optgroup label="General">
-        {Object.entries(BUILTIN_LABELS).map(([f, l]) => (
-          <option key={f} value={f}>
-            {l}
-          </option>
-        ))}
-      </optgroup>
-      {Object.entries(
-        propKeys.reduce<Record<string, string[]>>((acc, { key }) => {
-          const set = key.split('.')[0]
-          ;(acc[set] ??= []).push(key)
-          return acc
-        }, {})
-      ).map(([set, keys]) => (
-        <optgroup key={set} label={set}>
-          {keys.map((k) => (
-            <option key={k} value={k}>
-              {k.slice(set.length + 1)}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </>
-  )
+  // Properties for the field picker: the built-in ones, then each property set's, grouped under its name.
+  const fieldChoices: DropdownOption<string>[] = [
+    ...Object.entries(BUILTIN_LABELS).map(([value, label]) => ({ value, label, group: 'General' })),
+    ...propKeys.map(({ key }) => {
+      const set = key.split('.')[0]
+      return { value: key, label: key.slice(set.length + 1), group: set }
+    })
+  ]
+  const opChoices = (current: RuleOp): DropdownOption<string>[] => OPS.filter((o) => o.op !== 'in' || current === 'in').map((o) => ({ value: o.op, label: o.label }))
 
   const searchUi = (
     <div className="panel-body bim-search-panel">
@@ -884,18 +868,16 @@ export default function BimViewer({
       </div>
       {drafts.map((d) => (
         <div key={d.id} className="bim-rule">
-          <select aria-label="Propiedad" value={d.field} onChange={(e) => setDraft(d.id, { field: e.target.value, value: '' })}>
-            {!(d.field in BUILTIN_LABELS) && !propKeys.some((k) => k.key === d.field) && <option value={d.field}>{fieldLabel(d.field)}</option>}
-            {fieldOptions}
-          </select>
+          <Dropdown
+            block
+            searchable
+            label="Propiedad"
+            value={d.field}
+            options={fieldChoices.some((o) => o.value === d.field) ? fieldChoices : [{ value: d.field, label: fieldLabel(d.field), group: 'Otras' }, ...fieldChoices]}
+            onChange={(v) => setDraft(d.id, { field: v, value: '' })}
+          />
           <div className="bim-rule-row">
-            <select aria-label="Condición" value={d.op} onChange={(e) => setDraft(d.id, { op: e.target.value as RuleOp })}>
-              {OPS.filter((o) => o.op !== 'in' || d.op === 'in').map((o) => (
-                <option key={o.op} value={o.op}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+            <Dropdown block label="Condición" value={d.op} options={opChoices(d.op)} onChange={(v) => setDraft(d.id, { op: v as RuleOp })} />
             <Tooltip label="Quitar esta condición">
               <button className="icon-btn" aria-label="Quitar condición" onClick={() => setDrafts((ds) => (ds.length > 1 ? ds.filter((x) => x.id !== d.id) : [newRule()]))}>
                 <X size={14} />

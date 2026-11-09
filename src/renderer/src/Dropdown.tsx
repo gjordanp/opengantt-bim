@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Check, ChevronDown } from 'lucide-react'
 
@@ -7,6 +7,8 @@ export interface DropdownOption<T extends string> {
   label: string
   /** Small secondary text on the right, e.g. a count. */
   hint?: string | number
+  /** Heading shown above the first option of each group (options of a group must be together). */
+  group?: string
 }
 
 type Box = { x: number; y: number; w: number }
@@ -47,7 +49,8 @@ export function OptionList<T extends string>({
   value,
   active,
   onPick,
-  onHover
+  onHover,
+  header
 }: {
   box: Box
   options: DropdownOption<T>[]
@@ -55,17 +58,22 @@ export function OptionList<T extends string>({
   active: number
   onPick: (v: T) => void
   onHover: (i: number) => void
+  /** Content pinned above the options, e.g. a filter field. */
+  header?: React.ReactNode
 }): React.JSX.Element {
   const ref = useRef<HTMLDivElement>(null)
+  const left = Math.max(8, Math.min(box.x, window.innerWidth - Math.max(box.w, 180) - 8))
   useEffect(() => {
     ref.current?.querySelector<HTMLElement>('[data-active="true"]')?.scrollIntoView({ block: 'nearest' })
   }, [active])
   return createPortal(
-    <div className="dd-list" role="listbox" ref={ref} style={{ left: box.x, top: box.y, minWidth: Math.max(box.w, 180) }}>
+    <div className="dd-list" role="listbox" ref={ref} style={{ left, top: box.y, minWidth: Math.min(Math.max(box.w, 180), window.innerWidth - left - 8), maxWidth: window.innerWidth - left - 8 }}>
+      {header}
       {options.length === 0 && <div className="dd-empty">Sin resultados</div>}
       {options.map((o, i) => (
+        <Fragment key={o.value}>
+          {o.group && o.group !== options[i - 1]?.group && <div className="dd-group">{o.group}</div>}
         <div
-          key={o.value}
           role="option"
           aria-selected={o.value === value}
           data-active={i === active}
@@ -81,6 +89,7 @@ export function OptionList<T extends string>({
           <span className="dd-label">{o.label}</span>
           {o.hint !== undefined && <span className="dd-hint">{o.hint}</span>}
         </div>
+        </Fragment>
       ))}
     </div>,
     document.body
@@ -92,21 +101,31 @@ export default function Dropdown<T extends string>({
   value,
   options,
   onChange,
-  label
+  label,
+  searchable,
+  block
 }: {
   value: T
   options: DropdownOption<T>[]
   onChange: (v: T) => void
   label: string
+  /** Adds a filter field at the top of the list (for long lists). */
+  searchable?: boolean
+  /** Fills the width of its container. */
+  block?: boolean
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
+  const [filter, setFilter] = useState('')
+  const shown =
+    searchable && filter.trim() ? options.filter((o) => `${o.group ?? ''} ${o.label}`.toLowerCase().includes(filter.trim().toLowerCase())) : options
   const btn = useRef<HTMLButtonElement>(null)
   const close = (): void => setOpen(false)
   const box = usePopover(btn, open, close)
   const current = options.find((o) => o.value === value)
 
   const openList = (): void => {
+    setFilter('')
     setActive(Math.max(0, options.findIndex((o) => o.value === value)))
     setOpen(true)
   }
@@ -123,10 +142,11 @@ export default function Dropdown<T extends string>({
       }
       return
     }
-    if (e.key === 'ArrowDown') setActive((i) => Math.min(i + 1, options.length - 1))
+    if (e.key === 'ArrowDown') setActive((i) => Math.min(i + 1, shown.length - 1))
     else if (e.key === 'ArrowUp') setActive((i) => Math.max(i - 1, 0))
-    else if (e.key === 'Enter' || e.key === ' ') pick(options[active].value)
-    else return
+    else if (e.key === 'Enter' || (e.key === ' ' && !searchable)) {
+      if (shown[active]) pick(shown[active].value)
+    } else return
     e.preventDefault()
   }
 
@@ -135,7 +155,7 @@ export default function Dropdown<T extends string>({
       <button
         ref={btn}
         type="button"
-        className="dd-trigger"
+        className={`dd-trigger${block ? ' block' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={label}
@@ -145,7 +165,32 @@ export default function Dropdown<T extends string>({
         <span>{current?.label ?? value}</span>
         <ChevronDown size={14} aria-hidden />
       </button>
-      {open && box && <OptionList box={box} options={options} value={value} active={active} onPick={pick} onHover={setActive} />}
+      {open && box && (
+        <OptionList
+          box={box}
+          options={shown}
+          value={value}
+          active={Math.min(active, Math.max(0, shown.length - 1))}
+          onPick={pick}
+          onHover={setActive}
+          header={
+            searchable ? (
+              <input
+                className="dd-filter"
+                autoFocus
+                value={filter}
+                placeholder="Filtrar…"
+                aria-label="Filtrar"
+                onChange={(e) => {
+                  setFilter(e.target.value)
+                  setActive(0)
+                }}
+                onKeyDown={onKeyDown}
+              />
+            ) : undefined
+          }
+        />
+      )}
     </>
   )
 }
