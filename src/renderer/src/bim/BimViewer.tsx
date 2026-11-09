@@ -7,6 +7,9 @@ import { useTheme } from '../theme'
 import SuggestInput from '../SuggestInput'
 import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
+import * as OBF from '@thatopen/components-front'
+import ViewerSettingsMenu from './ViewerSettingsMenu'
+import { CAMERA_FEEL, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
@@ -77,7 +80,7 @@ interface Props {
 }
 
 type Status = { kind: 'idle' } | { kind: 'loading'; name: string; progress: number } | { kind: 'error'; message: string }
-type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>
+type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBF.PostproductionRenderer>
 
 /** The 3D view's background follows the theme (--canvas in styles.css). */
 const canvasColor = (): string => getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f4f4f5'
@@ -225,6 +228,34 @@ export default function BimViewer({
     const scene = worldRef.current?.scene.three
     if (scene) scene.background = new THREE.Color(canvasColor())
   }, [theme])
+  // How the view looks and responds (edges, hover outline, camera feel), kept on this computer.
+  const [viewer, setViewerState] = useState<ViewerSettings>(loadViewerSettings)
+  const viewerRef = useRef(viewer)
+  viewerRef.current = viewer
+  const changeViewer = (next: ViewerSettings): void => {
+    setViewerState(next)
+    saveViewerSettings(next)
+  }
+  const outlinerRef = useRef<OBF.Outliner | null>(null)
+  const clearHoverRef = useRef<() => void>(() => undefined)
+
+  // Edges: the postproduction style adds pen lines over the colors.
+  useEffect(() => {
+    const pp = worldRef.current?.renderer?.postproduction
+    if (!pp) return
+    pp.style = viewer.edges ? OBF.PostproductionAspect.COLOR_PEN : OBF.PostproductionAspect.COLOR
+  }, [viewer.edges])
+  // Camera feel: how much the controls smooth the mouse motion.
+  useEffect(() => {
+    const controls = worldRef.current?.camera.controls
+    if (!controls) return
+    const feel = CAMERA_FEEL[viewer.camera]
+    controls.smoothTime = feel.smoothTime
+    controls.draggingSmoothTime = feel.draggingSmoothTime
+  }, [viewer.camera])
+  useEffect(() => {
+    if (!viewer.hover) clearHoverRef.current()
+  }, [viewer.hover])
   // The tools float over the 3D view, along its right edge or its bottom edge.
   // The tools open as floating windows over the 3D view: any number at once, each draggable.
   const [openTools, setOpenTools] = useState<BimTool[]>([]) // stacking order, last on top
@@ -359,16 +390,29 @@ export default function BimViewer({
     componentsRef.current = components
     if (import.meta.env.DEV) (window as unknown as { __bim: OBC.Components }).__bim = components
 
-    const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBC.SimpleRenderer>()
+    const world = components.get(OBC.Worlds).create<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBF.PostproductionRenderer>()
     world.scene = new OBC.SimpleScene(components)
     world.scene.setup()
     world.scene.three.background = new THREE.Color(canvasColor())
-    world.renderer = new OBC.SimpleRenderer(components, host)
+    // The postproduction renderer draws the pen-line edges and the hover outline.
+    world.renderer = new OBF.PostproductionRenderer(components, host)
+    // That renderer makes its container `position: relative`, which would collapse our absolutely-sized canvas holder.
+    host.style.position = 'absolute'
+    host.style.inset = '0'
+    world.renderer.resize()
     // Clean viewport: That Open's own switch for its corner logo (credited in THIRD_PARTY_NOTICES.md).
     world.renderer.showLogo = false
     world.camera = new OBC.OrthoPerspectiveCamera(components)
     worldRef.current = world
     components.init()
+    // The outline pass lives in the postproduction pipeline, so that has to be up before the Outliner is used.
+    world.renderer.postproduction.enabled = true
+    world.renderer.postproduction.style = viewerRef.current.edges ? OBF.PostproductionAspect.COLOR_PEN : OBF.PostproductionAspect.COLOR
+    const outliner = components.get(OBF.Outliner)
+    outliner.world = world
+    outliner.enabled = true
+    outliner.create('hover', { color: new THREE.Color('#8b5cf6'), thickness: 3, fillColor: new THREE.Color('#8b5cf6'), fillOpacity: 0.12, priority: 1 })
+    outlinerRef.current = outliner
     // No ground grid: it fades into a horizon line that distracts from the model.
 
     const manager = components.get(OBC.FragmentsManager)
@@ -395,7 +439,7 @@ export default function BimViewer({
     // A click (not a drag) selects the element under the cursor.
     const canvas = world.renderer.three.domElement
     let down: { x: number; y: number } | null = null
-    const pick = async (e: PointerEvent): Promise<void> => {
+    const hitAt = async (e: PointerEvent): Promise<{ model: FRAGS.FragmentsModel; localId: number } | null> => {
       const mouse = new THREE.Vector2(e.clientX, e.clientY)
       let hit: { model: FRAGS.FragmentsModel; localId: number } | null = null
       let best = Infinity
@@ -406,6 +450,10 @@ export default function BimViewer({
           hit = { model, localId: r.localId }
         }
       }
+      return hit
+    }
+    const pick = async (e: PointerEvent): Promise<void> => {
+      const hit = await hitAt(e)
       const additive = e.ctrlKey || e.shiftKey || e.metaKey
       if (!hit) {
         // A click on empty space clears the selection; with Ctrl/Shift held it leaves it alone.
@@ -444,6 +492,43 @@ export default function BimViewer({
     }
     canvas.addEventListener('pointerdown', onDown)
     canvas.addEventListener('pointerup', onUp)
+
+    // Hover: outline the element under the cursor. One pick at a time, always for the latest cursor position,
+    // and none while a button is held (orbiting or panning).
+    let hovered: { modelId: string; localId: number } | null = null
+    let hoverBusy = false
+    let hoverPending: PointerEvent | null = null
+    const clearHover = (): void => {
+      hoverPending = null
+      if (hovered) {
+        hovered = null
+        outliner.clean('hover')
+      }
+    }
+    clearHoverRef.current = clearHover
+    const runHover = async (): Promise<void> => {
+      hoverBusy = true
+      while (hoverPending) {
+        const ev = hoverPending
+        hoverPending = null
+        const hit = await hitAt(ev)
+        if (!viewerRef.current.hover) continue
+        const next = hit ? { modelId: hit.model.modelId, localId: hit.localId } : null
+        if (next?.modelId === hovered?.modelId && next?.localId === hovered?.localId) continue
+        outliner.clean('hover')
+        hovered = next
+        if (next) await outliner.addItems({ [next.modelId]: new Set([next.localId]) }, 'hover')
+      }
+      hoverBusy = false
+    }
+    const onMove = (e: PointerEvent): void => {
+      if (!viewerRef.current.hover) return
+      if (e.buttons !== 0) return clearHover()
+      hoverPending = e
+      if (!hoverBusy) void runHover()
+    }
+    canvas.addEventListener('pointermove', onMove)
+    canvas.addEventListener('pointerleave', clearHover)
     const onKey = (e: KeyboardEvent): void => {
       const t = e.target as HTMLElement | null
       if (e.key !== 'Escape' || pickedRef.current.length === 0) return
@@ -456,6 +541,8 @@ export default function BimViewer({
     return () => {
       canvas.removeEventListener('pointerdown', onDown)
       canvas.removeEventListener('pointerup', onUp)
+      canvas.removeEventListener('pointermove', onMove)
+      canvas.removeEventListener('pointerleave', clearHover)
       window.removeEventListener('keydown', onKey)
       readyRef.current = null
       worldRef.current = null
@@ -785,6 +872,7 @@ export default function BimViewer({
             </Tooltip>
           ))}
         </div>
+        <ViewerSettingsMenu settings={viewer} onChange={changeViewer} />
         {query ? (
           <button className="bim-searchbtn" onClick={() => showTool('search')}>
             <Search size={14} /> <span className="bim-searchbtn-text">{queryText}</span>

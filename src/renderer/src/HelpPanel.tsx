@@ -331,6 +331,10 @@ const TOPICS: Topic[] = [
         <p>
           Los iconos de la barra de arriba (buscar, asignación, grupos, propiedades y modelos) abren ventanas sobre el modelo. Puedes tener <b>varias abiertas a la vez</b>: cada una aparece en un hueco libre, empezando por la derecha. <b>Arrástralas</b> desde su título para ponerlas donde quieras; la que tocas pasa al frente y se vuelve a abrir donde la dejaste.
         </p>
+        <h3>Configuración del visor</h3>
+        <p>
+          El último icono de la barra del visor (los controles deslizantes) reúne los ajustes: <b>bordes de los elementos</b> (líneas que marcan las aristas), <b>resaltar al pasar el mouse</b> (contorno del elemento bajo el cursor) y la <b>respuesta de la cámara</b> (Ágil, Normal o Suave) al girar, mover y acercar con el mouse.
+        </p>
         <h3>Buscar por propiedades</h3>
         <p>
           El botón «Buscar elementos» (la lupa de la barra del visor) abre un buscador como el de Navisworks: eliges una <b>propiedad</b> (clase IFC, piso, nombre, volumen o cualquiera de los conjuntos de propiedades del modelo, como «Pset_WallCommon › FireRating»), una <b>condición</b> y un valor.

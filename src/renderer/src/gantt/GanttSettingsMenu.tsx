@@ -10,7 +10,7 @@ interface Props {
 }
 
 /** A setting that is on or off: its name, a line saying what it does, and a switch. */
-function SwitchRow({ label, hint, on, onToggle }: { label: string; hint: string; on: boolean; onToggle: () => void }): React.JSX.Element {
+export function SwitchRow({ label, hint, on, onToggle }: { label: string; hint: string; on: boolean; onToggle: () => void }): React.JSX.Element {
   return (
     <button type="button" role="switch" aria-checked={on} className="switch-row" onClick={onToggle}>
       <span className="switch-text">
