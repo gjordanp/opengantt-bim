@@ -1721,3 +1721,206 @@ kbd {
   box-shadow: var(--shadow);
   pointer-events: none;
 }
+
+/* ---------- BIM: selection bar, task panel, groups ---------- */
+.bim-selbar {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: color-mix(in srgb, var(--background) 94%, transparent);
+  border: 1px solid var(--border);
+  border-left: 4px solid #f59e0b;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+  font-size: 12px;
+}
+.bim-selbar-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bim-selbar-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex: none;
+}
+.bim-selbar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.bim-selbar-text span {
+  color: var(--muted-foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bim-selbar-main .icon-btn {
+  width: 24px;
+  height: 24px;
+  flex: none;
+}
+.bim-selbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.bim-selbar-actions button {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bim-selbar-hint {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.bim-selbar-flash {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #16a34a;
+  font-weight: 500;
+}
+.bim-label {
+  margin: 12px 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+}
+.bim-label:first-child {
+  margin-top: 0;
+}
+.bim-empty,
+.bim-task-card,
+.bim-newgroup-card,
+.bim-group-card,
+.bim-add {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.bim-task-card {
+  border-left: 4px solid #22c55e;
+}
+.bim-task-card b {
+  font-size: 14px;
+}
+.bim-task-card button,
+.bim-group-actions button {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  font-size: 12px;
+  padding: 0 10px;
+}
+.bim-adds {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bim-add {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+.bim-add > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bim-add button {
+  flex: none;
+  height: 28px;
+  font-size: 12px;
+}
+.bim-add-groups {
+  flex-direction: column;
+  align-items: stretch;
+}
+.bim-chip-add {
+  height: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.bim-newgroup-card input {
+  width: 100%;
+}
+.bim-seg {
+  display: flex;
+  gap: 4px;
+}
+.bim-seg button {
+  flex: 1;
+  height: 28px;
+  font-size: 12px;
+}
+.bim-seg button.on {
+  background: var(--accent);
+  border-color: var(--primary);
+}
+.bim-colors {
+  display: flex;
+  gap: 6px;
+}
+.bim-colors button {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+.bim-colors button.on {
+  outline: 2px solid var(--foreground);
+  outline-offset: 1px;
+}
+.bim-group-card {
+  margin-bottom: 6px;
+}
+.bim-group-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bim-group-top .icon-btn {
+  width: 24px;
+  height: 24px;
+}
+.bim-group-desc {
+  padding-left: 16px;
+}
+.bim-group-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.bim-add-groups .bim-chips {
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+.bim-add-groups .bim-chip-add {
+  width: auto;
+}
