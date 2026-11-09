@@ -12,6 +12,7 @@ import type { DbStatus, UpdateStatus } from '@shared/api'
 import logoUrl from './assets/logo.svg'
 import Workspace from './workspace/Workspace'
 import WindowsMenu from './workspace/WindowsMenu'
+import HelpPanel from './HelpPanel'
 import { WorkspaceContext, type SlotKey, type WorkspaceCtx } from './workspace/WorkspaceContext'
 import { PANELS, PRESETS, applyPreset, openPanel, resetLayout } from './workspace/layout'
 import ProjectsHome from './projects/ProjectsHome'
@@ -23,7 +24,7 @@ import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
 import { splitVolumes } from '@shared/bimVolume'
 import { countWorkDays, weekCalendar } from '@shared/scheduling'
-import { Activity, Box, CalendarDays, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
+import { Activity, Box, CalendarDays, CircleHelp, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import SCurvePanel from './SCurvePanel'
 import SCurveIcon from './SCurveIcon'
 import GanttSettingsMenu from './gantt/GanttSettingsMenu'
@@ -137,6 +138,7 @@ export default function App(): React.JSX.Element {
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [dock, setDock] = useState<DockviewApi | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
+  const [help, setHelp] = useState<string | null>(null)
   const [update, setUpdate] = useState<UpdateStatus>({ state: 'idle' })
   const { pref: themePref } = useTheme()
   // A message the user has to read (import results, errors).
@@ -330,6 +332,11 @@ export default function App(): React.JSX.Element {
   // Ctrl+K or Ctrl+Shift+P opens the command palette, even while typing.
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
+      if (e.key === 'F1') {
+        e.preventDefault()
+        setHelp((h) => (h ? null : 'start'))
+        return
+      }
       if (!(e.ctrlKey || e.metaKey)) return
       const k = e.key.toLowerCase()
       if (k === 'k' || (k === 'p' && e.shiftKey)) {
@@ -624,6 +631,7 @@ export default function App(): React.JSX.Element {
     ...(api
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
+          { id: 'help', section: 'Aplicación', label: 'Ayuda: guía de uso con dibujos', keywords: 'ayuda guia manual tutorial como se usa documentacion', run: () => setHelp('start') },
           { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project como proyecto nuevo (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
           ...(projectId ? [{ id: 'msp-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml importar sobrescribir', run: () => void replaceWithMsProject() }] : []),
           ...(projectId ? [{ id: 'msp-export', section: 'Proyectos', label: 'Exportar a MS Project (XML)…', keywords: 'microsoft project xml guardar', run: () => void exportMsProject() }] : []),
@@ -686,6 +694,7 @@ export default function App(): React.JSX.Element {
 
   return (
     <div className="app">
+      {help && <HelpPanel topic={help} onClose={() => setHelp(null)} />}
       <div className="topbar">
         <span className="brand">
           <img src={logoUrl} alt="" width={18} height={18} />
@@ -731,6 +740,11 @@ export default function App(): React.JSX.Element {
             </button>
           </Tooltip>
           {inWorkspace && <WindowsMenu api={dock} />}
+          <Tooltip label="Ayuda: guía de uso con dibujos" shortcut="F1">
+            <button className="icon-btn" onClick={() => setHelp('start')} aria-label="Ayuda">
+              <CircleHelp size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
       <input
