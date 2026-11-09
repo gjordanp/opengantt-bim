@@ -7,6 +7,7 @@ import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
 import { TodayLine } from './todayLine'
 import { installWorkTime } from './workTime'
+import { installDragDurations, installMultiSelect, type MultiSelect } from './multiSelect'
 import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './planLayer'
 import { lateness, previousDay } from '@shared/plan'
 import { toDay, weekCalendar } from '@shared/scheduling'
@@ -15,7 +16,7 @@ import type { TaskSpan } from '@shared/bim4d'
 import { computeSCurve, localTodayDay, type SCurveTask } from '@shared/scurve'
 import { SCurveOverlay } from './scurveLayer'
 import { LobOverlay, colorsByName } from './lobLayer'
-import { autoSchedule, dateToIso, normalizeDuration, type AutoScheduleOutcome } from './autoSchedule'
+import { autoSchedule, dateToIso, type AutoScheduleOutcome } from './autoSchedule'
 import './theme-light.css'
 import './gantt.css'
 
@@ -82,6 +83,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const overlayRef = useRef<LobOverlay | null>(null)
   const todayRef = useRef<TodayLine | null>(null)
   const planRef = useRef<PlanOverlay | null>(null)
+  const multiRef = useRef<MultiSelect | null>(null)
   // Read by the gantt callbacks, which are bound once at init.
   const lobSectionsRef = useRef<Set<string>>(new Set())
   const lobModeRef = useRef(lobMode)
@@ -197,7 +199,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       const gantt = ganttRef.current
       if (!gantt || !gantt.isTaskExists(id)) return
       gantt.showTask(id)
-      gantt.selectTask(id)
+      multiRef.current?.set([id])
     },
     spans: () => {
       const gantt = ganttRef.current
@@ -328,6 +330,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.init(host)
     installIgnoreTime(gantt)
     installWorkTime(gantt, () => calendarRef.current)
+    multiRef.current = installMultiSelect(gantt)
     // The gantt only follows window resizes; its pane can also change size (BIM viewer).
     const resizeObserver = new ResizeObserver(() => {
       // A callback can still arrive after the instance was destroyed (remount).
@@ -365,13 +368,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         onTaskSelectRef.current?.(null)
       })
     )
-    eventIds.push(
-      gantt.attachEvent('onAfterTaskDrag', (id: string | number) => {
-        if (schedulingRef.current) return
-        normalizeDuration(gantt, id, calendarRef.current)
-        reschedule()
-      })
-    )
+    // Moving tasks by dragging keeps their working-day durations, several at once when several are selected.
+    const stopDrag = installDragDurations(gantt, () => calendarRef.current, () => {
+      if (!schedulingRef.current) reschedule()
+    })
 
     gantt.ext.zoom.init({
       levels: [
@@ -412,6 +412,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
     return () => {
       for (const id of eventIds) gantt.detachEvent(id)
+      stopDrag()
+      multiRef.current?.destroy()
+      multiRef.current = null
       overlayRef.current?.destroy()
       overlayRef.current = null
       scurveRef.current?.destroy()

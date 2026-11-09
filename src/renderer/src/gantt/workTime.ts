@@ -1,6 +1,6 @@
 import type { GanttStatic } from 'dhtmlx-gantt'
 import { countWorkDays, endFromStart, fromDay, toDay, type Calendar } from '@shared/scheduling'
-import { dateToIso, isoToDate } from './autoSchedule'
+import { dateToIso, isoToDate } from './localDates'
 
 /**
  * Makes the gantt count durations in working days of the project calendar, the way the PRO edition does with
