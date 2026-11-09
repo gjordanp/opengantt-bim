@@ -175,3 +175,29 @@
   border-radius: 6px;
   outline: none;
 }
+
+/* Cell editor (inline editing in the table): fills the cell, soft violet frame instead of a heavy black box. */
+.gantt_grid_editor_placeholder,
+.gantt_grid_editor_placeholder > div {
+  height: 100%;
+}
+.gantt_grid_editor_placeholder input,
+.gantt_grid_editor_placeholder select {
+  box-sizing: border-box;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  border: none !important;
+  border-radius: 0 !important;
+  outline: none !important;
+  background: var(--g-bg) !important;
+  color: var(--foreground);
+  font: inherit !important;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, #8b5cf6 75%, transparent) !important;
+}
+.gantt_grid_editor_placeholder input[type='number'],
+.gantt_grid_editor_placeholder input[type='date'],
+.gantt_grid_editor_placeholder select {
+  text-align: center;
+}
