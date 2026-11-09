@@ -26,7 +26,11 @@ export function installMultiSelect(gantt: GanttStatic): MultiSelect {
   const visibleOrder = (): string[] => {
     const order: string[] = []
     const count = g.getVisibleTaskCount()
-    for (let i = 0; i < count; i++) order.push(String(g.getTaskByIndex(i).id))
+    for (let i = 0; i < count; i++) {
+      const task = g.getTaskByIndex(i)
+      // The empty row at the end of the table can't be selected.
+      if (task.type !== 'placeholder') order.push(String(task.id))
+    }
     return order
   }
   const exists = (id: string): boolean => g.isTaskExists(id)
@@ -55,6 +59,7 @@ export function installMultiSelect(gantt: GanttStatic): MultiSelect {
 
   const levelOf = (id: string): number => g.calculateTaskLevel(g.getTask(id))
   const click = (id: string, e: MouseEvent): void => {
+    if (g.getTask(id)?.type === 'placeholder') return
     const oneLevel = Boolean(g.config.multiselect_one_level)
     apply(
       clickSelection(state, visibleOrder(), String(id), { toggle: e.ctrlKey || e.metaKey, shift: e.shiftKey }, { oneLevel, level: levelOf }),

@@ -38,6 +38,7 @@ export interface AutoScheduleOutcome {
 export function autoSchedule(gantt: GanttStatic, calendar: Calendar = weekCalendar()): AutoScheduleOutcome {
   const tasks: SchedTask[] = []
   gantt.eachTask((t: any) => {
+    if (t.type === 'placeholder') return
     const constraint = engineConstraint(t.constraint_type, t.constraint_date ? dateToIso(t.constraint_date) : null, (iso) => fromDay(toDay(iso) + 1))
     tasks.push({
       id: String(t.id),

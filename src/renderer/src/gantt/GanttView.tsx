@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
+import { installPlaceholder, isPlaceholder, type Placeholder } from './placeholder'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
@@ -12,7 +13,7 @@ import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './pl
 import { lateness, previousDay } from '@shared/plan'
 import { CONSTRAINT_TYPES, constraintNeedsDate, constraintShort } from '@shared/constraints'
 import { isoToDate } from './localDates'
-import { toDay, weekCalendar } from '@shared/scheduling'
+import { fromDay, nextWorkingDay, toDay, weekCalendar } from '@shared/scheduling'
 import type { ColumnId, GanttSettings } from './ganttSettings'
 import type { TaskSpan } from '@shared/bim4d'
 import { computeSCurve, localTodayDay, type SCurveTask } from '@shared/scurve'
@@ -95,6 +96,7 @@ function bracketBar(gantt: GanttStatic, task: any): HTMLElement {
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   const inputs: LobTaskInput[] = []
   gantt.eachTask((task: any) => {
+    if (isPlaceholder(task)) return
     inputs.push({
       id: String(task.id),
       parent: String(task.parent),
@@ -111,6 +113,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const todayRef = useRef<TodayLine | null>(null)
   const planRef = useRef<PlanOverlay | null>(null)
   const multiRef = useRef<MultiSelect | null>(null)
+  const placeholderRef = useRef<Placeholder | null>(null)
   // Read by the gantt callbacks, which are bound once at init.
   const lobSectionsRef = useRef<Set<string>>(new Set())
   const lobModeRef = useRef(lobMode)
@@ -142,7 +145,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       name: project.name,
       holidays: settingsRef.current.holidays ?? [],
       ...(settingsRef.current.workWeek ? { workWeek: settingsRef.current.workWeek } : {}),
-      tasks: data.map((t) => ({
+      tasks: data.filter((t) => !isPlaceholder(t)).map((t) => ({
         id: String(t.id),
         text: String(t.text ?? ''),
         start_date: String(t.start_date),
@@ -206,7 +209,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     const gantt = ganttRef.current
     const out: SCurveTask[] = []
     gantt?.eachTask((t: any) => {
-      if (gantt.hasChild(t.id) || t.type === 'project' || !t.start_date || !t.end_date) return
+      if (isPlaceholder(t) || gantt.hasChild(t.id) || t.type === 'project' || !t.start_date || !t.end_date) return
       const weights = volumeWeightsRef.current
       out.push({
         id: String(t.id),
@@ -239,7 +242,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       const gantt = ganttRef.current
       const out: TaskSpan[] = []
       gantt?.eachTask((t: any) => {
-        if (t.start_date && t.end_date) {
+        if (!isPlaceholder(t) && t.start_date && t.end_date) {
           out.push({ id: String(t.id), start: toDay(dateToIso(t.start_date)), end: toDay(dateToIso(t.end_date)) })
         }
       })
@@ -251,6 +254,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       if (!gantt) return 0
       let changed = 0
       gantt.eachTask((t: any) => {
+        if (isPlaceholder(t)) return
         const has = Boolean(t.baseline_start && t.baseline_end)
         if (mode === 'clear') {
           if (!has) return
@@ -275,6 +279,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       let tasks = 0
       let withBaseline = 0
       gantt?.eachTask((t: any) => {
+        if (isPlaceholder(t)) return
         if (t.start_date && t.end_date && t.end_date > t.start_date) tasks++
         if (t.baseline_start && t.baseline_end) withBaseline++
       })
@@ -384,6 +389,13 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       if (ganttSettingsRef.current.summaryStyle === 'bracket') return bracketBar(gantt, task)
       return defaultRender(task)
     }
+    // The empty row at the end of the table has no bar; its look is in gantt.css.
+    gantt.config.type_renderers['placeholder'] = () => {
+      const empty = document.createElement('div')
+      empty.style.display = 'none'
+      return empty
+    }
+    gantt.templates.grid_row_class = (_s: Date, _e: Date, task: any) => (isPlaceholder(task) ? 'placeholder-row' : '')
     // The text inside the bars can be switched off (the name is in the table anyway).
     gantt.templates.task_text = (_start: Date, _end: Date, task: any) => (ganttSettingsRef.current.barText ? String(task.text ?? '') : '')
 
@@ -473,6 +485,26 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     installIgnoreTime(gantt)
     installWorkTime(gantt, () => calendarRef.current)
     multiRef.current = installMultiSelect(gantt)
+    // The empty row: typing a name there adds a task after the last one, in the same group, starting the working day after it.
+    placeholderRef.current = installPlaceholder(gantt, {
+      label: 'Nueva tarea…',
+      defaults: () => {
+        let last: any = null
+        gantt.eachTask((t: any) => {
+          if (!isPlaceholder(t)) last = t
+        })
+        const cal = calendarRef.current
+        const base = last?.end_date ? toDay(dateToIso(last.end_date)) : toDay(dateToIso(new Date()))
+        const start = isoToDate(fromDay(nextWorkingDay(cal, base)))
+        return {
+          parent: last ? last.parent : 0,
+          start_date: start,
+          end_date: gantt.calculateEndDate({ start_date: start, duration: 1, task: {} as any }),
+          duration: 1,
+          progress: 0
+        }
+      }
+    })
     // The gantt only follows window resizes; its pane can also change size (BIM viewer).
     const resizeObserver = new ResizeObserver(() => {
       // A callback can still arrive after the instance was destroyed (remount).
@@ -500,7 +532,12 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       'onAfterLinkUpdate',
       'onAfterLinkDelete'
     ] as const
-    const eventIds = eventNames.map((name) => gantt.attachEvent(name, reschedule))
+    // The empty row at the end of the table is not part of the project: its events change nothing.
+    const eventIds = eventNames.map((name) => gantt.attachEvent(name, (_id: unknown, item: unknown) => {
+      if (isPlaceholder(item as { type?: unknown })) return true
+      reschedule()
+      return true
+    }))
     // A dragged/resized bar comes back with a calendar-day duration; convert it first.
     eventIds.push(
       gantt.attachEvent('onTaskSelected', (id: string | number) => {
@@ -556,6 +593,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       for (const id of eventIds) gantt.detachEvent(id)
       stopDrag()
       multiRef.current?.destroy()
+      placeholderRef.current?.destroy()
+      placeholderRef.current = null
       multiRef.current = null
       overlayRef.current?.destroy()
       overlayRef.current = null
