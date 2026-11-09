@@ -73,6 +73,22 @@ export default function GanttSettingsMenu({ settings, onChange }: Props): React.
             </button>
             <p className="menu-hint">Quita de la escala los días que el calendario laboral no trabaja (fines de semana y feriados); la curva S deja de hacer escalones.</p>
             <div className="menu-sep" />
+            <div className="menu-title">Barras</div>
+            <button role="menuitemcheckbox" aria-checked={settings.barText} className="menu-item" onClick={() => onChange({ ...settings, barText: !settings.barText })}>
+              <span className="menu-check">{settings.barText ? '✓' : ''}</span>
+              Mostrar el nombre dentro de las barras
+            </button>
+            <button
+              role="menuitemcheckbox"
+              aria-checked={settings.summaryStyle === 'bracket'}
+              className="menu-item"
+              onClick={() => onChange({ ...settings, summaryStyle: settings.summaryStyle === 'bracket' ? 'bar' : 'bracket' })}
+            >
+              <span className="menu-check">{settings.summaryStyle === 'bracket' ? '✓' : ''}</span>
+              Tareas padre como resumen (estilo MS Project)
+            </button>
+            <p className="menu-hint">El resumen es una barra delgada con un triángulo en cada extremo, sin texto.</p>
+            <div className="menu-sep" />
             <div className="menu-title">Curva S</div>
             <button
               role="menuitemcheckbox"

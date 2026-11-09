@@ -557,10 +557,12 @@ kbd {
   opacity: 0.45;
   cursor: default;
 }
-.baseline-pop {
+.baseline-pop,
+.gantt-settings-pop {
   width: 310px;
 }
-.baseline-pop .menu-item {
+.baseline-pop .menu-item,
+.gantt-settings-pop .menu-item {
   height: auto;
   min-height: 30px;
   padding: 6px 8px;

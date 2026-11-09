@@ -75,6 +75,23 @@ export interface GanttHandle {
   baselineInfo(): { tasks: number; withBaseline: number }
 }
 
+/**
+ * A parent task drawn like MS Project's summary bar (and like the original Opengantt): a thin bar with a
+ * triangle at each end. The element carries the task attribute so selecting and dragging keep working.
+ */
+function bracketBar(gantt: GanttStatic, task: any): HTMLElement {
+  const el = document.createElement('div')
+  el.setAttribute(gantt.config.task_attribute, String(task.id))
+  el.className = `custom-project${(gantt as any).isSelectedTask?.(task.id) ? ' gantt_selected' : ''}`
+  el.innerHTML = "<div class='project-left'></div><div class='project-right'></div>"
+  const size = gantt.getTaskPosition(task) as { left: number; top: number; width: number; height: number }
+  el.style.left = `${size.left}px`
+  el.style.width = `${size.width}px`
+  // 6 px of bar plus 9 px of triangles, centred in the space of the normal bar.
+  el.style.top = `${size.top + Math.round((size.height - 15) / 2)}px`
+  return el
+}
+
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   const inputs: LobTaskInput[] = []
   gantt.eachTask((task: any) => {
@@ -364,8 +381,11 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         empty.style.display = 'none'
         return empty
       }
+      if (ganttSettingsRef.current.summaryStyle === 'bracket') return bracketBar(gantt, task)
       return defaultRender(task)
     }
+    // The text inside the bars can be switched off (the name is in the table anyway).
+    gantt.templates.task_text = (_start: Date, _end: Date, task: any) => (ganttSettingsRef.current.barText ? String(task.text ?? '') : '')
 
     // Dates the gantt does not know about (baseline, deadline) arrive as text: turn them into dates.
     gantt.attachEvent('onTaskLoading', (task: any) => {

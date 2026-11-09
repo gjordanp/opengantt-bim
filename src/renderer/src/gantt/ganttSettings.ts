@@ -19,11 +19,17 @@ export interface GanttSettings {
   columns: Record<ColumnId, boolean>
   /** What the S-curve's planned line follows: the tasks' current dates (like PRO) or their baseline. */
   scurvePlan: 'current' | 'baseline'
+  /** The name of the task inside its bar. */
+  barText: boolean
+  /** Parent tasks: a plain bar or a summary bracket like MS Project's. */
+  summaryStyle: 'bar' | 'bracket'
 }
 
 export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   hideWeekends: false,
   scurvePlan: 'current',
+  barText: true,
+  summaryStyle: 'bar',
   columns: { start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, deadline: false, constraint: false }
 }
 
@@ -36,6 +42,8 @@ export function loadGanttSettings(): GanttSettings {
     return {
       hideWeekends: raw.hideWeekends === true,
       scurvePlan: raw.scurvePlan === 'baseline' ? 'baseline' : 'current',
+      barText: raw.barText !== false,
+      summaryStyle: raw.summaryStyle === 'bracket' ? 'bracket' : 'bar',
       // Columns added later keep their default.
       columns: { ...DEFAULT_GANTT_SETTINGS.columns, ...(raw.columns ?? {}) }
     }
