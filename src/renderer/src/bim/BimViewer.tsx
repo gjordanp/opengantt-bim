@@ -9,7 +9,7 @@ import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as OBF from '@thatopen/components-front'
 import ViewerSettingsMenu from './ViewerSettingsMenu'
-import { CAMERA_FEEL, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
+import { CAMERA_FEEL, EDGE_WIDTH, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
@@ -239,12 +239,20 @@ export default function BimViewer({
   const outlinerRef = useRef<OBF.Outliner | null>(null)
   const clearHoverRef = useRef<() => void>(() => undefined)
 
-  // Edges: the postproduction style adds pen lines over the colors.
+  // Look of the view, from the postproduction pipeline: pen-line edges, ambient-occlusion shadows and anti-aliasing.
   useEffect(() => {
-    const pp = worldRef.current?.renderer?.postproduction
-    if (!pp) return
-    pp.style = viewer.edges ? OBF.PostproductionAspect.COLOR_PEN : OBF.PostproductionAspect.COLOR
-  }, [viewer.edges])
+    const renderer = worldRef.current?.renderer
+    const pp = renderer?.postproduction
+    if (!renderer || !pp) return
+    const A = OBF.PostproductionAspect
+    pp.style = viewer.edges ? (viewer.shadows !== 'off' ? A.COLOR_PEN_SHADOWS : A.COLOR_PEN) : viewer.shadows !== 'off' ? A.COLOR_SHADOWS : A.COLOR
+    pp.edgesPass.width = EDGE_WIDTH[viewer.edgeWidth]
+    // Changing the style resets nothing of the AO tuning, but its strength is ours to set.
+    if (viewer.shadows !== 'off') pp.aoPass.updateGtaoMaterial({ ...pp.defaultAoParameters, ...SHADOW_PARAMS[viewer.shadows] })
+    pp.smaaEnabled = viewer.antialiasing === 'fast'
+    pp.msaaEnabled = viewer.antialiasing === 'high'
+    renderer.adaptiveResolution = viewer.adaptive
+  }, [viewer.edges, viewer.shadows, viewer.edgeWidth, viewer.antialiasing, viewer.adaptive])
   // Camera feel: how much the controls smooth the mouse motion.
   useEffect(() => {
     const controls = worldRef.current?.camera.controls

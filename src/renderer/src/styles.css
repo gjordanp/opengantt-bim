@@ -2367,3 +2367,30 @@ kbd {
 .bim-tool-panel.dragging .bim-tool-head {
   cursor: grabbing;
 }
+
+.viewer-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+}
+.viewer-choice.disabled {
+  opacity: 0.5;
+}
+.viewer-choice .bim-seg {
+  margin-top: 6px;
+}
+.viewer-settings-pop {
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+}
+
+.viewer-settings-pop {
+  overflow-x: hidden;
+}
+.viewer-settings-pop .switch-text {
+  min-width: 0;
+}
+.viewer-settings-pop .switch-hint {
+  white-space: normal;
+}
