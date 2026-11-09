@@ -10,9 +10,21 @@ export interface ViewerSettings {
   antialiasing: boolean
   /** Lowers the resolution by itself when the frame rate drops (heavy models). */
   adaptive: boolean
+  /** Color of the edge lines, as #rrggbb. */
+  edgeColor: string
+  /** Paint every element in the model's own colors (on) or in one uniform color (off). */
+  modelColors: boolean
+  /** The uniform color used when `modelColors` is off, as #rrggbb. */
+  elementColor: string
 }
 
-export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false }
+/** Colors offered for the edges and for the uniform element color. */
+export const EDGE_COLORS = ['#000000', '#334155', '#8b5cf6', '#0ea5e9', '#ef4444', '#ffffff']
+export const ELEMENT_COLORS = ['#e5e7eb', '#cbd5e1', '#fde68a', '#bbf7d0', '#bae6fd', '#fecaca']
+
+export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
+
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, edgeColor: '#000000', modelColors: true, elementColor: '#e5e7eb' }
 
 /** Ambient-occlusion parameters, on top of the library's defaults. */
 export const SHADOW_PARAMS = { radius: 0.2, scale: 1.1 }
@@ -40,7 +52,10 @@ export function loadViewerSettings(): ViewerSettings {
       hover: flag(raw.hover, d.hover),
       shadows: flag(raw.shadows, d.shadows),
       antialiasing: flag(raw.antialiasing, d.antialiasing),
-      adaptive: flag(raw.adaptive, d.adaptive)
+      adaptive: flag(raw.adaptive, d.adaptive),
+      edgeColor: isHex(raw.edgeColor) ? raw.edgeColor : d.edgeColor,
+      modelColors: flag(raw.modelColors, d.modelColors),
+      elementColor: isHex(raw.elementColor) ? raw.elementColor : d.elementColor
     }
   } catch {
     return DEFAULT_VIEWER_SETTINGS

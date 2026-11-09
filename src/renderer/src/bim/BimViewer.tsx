@@ -236,6 +236,7 @@ export default function BimViewer({
     setViewerState(next)
     saveViewerSettings(next)
   }
+  const { modelColors, elementColor } = viewer
   const outlinerRef = useRef<OBF.Outliner | null>(null)
   const clearHoverRef = useRef<() => void>(() => undefined)
 
@@ -251,8 +252,9 @@ export default function BimViewer({
     pp.msaaEnabled = false
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
     renderer.cssSize = false
+    pp.edgesPass.color = new THREE.Color(viewer.edgeColor)
     renderer.adaptiveResolution = viewer.adaptive
-  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive])
+  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
   // The camera follows the mouse almost directly: no gliding after the pointer stops.
   useEffect(() => {
     const controls = worldRef.current?.camera.controls
@@ -728,6 +730,11 @@ export default function BimViewer({
         const pickedIds = picked.filter((p) => p.modelId === modelId).map((p) => p.localId)
         await model.resetHighlight()
         await model.resetVisible()
+        // One uniform color for every element, under everything painted below.
+        if (!modelColors) {
+          const all = elements.filter((e) => e.modelId === modelId).map((e) => e.localId)
+          if (all.length > 0) await model.highlight(all, highlightMaterial(new THREE.Color(elementColor)))
+        }
         if (phases) {
           const local = (guids: Set<string>): number[] =>
             [...guids]
@@ -760,7 +767,7 @@ export default function BimViewer({
       }
       manager.core.update(true)
     })()
-  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked])
+  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked, modelColors, elementColor])
 
   // ---- actions ----
   const links = bim.links
