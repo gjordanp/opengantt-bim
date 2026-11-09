@@ -16,6 +16,11 @@ export interface ProjectTask {
   open?: boolean
   /** Surface (m²) of the location this activity covers; drives line-of-balance row height */
   location_surface?: number
+  /** Planned dates (baseline), `YYYY-MM-DD`; the end is exclusive like the task's own end. Both or neither. */
+  baseline_start?: string
+  baseline_end?: string
+  /** Last day the task may work, `YYYY-MM-DD`. */
+  deadline?: string
 }
 
 export interface ProjectLink {

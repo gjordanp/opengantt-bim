@@ -5,7 +5,8 @@ export const COLUMN_DEFS = [
   { id: 'duration', label: 'Días' },
   { id: 'progress', label: 'Avance %' },
   { id: 'location_surface', label: 'Superficie' },
-  { id: 'bim', label: 'BIM' }
+  { id: 'bim', label: 'BIM' },
+  { id: 'deadline', label: 'Plazo' }
 ] as const
 
 export type ColumnId = (typeof COLUMN_DEFS)[number]['id']
@@ -19,7 +20,7 @@ export interface GanttSettings {
 
 export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   hideWeekends: false,
-  columns: { start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true }
+  columns: { start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, deadline: false }
 }
 
 const KEY = 'ogbim.ganttSettings'

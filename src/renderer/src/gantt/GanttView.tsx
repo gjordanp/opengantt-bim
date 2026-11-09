@@ -6,6 +6,9 @@ import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
 import { TodayLine } from './todayLine'
+import { installWorkTime } from './workTime'
+import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './planLayer'
+import { lateness, previousDay } from '@shared/plan'
 import { toDay, weekCalendar } from '@shared/scheduling'
 import type { ColumnId, GanttSettings } from './ganttSettings'
 import type { TaskSpan } from '@shared/bim4d'
@@ -78,6 +81,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
   const todayRef = useRef<TodayLine | null>(null)
+  const planRef = useRef<PlanOverlay | null>(null)
   // Read by the gantt callbacks, which are bound once at init.
   const lobSectionsRef = useRef<Set<string>>(new Set())
   const lobModeRef = useRef(lobMode)
@@ -118,7 +122,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         parent: String(t.parent ?? '0'),
         ...(t.type ? { type: t.type } : {}),
         ...(t.open !== undefined ? { open: Boolean(t.open) } : {}),
-        ...(Number(t.location_surface) ? { location_surface: Number(t.location_surface) } : {})
+        ...(Number(t.location_surface) ? { location_surface: Number(t.location_surface) } : {}),
+        ...(t.baseline_start && t.baseline_end ? { baseline_start: String(t.baseline_start), baseline_end: String(t.baseline_end) } : {}),
+        ...(t.deadline ? { deadline: String(t.deadline) } : {})
       })),
       links: links.map((l) => ({
         id: String(l.id),
@@ -253,7 +259,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         resize: true,
         // The gantt's end is exclusive: show the last day of work.
         template: (task: any) =>
-          task.end_date ? dateToIso(task.end_date > task.start_date ? new Date(task.end_date.getTime() - 86400000) : task.end_date) : ''
+          task.end_date ? dateToIso(task.end_date > task.start_date ? previousDay(task.end_date) : task.end_date) : ''
       },
       { name: 'duration', label: 'Días', align: 'center', width: 60, resize: true },
       { name: 'progress', label: 'Avance', align: 'center', width: 70, resize: true, template: (task: any) => `${Math.round((Number(task.progress) || 0) * 100)}%` },
@@ -264,6 +270,18 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         align: 'center',
         width: 60,
         template: (task: any) => String(bimCountsRef.current?.[String(task.id)] || '')
+      },
+      {
+        name: 'deadline',
+        label: 'Plazo',
+        align: 'center',
+        width: 90,
+        resize: true,
+        template: (task: any) => {
+          if (!task.deadline) return ''
+          const late = lateness(task)?.kind === 'deadline'
+          return `${late ? '<span class="overdue-mark" title="Fuera de plazo">!</span> ' : ''}${dateToIso(task.deadline)}`
+        }
       }
     ]
     // The Community edition has no column `hide`: the table shows exactly the columns in this list.
@@ -281,11 +299,35 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       return defaultRender(task)
     }
 
-    gantt.templates.task_class = (_start: Date, _end: Date, task: any) =>
-      showCriticalRef.current && criticalRef.current.has(String(task.id)) ? 'critical-task' : ''
+    // Dates the gantt does not know about (baseline, deadline) arrive as text: turn them into dates.
+    gantt.attachEvent('onTaskLoading', (task: any) => {
+      parsePlanDates(gantt, task)
+      return true
+    })
+    gantt.templates.task_class = (_start: Date, end: Date, task: any) => {
+      const classes = planTaskClasses(end, task)
+      if (showCriticalRef.current && criticalRef.current.has(String(task.id))) classes.unshift('critical-task')
+      return classes.join(' ')
+    }
+    gantt.templates.rightside_text = (_start: Date, end: Date, task: any) => planSideText(end, task)
+    // Sections of the edit window for the baseline and the deadline (each can be set or removed).
+    gantt.locale.labels.section_baseline = 'Línea base'
+    gantt.locale.labels.section_deadline = 'Plazo'
+    gantt.locale.labels.baseline_enable_button = 'Fijar'
+    gantt.locale.labels.baseline_disable_button = 'Quitar'
+    gantt.locale.labels.deadline_enable_button = 'Fijar'
+    gantt.locale.labels.deadline_disable_button = 'Quitar'
+    // The typings only know the plain sections; the optional-duration ones take an object for `map_to`.
+    gantt.config.lightbox.sections = [
+      { name: 'description', height: 70, map_to: 'text', type: 'textarea', focus: true },
+      { name: 'time', map_to: 'auto', type: 'duration' },
+      { name: 'baseline', map_to: { start_date: 'baseline_start', end_date: 'baseline_end' }, button: true, type: 'duration_optional' },
+      { name: 'deadline', map_to: { start_date: 'deadline' }, button: true, type: 'duration_optional', single_date: true }
+    ] as unknown as typeof gantt.config.lightbox.sections
 
     gantt.init(host)
     installIgnoreTime(gantt)
+    installWorkTime(gantt, () => calendarRef.current)
     // The gantt only follows window resizes; its pane can also change size (BIM viewer).
     const resizeObserver = new ResizeObserver(() => {
       // A callback can still arrive after the instance was destroyed (remount).
@@ -294,6 +336,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     resizeObserver.observe(host)
     todayRef.current = new TodayLine(gantt)
     todayRef.current.mount()
+    planRef.current = new PlanOverlay(gantt)
+    planRef.current.mount()
     // Handy for poking at the instance from the devtools console while developing.
     if (import.meta.env.DEV) (window as unknown as { __gantt: GanttStatic }).__gantt = gantt
 
@@ -374,6 +418,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       scurveRef.current = null
       todayRef.current?.destroy()
       todayRef.current = null
+      planRef.current?.destroy()
+      planRef.current = null
       ganttRef.current = null
       gantt.destructor()
     }

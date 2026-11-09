@@ -53,3 +53,47 @@
   --dhx-gantt-link-background: #8b8f98;
   --dhx-gantt-link-background-hover: #c4c8d0;
 }
+
+/* Baseline: a pale bar under the task's bar. */
+.plan-overlay .baseline {
+  position: absolute;
+  height: 5px;
+  border-radius: 2px;
+  background: #ffd180;
+  border: 1px solid #ff9900;
+  box-sizing: border-box;
+  opacity: 0.8;
+  pointer-events: auto;
+}
+
+/* Deadline: a ring centred on the end of the last day the task may work. */
+.plan-overlay .deadline {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  box-sizing: border-box;
+  border: 2px solid #585858;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  pointer-events: auto;
+}
+
+/* A task past its baseline or deadline. */
+.gantt_task_line.overdue {
+  background-color: #e5484d;
+  border-color: #b4272c;
+}
+.gantt_side_text, .gantt_side_content b { color: #b4272c; }
+.overdue-mark {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  line-height: 14px;
+  border-radius: 50%;
+  background: #e5484d;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
