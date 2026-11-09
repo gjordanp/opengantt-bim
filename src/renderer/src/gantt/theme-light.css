@@ -308,10 +308,28 @@
   background-color: var(--g-bg) !important;
 }
 
-/* Selección de filas */
+/* Selección de filas: toda la fila, en la tabla (cada columna) y en el área de barras */
 .gantt_selected {
   background-color: rgba(139, 92, 246, 0.3) !important;
 }
+.gantt_grid_data .gantt_row.gantt_selected,
+.gantt_grid_data .gantt_row.odd.gantt_selected,
+.gantt_grid_data .gantt_row.gantt_selected:hover,
+.gantt_task_row.gantt_selected,
+.gantt_task_row.odd.gantt_selected {
+  background-color: color-mix(in srgb, #8b5cf6 24%, var(--g-bg)) !important;
+}
+.gantt_grid_data .gantt_row.gantt_selected .gantt_cell {
+  background-color: transparent !important;
+  border-bottom-color: color-mix(in srgb, #8b5cf6 40%, var(--g-border)) !important;
+}
+.gantt_grid_data .gantt_row.gantt_selected .gantt_cell:first-child {
+  box-shadow: inset 3px 0 0 #8b5cf6;
+}
+.gantt_task_row.gantt_selected {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #8b5cf6 40%, transparent), inset 0 -1px 0 color-mix(in srgb, #8b5cf6 40%, transparent);
+}
+
 
 .gantt_critical_task {
   background-color: #ff4757 !important;

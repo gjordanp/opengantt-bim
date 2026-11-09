@@ -327,11 +327,17 @@ const TOPICS: Topic[] = [
         <p>
           Clic en un espacio vacío, la tecla <Kbd>Esc</Kbd> o la × de la barra. <Kbd>Ctrl</Kbd> + clic sobre una pieza ya seleccionada la quita de a una.
         </p>
-        <h3>Otras formas de elegir</h3>
+        <h3>Buscar por propiedades</h3>
         <p>
-          <b>Buscar:</b> escribe en «Buscar elementos» (por clase IFC, piso o nombre); todo lo que coincide se pinta violeta y puedes asignarlo de una vez.
-          <br />
-          <b>Aislar:</b> oculta todo lo que no coincide con la búsqueda.
+          El botón «Buscar elementos» (lupa) abre un buscador como el de Navisworks: eliges una <b>propiedad</b> (clase IFC, piso, nombre, volumen o cualquiera de los conjuntos de propiedades del modelo, como «Pset_WallCommon › FireRating»), una <b>condición</b> y un valor.
+        </p>
+        <div className="help-code">
+          <span><code>es igual a</code> · <code>es distinto de</code> · <code>contiene</code> · <code>no contiene</code> · <code>empieza con</code></span>
+          <span><code>mayor que</code> · <code>menor que</code> (y con «o igual») para números como el volumen</span>
+          <span><code>está definido</code> · <code>no está definido</code> para saber si la propiedad existe</span>
+        </div>
+        <p>
+          Puedes sumar varias condiciones y pedir que se cumplan <b>todas (Y)</b> o <b>alguna (O)</b>. Abajo ves cuántos elementos coinciden y puedes <b>seleccionarlos</b>, <b>aislarlos</b> o <b>crear un grupo</b>. Con «Guardar» la búsqueda queda en el proyecto y la aplicas cuando quieras.
         </p>
       </>
     )

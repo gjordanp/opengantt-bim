@@ -2235,3 +2235,80 @@ kbd {
   font-size: 11px;
   font-weight: 700;
 }
+
+/* ---------- BIM: property search ---------- */
+.bim-searchbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  justify-content: flex-start;
+  height: 28px;
+  padding: 0 10px;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.bim-searchbtn.active {
+  color: var(--primary-foreground);
+}
+.bim-searchbtn-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--foreground);
+}
+.bim-searchbtn.active .bim-searchbtn-text {
+  color: inherit;
+}
+.bim-search-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bim-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.bim-rule select {
+  width: 100%;
+  min-width: 0;
+}
+.bim-rule-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.bim-rule-row select {
+  flex: 1;
+}
+.bim-rule-row .icon-btn {
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+.bim-addrule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  height: 28px;
+  font-size: 12px;
+}
+.bim-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-left: 4px solid #8b5cf6;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.bim-results .bim-group-actions button {
+  height: 28px;
+}

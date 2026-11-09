@@ -1,4 +1,4 @@
-import { evaluate, type BimElement, type Query } from './bimQuery'
+import { evaluate, type BimElement, type Query, type Rule } from './bimQuery'
 
 /** A named, saved search. Dynamic: it is re-run against whatever models are loaded. */
 export interface BimGroup {
@@ -28,8 +28,18 @@ export interface BimModelRef {
   addedAt: string
 }
 
+/** A search kept with the project: conditions on properties, combined with all (and) or any (or). */
+export interface BimSearch {
+  id: string
+  name: string
+  match: 'and' | 'or'
+  rules: Rule[]
+}
+
 export interface BimData {
   groups: BimGroup[]
+  /** Saved searches. Absent in projects saved before they existed. */
+  searches?: BimSearch[]
   links: BimTaskLink[]
   /** Models that open with the project. Absent in projects saved before models were kept. */
   models?: BimModelRef[]

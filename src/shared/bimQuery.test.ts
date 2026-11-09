@@ -51,4 +51,20 @@ describe('bim query', () => {
     expect(facets(elements, 'category')[0]).toEqual({ value: 'IFCWALL', count: 2 })
     expect(facets(elements, 'storey').map((f) => f.value)).toEqual(['Nivel 1', 'Nivel 2'])
   })
+
+  it('searches property sets, with more conditions', () => {
+    const withProps: BimElement[] = [
+      { ...el(1, 'IFCWALL', 'A', 'N1'), props: { 'Pset_WallCommon.FireRating': 'F60', 'Pset_WallCommon.IsExternal': 'true' }, volume: 3 },
+      { ...el(2, 'IFCWALL', 'B', 'N1'), props: { 'Pset_WallCommon.FireRating': 'F30' }, volume: 12 },
+      { ...el(3, 'IFCSLAB', 'C', 'N2'), volume: 8 }
+    ]
+    const run = (q: Query): number[] => evaluate(q, withProps).map((e) => e.localId)
+    expect(run({ op: 'and', rules: [{ field: 'Pset_WallCommon.FireRating', op: 'eq', value: 'f60' }] })).toEqual([1])
+    expect(run({ op: 'and', rules: [{ field: 'Pset_WallCommon.FireRating', op: 'exists', value: '' }] })).toEqual([1, 2])
+    expect(run({ op: 'and', rules: [{ field: 'Pset_WallCommon.IsExternal', op: 'notExists', value: '' }] })).toEqual([2, 3])
+    expect(run({ op: 'and', rules: [{ field: 'volume', op: 'gt', value: '5' }] })).toEqual([2, 3])
+    expect(run({ op: 'and', rules: [{ field: 'category', op: 'eq', value: 'IFCWALL' }, { field: 'volume', op: 'lte', value: '3' }] })).toEqual([1])
+    expect(run({ op: 'and', rules: [{ field: 'name', op: 'notContains', value: 'a' }] })).toEqual([2, 3])
+    expect(run({ op: 'and', rules: [{ field: 'Pset_WallCommon.FireRating', op: 'startsWith', value: 'f' }] })).toEqual([1, 2])
+  })
 })

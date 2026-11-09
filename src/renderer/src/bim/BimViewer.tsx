@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Check, ClipboardList, Eye, Info, Layers, PanelBottom, PanelRight, Plus, Trash2, Upload, X } from 'lucide-react'
+import { Box, Check, ClipboardList, Eye, Info, Layers, PanelBottom, PanelRight, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
-import Dropdown from '../Dropdown'
 import ConfirmDialog from '../ConfirmDialog'
 import { useTheme } from '../theme'
 import SuggestInput from '../SuggestInput'
@@ -11,7 +10,7 @@ import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
 import workerUrl from '@thatopen/fragments/worker?url'
-import { evaluate, facets, type BimElement, type Query, type RuleField } from '@shared/bimQuery'
+import { evaluate, facets, propertyKeys, type BimElement, type Query, type Rule, type RuleField, type RuleOp } from '@shared/bimQuery'
 import {
   addElementsToTask,
   addGroupToTask,
@@ -23,7 +22,8 @@ import {
   tasksForElement,
   type BimData,
   type BimGroup,
-  type BimModelRef
+  type BimModelRef,
+  type BimSearch
 } from '@shared/bimGroups'
 import { phasesAt, spanRange, type TaskSpan } from '@shared/bim4d'
 import { fromDay } from '@shared/scheduling'
@@ -34,9 +34,10 @@ export interface BimSlots {
   viewer: HTMLElement | null
 }
 
-export type BimTool = 'task' | 'groups' | 'props' | 'models'
+export type BimTool = 'search' | 'task' | 'groups' | 'props' | 'models'
 
 const TOOLS: { id: BimTool; label: string; icon: React.ReactNode }[] = [
+  { id: 'search', label: 'Buscar elementos', icon: <Search size={16} /> },
   { id: 'task', label: 'Asignación a tareas', icon: <ClipboardList size={16} /> },
   { id: 'groups', label: 'Grupos guardados', icon: <Layers size={16} /> },
   { id: 'props', label: 'Propiedades del elemento', icon: <Info size={16} /> },
@@ -92,11 +93,45 @@ const highlightMaterial = (color: THREE.Color): FRAGS.MaterialDefinition => ({
   transparent: false
 })
 
-const FIELDS: { field: RuleField; label: string }[] = [
-  { field: 'category', label: 'Clase IFC' },
-  { field: 'storey', label: 'Piso' },
-  { field: 'name', label: 'Nombre' }
+const BUILTIN_LABELS: Record<string, string> = { category: 'Clase IFC', storey: 'Piso', name: 'Nombre', guid: 'GlobalId', volume: 'Volumen' }
+const OPS: { op: RuleOp; label: string; needsValue: boolean }[] = [
+  { op: 'eq', label: 'es igual a', needsValue: true },
+  { op: 'neq', label: 'es distinto de', needsValue: true },
+  { op: 'contains', label: 'contiene', needsValue: true },
+  { op: 'notContains', label: 'no contiene', needsValue: true },
+  { op: 'startsWith', label: 'empieza con', needsValue: true },
+  { op: 'gt', label: 'es mayor que', needsValue: true },
+  { op: 'gte', label: 'es mayor o igual que', needsValue: true },
+  { op: 'lt', label: 'es menor que', needsValue: true },
+  { op: 'lte', label: 'es menor o igual que', needsValue: true },
+  { op: 'exists', label: 'está definido', needsValue: false },
+  { op: 'notExists', label: 'no está definido', needsValue: false },
+  { op: 'in', label: 'es uno de', needsValue: true }
 ]
+const opLabel = (op: RuleOp): string => OPS.find((o) => o.op === op)?.label ?? op
+const needsValue = (op: RuleOp): boolean => OPS.find((o) => o.op === op)?.needsValue ?? true
+/** "Pset_WallCommon.FireRating" reads as "Pset_WallCommon › FireRating". */
+const fieldLabel = (field: string): string => BUILTIN_LABELS[field] ?? field.replace('.', ' › ')
+
+interface Draft {
+  id: string
+  field: RuleField
+  op: RuleOp
+  value: string
+}
+const newRule = (field: RuleField = 'name'): Draft => ({ id: newId(), field, op: 'contains', value: '' })
+const toRule = (d: Draft): Rule | null => (needsValue(d.op) && !d.value.trim() ? null : { field: d.field, op: d.op, value: d.op === 'in' ? d.value.split(',').map((v) => v.trim()).filter(Boolean) : d.value })
+
+/** A search in words: "Clase IFC es igual a «IFCWALL» y Piso contiene «Nivel 2»". */
+function describeRules(rules: (Rule | Query)[], match: 'and' | 'or'): string {
+  return rules
+    .map((r) => {
+      if ('rules' in r) return `(${describeRules(r.rules, r.op)})`
+      const v = Array.isArray(r.value) ? r.value.join(', ') : r.value
+      return `${fieldLabel(r.field)} ${opLabel(r.op)}${needsValue(r.op) ? ` «${v}»` : ''}`
+    })
+    .join(match === 'and' ? ' y ' : ' o ')
+}
 
 interface Selected {
   element: BimElement
@@ -145,11 +180,9 @@ function describeElements(els: BimElement[]): string {
 
 /** What defines a saved group, in words. */
 function describeGroup(group: BimGroup): string {
-  const rule = group.query.rules[0]
   const manual = group.manualInclude.length
-  if (!rule || 'rules' in rule) return manual > 0 ? 'Selección manual' : 'Sin criterio'
-  const field = FIELDS.find((f) => f.field === rule.field)?.label ?? rule.field
-  return `${field} contiene «${Array.isArray(rule.value) ? rule.value.join(', ') : rule.value}»${manual ? ` + ${manual} a mano` : ''}`
+  if (group.query.rules.length === 0) return manual > 0 ? 'Selección manual' : 'Sin criterio'
+  return `${describeRules(group.query.rules, group.query.op)}${manual ? ` + ${manual} a mano` : ''}`
 }
 
 const newId = (): string => `g_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
@@ -222,8 +255,9 @@ export default function BimViewer({
   }
 
   // Search state.
-  const [field, setField] = useState<RuleField>('category')
-  const [text, setText] = useState('')
+  const [drafts, setDrafts] = useState<Draft[]>([newRule()])
+  const [match, setMatch] = useState<'and' | 'or'>('and')
+  const [searchName, setSearchName] = useState('')
   const [isolate, setIsolate] = useState(false)
   const [groupName, setGroupName] = useState('')
   const [groupSource, setGroupSource] = useState<'selection' | 'search'>('selection')
@@ -448,12 +482,32 @@ export default function BimViewer({
   const [pendingRemoval, setPendingRemoval] = useState<{ kind: 'model'; ref: BimModelRef } | { kind: 'group'; id: string; name: string } | null>(null)
 
   // ---- search ----
-  const query: Query | null = useMemo(
-    () => (text.trim() ? { op: 'and', rules: [{ field, op: 'contains', value: text }] } : null),
-    [field, text]
-  )
+  const query: Query | null = useMemo(() => {
+    const rules = drafts.map(toRule).filter((r): r is Rule => r !== null)
+    return rules.length > 0 ? { op: match, rules } : null
+  }, [drafts, match])
   const results = useMemo(() => (query ? evaluate(query, elements) : []), [query, elements])
-  const suggestions = useMemo(() => facets(elements, field).slice(0, 200), [elements, field])
+  const propKeys = useMemo(() => propertyKeys(elements), [elements])
+  const queryText = query ? describeRules(query.rules, query.op) : ''
+  const setDraft = (id: string, change: Partial<Draft>): void => setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, ...change } : d)))
+  const clearSearch = (): void => {
+    setDrafts([newRule()])
+    setMatch('and')
+  }
+  const savedSearches = bim.searches ?? []
+  const saveSearch = (): void => {
+    const name = searchName.trim()
+    if (!name || !query) return
+    const search: BimSearch = { id: newId(), name, match, rules: query.rules.filter((r): r is Rule => !('rules' in r)) }
+    onBimChange({ ...bim, searches: [...savedSearches, search] })
+    setSearchName('')
+    say(`Búsqueda «${name}» guardada`)
+  }
+  const loadSearch = (s: BimSearch): void => {
+    setMatch(s.match)
+    setDrafts(s.rules.map((r) => ({ id: newId(), field: r.field, op: r.op, value: Array.isArray(r.value) ? r.value.join(', ') : r.value })))
+  }
+  const deleteSearch = (id: string): void => onBimChange({ ...bim, searches: savedSearches.filter((x) => x.id !== id) })
 
   // ---- task <-> elements ----
   const link = task ? bim.links.find((l) => l.taskId === task.id) : undefined
@@ -652,8 +706,16 @@ export default function BimViewer({
             <Upload size={16} />
           </button>
         </Tooltip>
-        <Dropdown label="Buscar por" value={field} onChange={(v) => setField(v)} options={FIELDS.map((f) => ({ value: f.field, label: f.label }))} />
-        <SuggestInput value={text} onChange={setText} suggestions={suggestions} placeholder="Buscar elementos…" disabled={elements.length === 0} />
+        <button className={`bim-searchbtn${tool === 'search' ? ' active' : ''}`} disabled={elements.length === 0} onClick={() => setTool((cur) => (cur === 'search' ? null : 'search'))}>
+          <Search size={14} /> {query ? <span className="bim-searchbtn-text">{queryText}</span> : 'Buscar elementos…'}
+        </button>
+        {query && (
+          <Tooltip label="Quitar la búsqueda">
+            <button className="icon-btn" aria-label="Quitar la búsqueda" onClick={clearSearch}>
+              <X size={14} />
+            </button>
+          </Tooltip>
+        )}
         <label className="bim-isolate">
           <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} /> Aislar
         </label>
@@ -783,6 +845,125 @@ export default function BimViewer({
     </div>
   )
 
+  const fieldOptions = (
+    <>
+      <optgroup label="General">
+        {Object.entries(BUILTIN_LABELS).map(([f, l]) => (
+          <option key={f} value={f}>
+            {l}
+          </option>
+        ))}
+      </optgroup>
+      {Object.entries(
+        propKeys.reduce<Record<string, string[]>>((acc, { key }) => {
+          const set = key.split('.')[0]
+          ;(acc[set] ??= []).push(key)
+          return acc
+        }, {})
+      ).map(([set, keys]) => (
+        <optgroup key={set} label={set}>
+          {keys.map((k) => (
+            <option key={k} value={k}>
+              {k.slice(set.length + 1)}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  )
+
+  const searchUi = (
+    <div className="panel-body bim-search-panel">
+      <div className="bim-seg" role="radiogroup" aria-label="Cómo combinar las condiciones">
+        <button role="radio" aria-checked={match === 'and'} className={match === 'and' ? 'on' : ''} onClick={() => setMatch('and')}>
+          Cumplir todas (Y)
+        </button>
+        <button role="radio" aria-checked={match === 'or'} className={match === 'or' ? 'on' : ''} onClick={() => setMatch('or')}>
+          Cumplir alguna (O)
+        </button>
+      </div>
+      {drafts.map((d) => (
+        <div key={d.id} className="bim-rule">
+          <select aria-label="Propiedad" value={d.field} onChange={(e) => setDraft(d.id, { field: e.target.value, value: '' })}>
+            {!(d.field in BUILTIN_LABELS) && !propKeys.some((k) => k.key === d.field) && <option value={d.field}>{fieldLabel(d.field)}</option>}
+            {fieldOptions}
+          </select>
+          <div className="bim-rule-row">
+            <select aria-label="Condición" value={d.op} onChange={(e) => setDraft(d.id, { op: e.target.value as RuleOp })}>
+              {OPS.filter((o) => o.op !== 'in' || d.op === 'in').map((o) => (
+                <option key={o.op} value={o.op}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <Tooltip label="Quitar esta condición">
+              <button className="icon-btn" aria-label="Quitar condición" onClick={() => setDrafts((ds) => (ds.length > 1 ? ds.filter((x) => x.id !== d.id) : [newRule()]))}>
+                <X size={14} />
+              </button>
+            </Tooltip>
+          </div>
+          {needsValue(d.op) && <SuggestInput value={d.value} onChange={(v) => setDraft(d.id, { value: v })} suggestions={facets(elements, d.field).slice(0, 200)} placeholder="Valor…" />}
+        </div>
+      ))}
+      <button className="bim-addrule" onClick={() => setDrafts((ds) => [...ds, newRule()])}>
+        <Plus size={13} /> Agregar condición
+      </button>
+
+      <div className="bim-results">
+        <b>{query ? `${results.length} de ${elements.length} elementos` : 'Completa una condición'}</b>
+        <div className="bim-group-actions">
+          <button className="primary" disabled={results.length === 0} onClick={() => selectGuids(results.map((r) => r.guid), 'Búsqueda')}>
+            Seleccionar resultados
+          </button>
+          <button
+            disabled={results.length === 0}
+            onClick={() => {
+              setGroupSource('search')
+              setTool('groups')
+            }}
+          >
+            Crear grupo
+          </button>
+          <button onClick={clearSearch}>Limpiar</button>
+        </div>
+        <label className="bim-isolate">
+          <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} /> Aislar los resultados en el modelo
+        </label>
+      </div>
+
+      <div className="bim-label">Guardar esta búsqueda</div>
+      <div className="bim-newgroup">
+        <input value={searchName} onChange={(e) => setSearchName(e.target.value)} placeholder="Nombre, p. ej. Muros F60" onKeyDown={(e) => e.key === 'Enter' && saveSearch()} />
+        <button disabled={!query || !searchName.trim()} onClick={saveSearch}>
+          Guardar
+        </button>
+      </div>
+
+      <div className="bim-label">Búsquedas guardadas ({savedSearches.length})</div>
+      {savedSearches.length === 0 && <div className="bim-muted">Las que guardes quedan en el proyecto.</div>}
+      {savedSearches.map((s) => (
+        <div key={s.id} className="bim-group-card">
+          <div className="bim-group-top">
+            <span className="bim-group-name">
+              <b>{s.name}</b> <span className="bim-muted">· {plural(evaluate({ op: s.match, rules: s.rules }, elements).length, 'resultado', 'resultados')}</span>
+            </span>
+            <Tooltip label="Eliminar la búsqueda">
+              <button className="icon-btn" aria-label={`Eliminar ${s.name}`} onClick={() => deleteSearch(s.id)}>
+                <Trash2 size={14} />
+              </button>
+            </Tooltip>
+          </div>
+          <span className="bim-muted bim-group-desc">{describeRules(s.rules, s.match)}</span>
+          <div className="bim-group-actions">
+            <button className="primary" onClick={() => loadSearch(s)}>
+              Aplicar
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
   const groupOf = (id: string): BimGroup | undefined => bim.groups.find((g) => g.id === id)
   const looseCount = link?.guids.length ?? 0
   const unassignedGroups = bim.groups.filter((g) => !link?.groupIds.includes(g.id))
@@ -859,7 +1040,7 @@ export default function BimViewer({
             <div className="bim-add">
               <div>
                 <b>Resultado de la búsqueda</b>
-                <span className="bim-muted">{query ? `${plural(results.length, 'elemento', 'elementos')} para «${text}»` : 'Escribe arriba, en «Buscar elementos»'}</span>
+                <span className="bim-muted">{query ? `${plural(results.length, 'elemento', 'elementos')} · ${queryText}` : 'Define una búsqueda en «Buscar elementos»'}</span>
               </div>
               <button
                 disabled={!query || results.length === 0}
@@ -894,7 +1075,7 @@ export default function BimViewer({
       <div className="bim-label">Crear un grupo</div>
       <div className="bim-newgroup-card">
         {groupFrom === null ? (
-          <span className="bim-muted">Un grupo guarda un conjunto de elementos con un nombre. Selecciona elementos en el modelo (Ctrl + clic para varios) o busca arriba, y vuelve aquí.</span>
+          <span className="bim-muted">Un grupo guarda un conjunto de elementos con un nombre. Selecciona elementos en el modelo (Ctrl + clic para varios) o define una búsqueda, y vuelve aquí.</span>
         ) : (
           <>
             {picked.length > 0 && query && (
@@ -910,7 +1091,7 @@ export default function BimViewer({
             <span className="bim-muted">
               {groupFrom === 'selection'
                 ? `Se guardarán estos ${plural(picked.length, 'elemento', 'elementos')}: ${describeElements(picked)}`
-                : `Reúne todo lo que coincida con «${text}» (${field === 'category' ? 'clase' : field === 'storey' ? 'piso' : 'nombre'}); se actualiza si cambia el modelo.`}
+                : `Reúne todo lo que cumpla: ${queryText}. Se actualiza si cambia el modelo.`}
             </span>
             <input value={groupName} onChange={(e) => setGroupName(e.target.value)} placeholder="Nombre del grupo, p. ej. Muros piso 1" onKeyDown={(e) => e.key === 'Enter' && saveGroup()} />
             <div className="bim-colors" role="radiogroup" aria-label="Color del grupo">
@@ -1028,7 +1209,7 @@ export default function BimViewer({
                     <X size={14} />
                   </button>
                 </div>
-                <div className="bim-tool-body">{{ task: taskUi, groups: groupsUi, props: propsUi, models: modelsUi }[tool]}</div>
+                <div className="bim-tool-body">{{ search: searchUi, task: taskUi, groups: groupsUi, props: propsUi, models: modelsUi }[tool]}</div>
               </div>
             )}
           </>,

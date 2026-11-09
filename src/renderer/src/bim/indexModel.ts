@@ -3,7 +3,43 @@ import type { BimElement } from '@shared/bimQuery'
 
 type Node = { category: string | null; localId: number | null; children?: Node[] }
 
-const CHUNK = 500
+const CHUNK = 200
+
+const PROP_VALUE_KEYS = ['NominalValue', 'LengthValue', 'AreaValue', 'VolumeValue', 'WeightValue', 'CountValue', 'TimeValue', 'Value']
+const ATTRIBUTES = ['Description', 'ObjectType', 'Tag', 'PredefinedType']
+const asArray = (v: unknown): Record<string, unknown>[] => (Array.isArray(v) ? v : v && typeof v === 'object' ? [v] : []) as Record<string, unknown>[]
+
+/** Adds the properties of one property set (or quantity set) as `Set.Property`; values already there win. */
+function addSet(set: Record<string, unknown>, out: Record<string, string>): void {
+  const setName = str(set.Name)
+  if (!setName) return
+  for (const p of [...asArray(set.HasProperties), ...asArray(set.Quantities)]) {
+    const name = str(p.Name)
+    if (!name) continue
+    let value = ''
+    for (const k of PROP_VALUE_KEYS) {
+      const v = str(p[k])
+      if (v !== '') {
+        value = v
+        break
+      }
+    }
+    const key = `${setName}.${name}`
+    if (value !== '' && !(key in out)) out[key] = value
+  }
+}
+
+/** Attributes and property sets of an element (and of its type), from `getItemsData` with its relations. */
+function readProps(rec: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const a of ATTRIBUTES) {
+    const v = str(rec[a])
+    if (v !== '') out[`Atributos.${a}`] = v
+  }
+  for (const set of asArray(rec.IsDefinedBy)) addSet(set, out)
+  for (const type of asArray(rec.IsTypedBy)) for (const set of asArray(type.HasPropertySets)) addSet(set, out)
+  return out
+}
 
 const str = (v: unknown): string => (v && typeof v === 'object' && 'value' in v ? String((v as { value: unknown }).value ?? '') : '')
 
@@ -46,9 +82,10 @@ export async function indexModel(model: FRAGS.FragmentsModel): Promise<BimElemen
   const elements: BimElement[] = []
   for (let i = 0; i < ids.length; i += CHUNK) {
     const slice = ids.slice(i, i + CHUNK)
-    const data = await model.getItemsData(slice, { attributesDefault: false, attributes: ['Name'] })
+    const data = await readSlice(model, slice)
     data.forEach((d) => {
       const rec = d as Record<string, unknown>
+      const props = readProps(rec)
       const localId = Number(str(rec._localId))
       const storeyId = storeyOf.get(localId)
       elements.push({
@@ -57,12 +94,25 @@ export async function indexModel(model: FRAGS.FragmentsModel): Promise<BimElemen
         guid: str(rec._guid),
         category: str(rec._category),
         name: str(rec.Name),
-        storey: storeyId === undefined ? '' : (storeyNames.get(storeyId) ?? '')
+        storey: storeyId === undefined ? '' : (storeyNames.get(storeyId) ?? ''),
+        ...(Object.keys(props).length > 0 ? { props } : {})
       })
     })
   }
   await addVolumes(model, elements)
   return elements
+}
+
+/** Name, attributes and property sets of a slice of elements; without the relations if the model won't give them. */
+async function readSlice(model: FRAGS.FragmentsModel, slice: number[]): Promise<unknown[]> {
+  try {
+    return await model.getItemsData(slice, {
+      attributesDefault: true,
+      relations: { IsDefinedBy: { attributes: true, relations: true }, IsTypedBy: { attributes: true, relations: true } }
+    })
+  } catch {
+    return model.getItemsData(slice, { attributesDefault: false, attributes: ['Name'] })
+  }
 }
 
 /**
