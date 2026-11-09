@@ -8,6 +8,7 @@ const CLIP_ID = 'scurve-ov-clip'
 const MAX_DOTS = 1500
 /** Dots are drawn when the days are at least this many pixels apart. */
 const MIN_DOT_SPACING = 6
+const SMOOTH_STEP = 10
 
 const el = <K extends keyof SVGElementTagNameMap>(tag: K, attrs: Record<string, string | number> = {}): SVGElementTagNameMap[K] => {
   const node = document.createElementNS(SVG, tag)
@@ -22,7 +23,7 @@ const dayToDate = (day: number): Date => {
 
 const fmtDay = (day: number): string => dayToDate(day).toLocaleDateString('es-CL', { day: 'numeric', month: 'long', year: 'numeric' })
 const fmtShort = (day: number): string => dayToDate(day).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })
-const pct = (v: number | null): string => (v === null ? '—' : `${v.toFixed(1)} %`)
+const pct = (v: number | null): string => (v === null ? '—' : `${v.toFixed(2)} %`)
 
 type Point = [number, number]
 
@@ -189,11 +190,11 @@ export class SCurveOverlay {
     const n = curve.planned.length
     // Entry k is the start of day from + k; x comes from the gantt's own date scale, so it follows zoom and scroll.
     const xs = Array.from({ length: n }, (_, k) => this.gantt.posFromDate(dayToDate(curve.from + k)))
-    // The sample plots whole percents.
+    // Exact values, so small early progress is visible (the tooltip shows two decimals).
     const round = {
-      planned: curve.planned.map(Math.round),
-      real: curve.real.map((v) => (v === null ? null : Math.round(v))),
-      predicted: curve.predicted.map((v) => (v === null ? null : Math.round(v)))
+      planned: curve.planned,
+      real: curve.real,
+      predicted: curve.predicted
     }
 
     const svg = el('svg', { width, height, class: 'scurve-ov-svg' })
@@ -212,23 +213,42 @@ export class SCurveOverlay {
     clipped.appendChild(content)
     svg.appendChild(clipped)
 
-    const points = (values: (number | null)[]): Point[] => {
-      const out: Point[] = []
-      values.forEach((v, k) => {
-        if (v !== null) out.push([xs[k], y(v)])
-      })
-      return out
-    }
     // A dot per day, as in the sample, unless zoomed out so far that they would only smear.
     const spacious = n > 1 && (xs[n - 1] - xs[0]) / (n - 1) >= MIN_DOT_SPACING
+    // Zoomed out, the per-day steps (and the whole-percent rounding) show as a jagged line: draw the true values,
+    // one point every few pixels, so the curve reads smooth.
+    const points = (values: (number | null)[], raw: (number | null)[]): Point[] => {
+      const out: Point[] = []
+      let lastX = -Infinity
+      let lastIdx = -1
+      values.forEach((v, k) => {
+        if (v === null) return
+        if (spacious) {
+          out.push([xs[k], y(v)])
+          return
+        }
+        const rv = raw[k] ?? v
+        if (xs[k] - lastX >= SMOOTH_STEP) {
+          out.push([xs[k], y(rv)])
+          lastX = xs[k]
+          lastIdx = k
+        } else lastIdx = -2 - k
+      })
+      // Always end on the last value.
+      if (!spacious && lastIdx < -1) {
+        const k = -2 - lastIdx
+        out.push([xs[k], y(raw[k] ?? values[k] ?? 0)])
+      }
+      return out
+    }
     const draw = (cls: string, pts: Point[]): void => {
       if (pts.length === 0) return
       content.appendChild(el('path', { class: `ov-line ${cls}`, d: monotonePath(pts) }))
       if (spacious && pts.length <= MAX_DOTS) for (const [px, py] of pts) content.appendChild(el('circle', { class: `ov-dot ${cls}`, cx: px.toFixed(1), cy: py.toFixed(1), r: 3 }))
     }
-    draw('planned', points(round.planned))
-    draw('real', points(round.real))
-    draw('predicted', points(round.predicted))
+    draw('planned', points(round.planned, curve.planned))
+    draw('real', points(round.real, curve.real))
+    draw('predicted', points(round.predicted, curve.predicted))
 
     const cursor = el('line', { class: 'ov-cursor', y1: top, y2: bottom, style: 'display:none' })
     content.appendChild(cursor)
@@ -264,7 +284,7 @@ export class SCurveOverlay {
     add('<i class="ov-sw predicted"></i>Progreso real (proyectado)')
     add(
       `Hoy: <b>${pct(curve.plannedToday)}</b> plan · <b>${pct(curve.realToday)}</b> real` +
-        (diff !== null ? ` · <b class="${diff < -0.05 ? 'behind' : 'ahead'}">${diff.toFixed(1)} pp</b>` : '')
+        (diff !== null ? ` · <b class="${diff < -0.05 ? 'behind' : 'ahead'}">${diff.toFixed(2)} pp</b>` : '')
     )
     if (curve.projectedFinish !== null) {
       add(`Término: plan <b>${fmtShort(curve.plannedFinish)}</b> · proyectado <b class="${curve.projectedFinish > curve.plannedFinish ? 'behind' : 'ahead'}">${fmtShort(curve.projectedFinish)}</b>`)
@@ -300,9 +320,9 @@ export class SCurveOverlay {
       else hi = mid
     }
     const k = lo > 0 && Math.abs(s.xs[lo - 1] - cx) < Math.abs(s.xs[lo] - cx) ? lo - 1 : lo
-    const lines = [`<b>${fmtDay(s.curve.from + k)}</b>`, `Progreso planificado: ${s.round.planned[k]}%`]
-    if (s.round.real[k] !== null) lines.push(`Progreso real: ${s.round.real[k]}%`)
-    if (s.round.predicted[k] !== null) lines.push(`Progreso real (proyectado): ${s.round.predicted[k]}%`)
+    const lines = [`<b>${fmtDay(s.curve.from + k)}</b>`, `Progreso planificado: ${s.round.planned[k].toFixed(2)}%`]
+    if (s.round.real[k] !== null) lines.push(`Progreso real: ${s.round.real[k]!.toFixed(2)}%`)
+    if (s.round.predicted[k] !== null) lines.push(`Progreso real (proyectado): ${s.round.predicted[k]!.toFixed(2)}%`)
     this.tip.innerHTML = lines.map((l) => `<span>${l}</span>`).join('')
     this.tip.style.display = 'flex'
     const viewX = s.xs[k] - host.scrollLeft

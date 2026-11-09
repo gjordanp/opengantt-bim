@@ -1,5 +1,6 @@
 /** Columns of the gantt's table that can be shown or hidden ("Tarea" is always there). */
 export const COLUMN_DEFS = [
+  { id: 'num', label: 'Nº' },
   { id: 'start_date', label: 'Inicio' },
   { id: 'end_date', label: 'Fin' },
   { id: 'duration', label: 'Días' },
@@ -7,6 +8,7 @@ export const COLUMN_DEFS = [
   { id: 'location_surface', label: 'Superficie' },
   { id: 'bim', label: 'BIM' },
   { id: 'deadline', label: 'Plazo' },
+  { id: 'predecessors', label: 'Predecesoras' },
   { id: 'constraint', label: 'Restricción' }
 ] as const
 
@@ -33,7 +35,7 @@ export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   barText: true,
   tableCollapsed: false,
   summaryStyle: 'bar',
-  columns: { start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, deadline: false, constraint: false }
+  columns: { num: false, predecessors: true, start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, deadline: false, constraint: false }
 }
 
 const KEY = 'ogbim.ganttSettings'

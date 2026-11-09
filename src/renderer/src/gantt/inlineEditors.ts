@@ -1,6 +1,39 @@
 import type { GanttStatic } from 'dhtmlx-gantt'
 import { previousDay } from '@shared/plan'
+import { formatPredecessors, parsePredecessors, type PredecessorRef } from '@shared/predecessors'
+import type { LinkType } from '@shared/model'
 import { isPlaceholder } from './placeholder'
+
+/** Row numbers as MS Project counts them: every task and group in table order, from 1 (the empty row excluded). */
+type RowNumbers = { byId: Map<string, number>; byNum: Map<number, string> }
+const numbersCache = new WeakMap<object, RowNumbers>()
+export function rowNumbers(gantt: GanttStatic, fresh = false): RowNumbers {
+  const hit = numbersCache.get(gantt)
+  if (hit && !fresh) return hit
+  const byId = new Map<string, number>()
+  const byNum = new Map<number, string>()
+  let n = 0
+  gantt.eachTask((t: any) => {
+    if (isPlaceholder(t)) return
+    n++
+    byId.set(String(t.id), n)
+    byNum.set(n, String(t.id))
+  })
+  const out = { byId, byNum }
+  numbersCache.set(gantt, out)
+  return out
+}
+
+/** The predecessors of a task, written as `3, 5SS+2d`. */
+export function predecessorsText(gantt: GanttStatic, id: string | number, nums = rowNumbers(gantt)): string {
+  const refs: PredecessorRef[] = []
+  for (const lid of gantt.getTask(id).$target ?? []) {
+    const link = gantt.getLink(lid) as any
+    const num = nums.byId.get(String(link.source))
+    if (num) refs.push({ num, type: String(link.type) as LinkType, lag: Number(link.lag) || 0 })
+  }
+  return formatPredecessors(refs)
+}
 
 /**
  * Editing the cells of the table in place (name, start, end, duration, progress, surface), with the inline editors
@@ -65,16 +98,73 @@ export function installInlineEditors(gantt: GanttStatic): () => void {
   }
   types.decimal = decimal
 
+  // Predecessors: typed as `3, 5SS+2d` (row numbers, as in MS Project); saving rewrites the task's incoming links.
+  const text = types.text
+  const preds = Object.create(text)
+  preds.set_value = function (_value: unknown, id: unknown, column: unknown, node: unknown): void {
+    text.set_value.call(this, predecessorsText(gantt, id as string), id, column, node)
+  }
+  // Valid when it reads, every number is a task, and no link would close a loop.
+  preds.is_valid = function (value: string, id: string): boolean {
+    const r = parsePredecessors(String(value ?? ''))
+    if (!r.ok) return false
+    const nums = rowNumbers(gantt, true)
+    for (const ref of r.refs) {
+      const source = nums.byNum.get(ref.num)
+      if (!source || source === String(id) || g.hasChild(source) || g.hasChild(id)) return false
+      if (g.isCircularLink && g.isCircularLink({ source, target: id, type: ref.type })) return false
+    }
+    return true
+  }
+  preds.is_changed = function (value: string, id: string, column: unknown, node: unknown): boolean {
+    return String(this.get_value(id, column, node)).replace(/\s/g, '') !== String(value ?? '').replace(/\s/g, '')
+  }
+  types.predecessors = preds
+
   // The dates and progress of a parent task come from its children, and the empty row is not a task.
   const derived = new Set(['start_date', 'end_date', 'duration', 'progress'])
+  const noLinks = (task: any, id: string | number): boolean => g.hasChild(id) || task.type === g.config.types.project
   const editors = g.ext.inlineEditors
+  // Row numbers change when the table is redrawn (rows added, moved, folded away).
+  const renumber = g.attachEvent('onBeforeGanttRender', () => {
+    numbersCache.delete(gantt)
+    return true
+  })
   const guard = editors.attachEvent('onBeforeEditStart', (state: { id: string | number; columnName: string }) => {
     const task = g.getTask(state.id)
     if (isPlaceholder(task)) return false
+    if (state.columnName === 'predecessors' && noLinks(task, state.id)) return false
     if (derived.has(state.columnName) && (g.hasChild(state.id) || task.type === g.config.types.project)) return false
     return true
   })
-  return () => editors.detachEvent(guard)
+  // The column holds no field of the task: apply the typed text to the links instead of storing it.
+  const save = editors.attachEvent('onBeforeSave', (state: { id: string | number; columnName: string; newValue: unknown }) => {
+    if (state.columnName !== 'predecessors') return true
+    const r = parsePredecessors(String(state.newValue ?? ''))
+    if (!r.ok || !preds.is_valid(String(state.newValue ?? ''), state.id)) return false
+    const nums = rowNumbers(gantt, true)
+    const wanted = r.refs.map((ref) => ({ source: nums.byNum.get(ref.num)!, type: ref.type, lag: ref.lag }))
+    const target = state.id
+    const task = g.getTask(target)
+    for (const lid of [...(task.$target ?? [])]) {
+      const link = g.getLink(lid)
+      const same = wanted.find((w) => w.source === String(link.source) && w.type === String(link.type) && w.lag === (Number(link.lag) || 0))
+      if (!same) g.deleteLink(lid)
+    }
+    for (const w of wanted) {
+      const exists = (g.getTask(target).$target ?? []).some((lid: string) => {
+        const l = g.getLink(lid)
+        return String(l.source) === w.source && String(l.type) === w.type && (Number(l.lag) || 0) === w.lag
+      })
+      if (!exists) g.addLink({ source: w.source, target, type: w.type, lag: w.lag })
+    }
+    return false
+  })
+  return () => {
+    editors.detachEvent(guard)
+    editors.detachEvent(save)
+    g.detachEvent(renumber)
+  }
 }
 
 /** Opens the editor of the cell under a plain click, if its column has one. */

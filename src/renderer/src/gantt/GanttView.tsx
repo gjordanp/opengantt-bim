@@ -3,7 +3,7 @@ import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
 import { installPlaceholder, isPlaceholder, type Placeholder } from './placeholder'
-import { installInlineEditors } from './inlineEditors'
+import { installInlineEditors, predecessorsText, rowNumbers } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
@@ -424,6 +424,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.config.row_height = BASE_ROW_HEIGHT
     gantt.config.scale_height = 50
     const allColumns = [
+      { name: 'num', label: 'Nº', align: 'center', width: 44, resize: true, template: (task: any) => String(rowNumbers(gantt).byId.get(String(task.id)) ?? '') },
       { name: 'text', label: 'Tarea', tree: true, width: 220, resize: true, editor: { type: 'text', map_to: 'text' } },
       { name: 'start_date', label: 'Inicio', align: 'center', width: 100, resize: true, editor: { type: 'date', map_to: 'start_date' } },
       {
@@ -446,6 +447,15 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         align: 'center',
         width: 60,
         template: (task: any) => String(bimCountsRef.current?.[String(task.id)] || '')
+      },
+      {
+        name: 'predecessors',
+        label: 'Predecesoras',
+        align: 'center',
+        width: 110,
+        resize: true,
+        editor: { type: 'predecessors', map_to: 'predecessors' },
+        template: (task: any) => (task.type === 'placeholder' ? '' : predecessorsText(gantt, task.id))
       },
       {
         name: 'deadline',
