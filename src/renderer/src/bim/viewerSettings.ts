@@ -10,6 +10,8 @@ export interface ViewerSettings {
   antialiasing: boolean
   /** Lowers the resolution by itself when the frame rate drops (heavy models). */
   adaptive: boolean
+  /** Supersampling: draws above the screen's resolution so lines and edges come out smooth. */
+  sharp: boolean
   /** Color of the edge lines, as #rrggbb. */
   edgeColor: string
   /** Paint every element in the model's own colors (on) or in one uniform color (off). */
@@ -24,7 +26,7 @@ export const ELEMENT_COLORS = ['#e5e7eb', '#cbd5e1', '#fde68a', '#bbf7d0', '#bae
 
 export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
 
-export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, edgeColor: '#000000', modelColors: true, elementColor: '#e5e7eb' }
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, sharp: true, edgeColor: '#000000', modelColors: true, elementColor: '#e5e7eb' }
 
 /** Thickness of the edge lines (the library's own default is 1). */
 export const EDGE_WIDTH = 0.4
@@ -56,6 +58,7 @@ export function loadViewerSettings(): ViewerSettings {
       shadows: flag(raw.shadows, d.shadows),
       antialiasing: flag(raw.antialiasing, d.antialiasing),
       adaptive: flag(raw.adaptive, d.adaptive),
+      sharp: flag(raw.sharp, d.sharp),
       edgeColor: isHex(raw.edgeColor) ? raw.edgeColor : d.edgeColor,
       modelColors: flag(raw.modelColors, d.modelColors),
       elementColor: isHex(raw.elementColor) ? raw.elementColor : d.elementColor
