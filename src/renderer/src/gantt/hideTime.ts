@@ -14,6 +14,9 @@ interface ScaleConfig {
   count: number
   display_count?: number
   trace_x: Date[]
+  unit?: string
+  step?: number
+  max_date?: Date
   ignore_x?: Record<number, boolean>
   ignored_colls?: boolean
 }
@@ -32,8 +35,19 @@ export function installIgnoreTime(gantt: GanttStatic): boolean {
     let shown = config.count
     if (ignore) {
       shown = 0
-      for (const day of config.trace_x) {
-        if (ignore.call(gantt, day)) {
+      const cols = config.trace_x
+      const sub = config.unit === 'week' || config.unit === 'month' || config.unit === 'quarter' || config.unit === 'year'
+      for (let i = 0; i < cols.length; i++) {
+        const day = cols[i]
+        let hide = ignore.call(gantt, day) as boolean
+        // A week, month or year column holds many days: hide it only when every one of them is hidden (as PRO does),
+        // not just because the day it starts on happens to be a weekend.
+        if (hide && sub) {
+          const end = i + 1 < cols.length ? cols[i + 1] : config.max_date
+          hide = true
+          if (end) for (let d = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1); d < end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) if (!ignore.call(gantt, d)) { hide = false; break }
+        }
+        if (hide) {
           config.ignore_x[day.valueOf()] = true
           config.ignored_colls = true
         } else shown++
