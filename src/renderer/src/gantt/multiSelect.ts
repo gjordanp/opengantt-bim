@@ -1,7 +1,7 @@
 import type { GanttStatic } from 'dhtmlx-gantt'
 import { clickSelection, emptySelection, type Selection } from '@shared/selection'
-import { countWorkDays, toDay, type Calendar } from '@shared/scheduling'
-import { dateToIso } from './localDates'
+import { countWorkDays, fromDay, nextWorkingDay, prevWorkingDay, toDay, type Calendar } from '@shared/scheduling'
+import { dateToIso, isoToDate } from './localDates'
 
 export interface MultiSelect {
   /** Replaces the selection (empty list clears it). */
@@ -124,10 +124,21 @@ export function installMultiSelect(gantt: GanttStatic): MultiSelect {
  * Keeps the duration (in working days) of every task that is moved by dragging: the gantt moves the dates
  * by calendar days, which would change how many working days a task spans. Resizing is the one case where
  * the duration really changes, and then it is counted from the new dates.
+ *
+ * With `correct` (the PRO `correct_work_time`), a task dropped on a non-working day starts on the next
+ * working day, and a bar resized to end on one ends on the last working day before it.
  */
-export function installDragDurations(gantt: GanttStatic, getCalendar: () => Calendar, after: () => void): () => void {
+export function installDragDurations(
+  gantt: GanttStatic,
+  getCalendar: () => Calendar,
+  after: () => void,
+  options: { correct?: boolean } = {}
+): () => void {
   const g = gantt as any
+  const correct = options.correct ?? true
   const durations = new Map<string, number>()
+  let startBefore = 0
+  const dayOf = (d: Date): number => toDay(dateToIso(d))
   const ids = [
     g.attachEvent('onBeforeTaskDrag', (id: string) => {
       durations.clear()
@@ -135,19 +146,30 @@ export function installDragDurations(gantt: GanttStatic, getCalendar: () => Cale
         const task = g.getTask(x)
         if (task) durations.set(x, Number(task.duration) || 0)
       }
+      startBefore = dayOf(g.getTask(id).start_date)
       return true
     }),
     g.attachEvent('onAfterTaskDrag', (id: string, mode: string) => {
+      const calendar = getCalendar()
       const dragged = g.getTask(id)
       if (mode === g.config.drag_mode.move) {
         for (const [x, duration] of durations) {
           const task = g.getTask(x)
           if (!task || task.type === g.config.types.project) continue
+          if (correct) task.start_date = isoToDate(fromDay(nextWorkingDay(calendar, dayOf(task.start_date))))
           task.duration = duration
           task.end_date = g.calculateEndDate({ start_date: task.start_date, duration, unit: 'day', task })
         }
       } else if (mode === g.config.drag_mode.resize && dragged?.start_date && dragged?.end_date) {
-        dragged.duration = countWorkDays(getCalendar(), toDay(dateToIso(dragged.start_date)), toDay(dateToIso(dragged.end_date)))
+        if (correct) {
+          if (dayOf(dragged.start_date) !== startBefore) {
+            dragged.start_date = isoToDate(fromDay(nextWorkingDay(calendar, dayOf(dragged.start_date))))
+          } else {
+            const last = prevWorkingDay(calendar, dayOf(dragged.end_date) - 1)
+            if (last >= dayOf(dragged.start_date)) dragged.end_date = isoToDate(fromDay(last + 1))
+          }
+        }
+        dragged.duration = countWorkDays(calendar, dayOf(dragged.start_date), dayOf(dragged.end_date))
       }
       durations.clear()
       after()
