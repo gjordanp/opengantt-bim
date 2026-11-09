@@ -254,15 +254,8 @@ export default function BimViewer({
     renderer.cssSize = false
     pp.edgesPass.color = new THREE.Color(viewer.edgeColor)
     pp.edgesPass.width = EDGE_WIDTH
-    // Sharp edges: render above the screen's resolution and shrink it back (supersampling). The library's
-    // resolution scaler starts there and steps down by itself if the frame rate drops, so it never gets stuck slow.
-    renderer.adaptiveResolution = viewer.adaptive || viewer.sharp
-    renderer.adaptiveMinScale = viewer.adaptive ? 0.75 : 1
-    renderer.adaptiveMaxScale = viewer.sharp ? 2 : 1
-    const scaler = renderer as unknown as { _adaptiveScale: number }
-    scaler._adaptiveScale = viewer.sharp ? 2 : 1
-    renderer.applyPostproductionSize()
-  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.sharp, viewer.edgeColor])
+    renderer.adaptiveResolution = viewer.adaptive
+  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
   // The camera follows the mouse almost directly: no gliding after the pointer stops.
   useEffect(() => {
     const controls = worldRef.current?.camera.controls

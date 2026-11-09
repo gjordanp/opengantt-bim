@@ -77,7 +77,6 @@ export default function ViewerSettingsMenu({ settings, onChange }: { settings: V
             <div className="menu-sep" />
             <div className="menu-title">Calidad</div>
             <SwitchRow label="Suavizado de bordes" hint="Quita los dientes de sierra en líneas y aristas" on={settings.antialiasing} onToggle={() => onChange({ ...settings, antialiasing: !settings.antialiasing })} />
-            <SwitchRow label="Líneas nítidas" hint="Dibuja a mayor resolución y reduce: aristas más limpias, pide más a la tarjeta gráfica" on={settings.sharp} onToggle={() => onChange({ ...settings, sharp: !settings.sharp })} />
             <SwitchRow label="Mantener la fluidez" hint="Baja la resolución sola cuando el modelo es pesado y se entrecorta" on={settings.adaptive} onToggle={() => onChange({ ...settings, adaptive: !settings.adaptive })} />
           </div>,
           document.body
