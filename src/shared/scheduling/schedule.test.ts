@@ -366,3 +366,19 @@ describe('constraints of parents, project start/end and scheduling from the end'
     expect(r.tasks.get('asap')!.start).toBe('2026-06-01')
   })
 })
+
+describe('pinned tasks', () => {
+  it('a pinned task keeps a start later than its predecessors ask for; the others go back to the earliest', () => {
+    const tasks: SchedTask[] = [
+      { id: 'a', start: '2026-06-01', duration: 3 },
+      { id: 'b', start: '2026-06-30', duration: 4 },
+      { id: 'c', start: '2026-07-06', duration: 2 }
+    ]
+    const links = [link('a', 'b'), link('b', 'c')]
+    const loose = schedule(tasks, links)
+    expect(dates(loose, 'b')).toEqual(['2026-06-04', '2026-06-10'])
+    const kept = schedule(tasks, links, { pinned: new Set(['b']) })
+    expect(dates(kept, 'b')).toEqual(['2026-06-30', '2026-07-04'])
+    expect(kept.tasks.get('c')!.start).toBe('2026-07-06')
+  })
+})

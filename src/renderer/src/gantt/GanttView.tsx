@@ -3,6 +3,7 @@ import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
 import { installPlaceholder, isPlaceholder, type Placeholder } from './placeholder'
+import { installInlineEditors } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
@@ -148,6 +149,24 @@ function mountTableHandle(gantt: GanttStatic, collapsed: boolean, toggle: () => 
   cell.appendChild(button)
 }
 
+/** Ids of the tasks that come after a task through links (successors, their successors, and so on). */
+function successorsOf(gantt: GanttStatic, id: string): Set<string> {
+  const found = new Set<string>()
+  const queue = [id]
+  const links = gantt.getLinks() as { source: string | number; target: string | number }[]
+  while (queue.length > 0) {
+    const current = queue.pop()!
+    for (const l of links) {
+      const next = String(l.target)
+      if (String(l.source) === current && !found.has(next)) {
+        found.add(next)
+        queue.push(next)
+      }
+    }
+  }
+  return found
+}
+
 function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   const inputs: LobTaskInput[] = []
   gantt.eachTask((task: any) => {
@@ -199,6 +218,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const settingsRef = useRef({ holidays, workWeek })
   settingsRef.current = { holidays, workWeek }
   const planningRef = useRef(planning)
+  const pinnedRef = useRef<Set<string>>(new Set())
   planningRef.current = planning
   // What the scheduling engine is told besides the tasks and links: constraints of parents always count (PRO's
   // `auto_scheduling_project_constraint`), and the project dates. The project end is the last day of work.
@@ -206,6 +226,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     const p = planningRef.current
     return {
       inheritConstraints: true,
+      pinned: pinnedRef.current,
       ...(p?.projectStart ? { projectStart: p.projectStart } : {}),
       ...(p?.projectEnd ? { projectEnd: fromDay(toDay(p.projectEnd) + 1) } : {}),
       ...(p?.scheduleFromEnd ? { scheduleFromEnd: true } : {})
@@ -403,21 +424,22 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.config.row_height = BASE_ROW_HEIGHT
     gantt.config.scale_height = 50
     const allColumns = [
-      { name: 'text', label: 'Tarea', tree: true, width: 220, resize: true },
-      { name: 'start_date', label: 'Inicio', align: 'center', width: 100, resize: true },
+      { name: 'text', label: 'Tarea', tree: true, width: 220, resize: true, editor: { type: 'text', map_to: 'text' } },
+      { name: 'start_date', label: 'Inicio', align: 'center', width: 100, resize: true, editor: { type: 'date', map_to: 'start_date' } },
       {
         name: 'end_date',
         label: 'Fin',
         align: 'center',
         width: 100,
         resize: true,
+        editor: { type: 'lastDay', map_to: 'end_date' },
         // The gantt's end is exclusive: show the last day of work.
         template: (task: any) =>
           task.end_date ? dateToIso(task.end_date > task.start_date ? previousDay(task.end_date) : task.end_date) : ''
       },
-      { name: 'duration', label: 'Días', align: 'center', width: 60, resize: true },
-      { name: 'progress', label: 'Avance', align: 'center', width: 70, resize: true, template: (task: any) => `${Math.round((Number(task.progress) || 0) * 100)}%` },
-      { name: 'location_surface', label: 'Superficie', align: 'center', width: 80, resize: true },
+      { name: 'duration', label: 'Días', align: 'center', width: 60, resize: true, editor: { type: 'days', map_to: 'duration', min: 0, max: 3650 } },
+      { name: 'progress', label: 'Avance', align: 'center', width: 70, resize: true, editor: { type: 'percent', map_to: 'progress' }, template: (task: any) => `${Math.round((Number(task.progress) || 0) * 100)}%` },
+      { name: 'location_surface', label: 'Superficie', align: 'center', width: 80, resize: true, editor: { type: 'decimal', map_to: 'location_surface' } },
       {
         name: 'bim',
         label: 'BIM',
@@ -558,11 +580,13 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       { name: 'deadline', map_to: { start_date: 'deadline' }, button: true, type: 'duration_optional', single_date: true }
     ] as unknown as typeof gantt.config.lightbox.sections
 
+    let stopEditors = (): void => undefined
     fullLayoutRef.current = structuredClone(gantt.config.layout)
     appliedCollapsedRef.current = ganttSettingsRef.current.tableCollapsed
     if (appliedCollapsedRef.current) gantt.config.layout = chartOnlyLayout()
     gantt.init(host)
     installIgnoreTime(gantt)
+    stopEditors = installInlineEditors(gantt)
     mountTableHandle(gantt, appliedCollapsedRef.current, () => onToggleTableRef.current?.())
     installWorkTime(gantt, () => calendarRef.current)
     multiRef.current = installMultiSelect(gantt)
@@ -600,8 +624,14 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     if (import.meta.env.DEV) (window as unknown as { __gantt: GanttStatic }).__gantt = gantt
 
     // Reschedule when the structure or the data changes.
-    const reschedule = (): void => {
+    const reschedule = (edited: string[] = []): void => {
       if (schedulingRef.current || loadingRef.current) return
+      // Like PRO, an edited task keeps a start later than its predecessors ask for, and what depends on it is
+      // scheduled again (so it loses any such delay of its own). Reloading the project starts over.
+      for (const id of edited) {
+        for (const later of successorsOf(gantt, id)) pinnedRef.current.delete(later)
+        pinnedRef.current.add(id)
+      }
       if (autoSchedulingRef.current) runScheduleRef.current()
       emitChangeRef.current()
     }
@@ -614,9 +644,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       'onAfterLinkDelete'
     ] as const
     // The empty row at the end of the table is not part of the project: its events change nothing.
-    const eventIds = eventNames.map((name) => gantt.attachEvent(name, (_id: unknown, item: unknown) => {
+    const eventIds = eventNames.map((name) => gantt.attachEvent(name, (id: unknown, item: unknown) => {
       if (isPlaceholder(item as { type?: unknown })) return true
-      reschedule()
+      reschedule(name === 'onAfterTaskUpdate' || name === 'onAfterTaskAdd' ? [String(id)] : [])
       return true
     }))
     // A dragged/resized bar comes back with a calendar-day duration; convert it first.
@@ -629,8 +659,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       })
     )
     // Moving tasks by dragging keeps their working-day durations, several at once when several are selected.
-    const stopDrag = installDragDurations(gantt, () => calendarRef.current, () => {
-      if (!schedulingRef.current) reschedule()
+    const stopDrag = installDragDurations(gantt, () => calendarRef.current, (moved) => {
+      if (!schedulingRef.current) reschedule(moved)
     })
 
     const zoomConfig = {
@@ -676,6 +706,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       for (const id of eventIds) gantt.detachEvent(id)
       stopDrag()
       multiRef.current?.destroy()
+      stopEditors()
       placeholderRef.current?.destroy()
       placeholderRef.current = null
       multiRef.current = null
@@ -745,6 +776,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     const gantt = ganttRef.current
     if (!gantt) return
     loadingRef.current = true
+    pinnedRef.current.clear()
     try {
       gantt.clearAll()
       // The gantt keeps and mutates the objects it's given; hand it copies so the

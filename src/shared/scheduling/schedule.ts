@@ -75,6 +75,11 @@ export interface ScheduleOptions {
   projectStart?: string
   strictProjectStart?: boolean
   /**
+   * Tasks the user has just edited or dragged: like PRO, which only reschedules what depends on an edited task,
+   * they keep a start later than their predecessors ask for instead of going back to it.
+   */
+  pinned?: ReadonlySet<string>
+  /**
    * `YYYY-MM-DD`, an end like the tasks' own (exclusive: the day after the last working day), as PRO's `project_end`.
    * A task with no successors that ends earlier is moved to end at it, when it is as late as possible.
    */
@@ -311,9 +316,9 @@ export function schedule(tasks: SchedTask[], links: SchedLink[], options: Schedu
       // stays put (it may be a weekend); a start-driven link without lag moves
       // to the next working day.
       const found = Math.max(milestoneBound, fromEndLinks)
-      s = strict ? found : Math.max(own, found)
+      s = strict && !options.pinned?.has(id) ? found : Math.max(own, found)
     } else {
-      s = nextWorkingDay(cal, strict ? lower : Math.max(own, lower))
+      s = nextWorkingDay(cal, strict && !options.pinned?.has(id) ? lower : Math.max(own, lower))
     }
     const { earliest, latest } = constraintBounds(task, duration)
     if (earliest !== undefined || latest !== undefined) {
