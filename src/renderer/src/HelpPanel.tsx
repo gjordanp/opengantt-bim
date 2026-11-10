@@ -345,7 +345,7 @@ const TOPICS: Topic[] = [
           <span><code>está definido</code> · <code>no está definido</code> para saber si la propiedad existe</span>
         </div>
         <p>
-          Puedes sumar varias condiciones y pedir que se cumplan <b>todas (Y)</b> o <b>alguna (O)</b>. Abajo ves cuántos elementos coinciden y puedes <b>seleccionarlos</b>, <b>aislarlos</b> o <b>crear un grupo</b>. Con «Guardar» la búsqueda queda en el proyecto y la aplicas cuando quieras.
+          Puedes sumar varias condiciones y pedir que se cumplan <b>todas (Y)</b> o <b>alguna (O)</b>. Abajo ves cuántos elementos coinciden y puedes <b>seleccionarlos</b>, <b>aislarlos</b> o <b>crear un grupo</b>. Con «Guardar» la búsqueda queda en el proyecto y la aplicas cuando quieras. El tercer modo, <b>Combinar</b>, sirve para crear grupos por cruce: eliges parámetros (por ejemplo Ciclo y Nivel), marcas con casillas los valores que te interesan de cada uno (con «Todos» y «Ninguno») y abajo aparece la matriz de intersecciones. Con «Crear grupos» se hace un grupo por cada intersección que tenga elementos, o con un clic en una celda, solo ese.
         </p>
       </>
     )

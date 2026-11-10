@@ -2632,3 +2632,56 @@ kbd {
 .bim-matrix-empty {
   color: var(--muted-foreground);
 }
+
+/* Search "Combinar" mode: tick the values to cross */
+.bim-cross-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.bim-cross-actions {
+  display: flex;
+  gap: 10px;
+}
+.bim-cross-filter {
+  width: 100%;
+  height: 26px;
+  margin-top: 4px;
+}
+.bim-cross-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 150px;
+  margin-top: 4px;
+  padding: 2px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+}
+.bim-cross-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 6px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.bim-cross-item:hover {
+  background: var(--muted);
+}
+.bim-cross-item input {
+  width: auto;
+  height: auto;
+  margin: 0;
+  flex: none;
+}
+.bim-cross-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -15,7 +15,7 @@ import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
 import workerUrl from '@thatopen/fragments/worker?url'
-import { splitBy, type SplitGroup } from '@shared/bimSplit'
+import { splitBy, type SplitGroup, type SplitResult } from '@shared/bimSplit'
 import { evaluate, facets, propertyKeys, type BimElement, type Query, type Rule, type RuleField, type RuleOp } from '@shared/bimQuery'
 import {
   addElementsToTask,
@@ -119,6 +119,8 @@ const OPS: { op: RuleOp; label: string; needsValue: boolean }[] = [
 const opLabel = (op: RuleOp): string => OPS.find((o) => o.op === op)?.label ?? op
 const needsValue = (op: RuleOp): boolean => OPS.find((o) => o.op === op)?.needsValue ?? true
 /** "Pset_WallCommon.FireRating" reads as "Pset_WallCommon › FireRating". */
+/** Just the property's name: "Pset_SlabCommon.Reference" is "Reference". */
+const shortLabel = (field: string): string => BUILTIN_LABELS[field] ?? field.slice(field.indexOf('.') + 1)
 const fieldLabel = (field: string): string => BUILTIN_LABELS[field] ?? field.replace('.', ' › ')
 
 interface Draft {
@@ -383,7 +385,10 @@ export default function BimViewer({
 
   // Search state.
   const [drafts, setDrafts] = useState<Draft[]>([newRule()])
-  const [match, setMatch] = useState<'and' | 'or'>('and')
+  const [match, setMatch] = useState<'and' | 'or' | 'cross'>('and')
+  // "Combinar": for each parameter, the values ticked as candidates (absent = all of them), and a filter for long lists.
+  const [crossPicks, setCrossPicks] = useState<Record<string, string[]>>({})
+  const [crossFilter, setCrossFilter] = useState<Record<string, string>>({})
   const [searchName, setSearchName] = useState('')
   const [isolate, setIsolate] = useState(false)
   const [groupName, setGroupName] = useState('')
@@ -670,23 +675,42 @@ export default function BimViewer({
   const [pendingRemoval, setPendingRemoval] = useState<{ kind: 'model'; ref: BimModelRef } | { kind: 'group'; id: string; name: string } | null>(null)
 
   // ---- search ----
+  // In "Combinar" mode each row only names a parameter; its ticked values are the candidates to cross.
+  const crossFields = useMemo(() => (match === 'cross' ? [...new Set(drafts.map((d) => d.field).filter(Boolean))] : []), [drafts, match])
   const query: Query | null = useMemo(() => {
+    if (match === 'cross') {
+      if (crossFields.length === 0) return null
+      const rules: Rule[] = crossFields.map((f) => (crossPicks[f] ? { field: f, op: 'in', value: crossPicks[f] } : { field: f, op: 'exists', value: '' }))
+      return { op: 'and', rules }
+    }
     const rules = drafts.map(toRule).filter((r): r is Rule => r !== null)
     return rules.length > 0 ? { op: match, rules } : null
-  }, [drafts, match])
+  }, [drafts, match, crossFields, crossPicks])
   const results = useMemo(() => (query ? evaluate(query, elements) : []), [query, elements])
   const propKeys = useMemo(() => propertyKeys(elements), [elements])
-  const queryText = query ? describeRules(query.rules, query.op) : ''
+  const queryText = query ? (match === 'cross' ? `Combinar ${crossFields.map(shortLabel).join(' × ')}` : describeRules(query.rules, query.op)) : ''
   const setDraft = (id: string, change: Partial<Draft>): void => setDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, ...change } : d)))
   const clearSearch = (): void => {
     setDrafts([newRule()])
     setMatch('and')
+    setCrossPicks({})
+  }
+  // Switching to "Combinar" starts from one empty parameter row: the conditions of the other modes mean something else.
+  const setMode = (mode: 'and' | 'or'): void => {
+    setMatch(mode)
+    // Rows left empty in "Combinar" go back to ordinary conditions.
+    setDrafts((ds) => ds.map((d) => (d.field ? d : { ...d, field: 'name' })))
+  }
+  const startCross = (): void => {
+    setMatch('cross')
+    setCrossPicks({})
+    setDrafts([{ ...newRule(), field: '' }])
   }
   const savedSearches = bim.searches ?? []
   const saveSearch = (): void => {
     const name = searchName.trim()
     if (!name || !query) return
-    const search: BimSearch = { id: newId(), name, match, rules: query.rules.filter((r): r is Rule => !('rules' in r)) }
+    const search: BimSearch = { id: newId(), name, match: query.op, rules: query.rules.filter((r): r is Rule => !('rules' in r)) }
     onBimChange({ ...bim, searches: [...savedSearches, search] })
     setSearchName('')
     say(`Búsqueda «${name}» guardada`)
@@ -843,11 +867,11 @@ export default function BimViewer({
 
   // Splitting the search into one group per combination of values of some fields (e.g. Ciclo × Nivel).
   const MAX_SPLIT = 200
-  const shortLabel = (field: string): string => BUILTIN_LABELS[field] ?? field.slice(field.indexOf('.') + 1)
   const split = useMemo(() => (query && splitFields.length > 0 ? splitBy(query, elements, splitFields, shortLabel) : null), [query, elements, splitFields])
+  const crossSplit = useMemo(() => (match === 'cross' && query && crossFields.length > 0 ? splitBy(query, elements, crossFields, shortLabel) : null), [match, query, elements, crossFields])
   /** Creates the groups of the split: all of them, or only the given ones (a cell of the matrix). */
-  const saveSplit = (only?: SplitGroup[]): void => {
-    const chosen = only ?? split?.groups ?? []
+  const saveSplit = (sp: SplitResult, fields: string[], only?: SplitGroup[]): void => {
+    const chosen = only ?? sp.groups
     if (chosen.length === 0 || chosen.length > MAX_SPLIT) return
     const made: BimGroup[] = chosen.map((s, i) => ({
       id: newId(),
@@ -858,9 +882,82 @@ export default function BimViewer({
       manualExclude: []
     }))
     onBimChange({ ...bim, groups: [...bim.groups, ...made] })
-    if (!only) setSplitFields([])
-    say(only ? `Grupo «${made[0].name}» creado con ${plural(only[0].count, 'elemento', 'elementos')}` : `${plural(made.length, 'grupo creado', 'grupos creados')} por ${splitFields.map(shortLabel).join(' × ')}`)
+    if (!only && fields === splitFields) setSplitFields([])
+    say(only ? `Grupo «${made[0].name}» creado con ${plural(only[0].count, 'elemento', 'elementos')}` : `${plural(made.length, 'grupo creado', 'grupos creados')} por ${fields.map(shortLabel).join(' × ')}`)
   }
+
+  /** The preview of a split (a matrix for two parameters, a list otherwise) and its create button. */
+  const renderSplit = (sp: SplitResult | null, fields: string[]): React.JSX.Element => (
+    <>
+        {sp && (
+          <div className="bim-split-preview">
+            {sp.groups.length === 0 ? (
+              <span className="bim-muted">Ningún resultado tiene valor en {fields.length > 1 ? 'todos esos parámetros' : 'ese parámetro'}.</span>
+            ) : (
+              <>
+                <b>{plural(sp.groups.length, 'grupo', 'grupos')}</b>
+                {fields.length === 2 ? (
+                  <>
+                    <div className="bim-matrix-wrap">
+                      <table className="bim-matrix">
+                        <thead>
+                          <tr>
+                            <th>
+                              {shortLabel(fields[0])} ↓ · {shortLabel(fields[1])} →
+                            </th>
+                            {sp.axes[1].map((c) => (
+                              <th key={c}>{c}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sp.axes[0].map((r) => (
+                            <tr key={r}>
+                              <th>{r}</th>
+                              {sp.axes[1].map((c) => {
+                                const cell = sp.groups.find((g) => g.values[0].trim().toLowerCase() === r.trim().toLowerCase() && g.values[1].trim().toLowerCase() === c.trim().toLowerCase())
+                                return (
+                                  <td key={c}>
+                                    {cell ? (
+                                      <Tooltip label={`Crear solo «${cell.name}»`} side="top">
+                                        <button className="bim-matrix-cell" onClick={() => saveSplit(sp, fields, [cell])}>
+                                          {cell.count}
+                                        </button>
+                                      </Tooltip>
+                                    ) : (
+                                      <span className="bim-matrix-empty">·</span>
+                                    )}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <span className="bim-muted">Cada número es una intersección con elementos (clic para crear solo ese grupo); los puntos no tienen y no se crean.</span>
+                  </>
+                ) : (
+                  <ul>
+                    {sp.groups.slice(0, 6).map((g) => (
+                      <li key={g.name}>
+                        {g.name} <span className="bim-muted">· {plural(g.count, 'elemento', 'elementos')}</span>
+                      </li>
+                    ))}
+                    {sp.groups.length > 6 && <li className="bim-muted">…y {sp.groups.length - 6} más</li>}
+                  </ul>
+                )}
+              </>
+            )}
+            {sp.skipped > 0 && sp.groups.length > 0 && <span className="bim-muted">{plural(sp.skipped, 'resultado queda', 'resultados quedan')} fuera por no tener valor en alguno de los parámetros.</span>}
+            {sp.groups.length > MAX_SPLIT && <span className="bim-warn">Son demasiados grupos (máximo {MAX_SPLIT}). Elige parámetros con menos valores distintos.</span>}
+          </div>
+        )}
+        <button className="primary" disabled={!sp || sp.groups.length === 0 || sp.groups.length > MAX_SPLIT} onClick={() => saveSplit(sp!, fields)}>
+          {sp && sp.groups.length > 0 ? `Crear ${plural(sp.groups.length, 'grupo', 'grupos')}` : 'Crear grupos'}
+        </button>
+    </>
+  )
 
   const selectionBar =
     picked.length > 0 || flash ? (
@@ -1118,14 +1215,84 @@ export default function BimViewer({
   const searchUi = (
     <div className="panel-body bim-search-panel">
       <div className="bim-seg" role="radiogroup" aria-label="Cómo combinar las condiciones">
-        <button role="radio" aria-checked={match === 'and'} className={match === 'and' ? 'on' : ''} onClick={() => setMatch('and')}>
-          Cumplir todas (Y)
+        <button role="radio" aria-checked={match === 'and'} className={match === 'and' ? 'on' : ''} onClick={() => setMode('and')}>
+          Todas (Y)
         </button>
-        <button role="radio" aria-checked={match === 'or'} className={match === 'or' ? 'on' : ''} onClick={() => setMatch('or')}>
-          Cumplir alguna (O)
+        <button role="radio" aria-checked={match === 'or'} className={match === 'or' ? 'on' : ''} onClick={() => setMode('or')}>
+          Alguna (O)
         </button>
+        <Tooltip label="Elige parámetros y marca los valores que quieres cruzar (p. ej. Ciclo × Nivel)">
+          <button role="radio" aria-checked={match === 'cross'} className={match === 'cross' ? 'on' : ''} onClick={startCross}>
+            Combinar
+          </button>
+        </Tooltip>
       </div>
-      {drafts.map((d) => (
+      {match === 'cross' &&
+        drafts.map((d) => {
+          const values = d.field ? facets(elements, d.field) : []
+          const picked = crossPicks[d.field]
+          const isOn = (v: string): boolean => !picked || picked.includes(v)
+          const filter = (crossFilter[d.field] ?? '').trim().toLowerCase()
+          const shown = values.filter((f) => !filter || f.value.toLowerCase().includes(filter))
+          const toggle = (v: string): void => setCrossPicks((cp) => ({ ...cp, [d.field]: isOn(v) ? (picked ?? values.map((f) => f.value)).filter((x) => x !== v) : [...(picked ?? []), v] }))
+          return (
+            <div key={d.id} className="bim-rule bim-cross">
+              <div className="bim-rule-row">
+                <Dropdown
+                  block
+                  searchable
+                  label="Parámetro"
+                  placeholder="Elige un parámetro…"
+                  value={d.field}
+                  options={fieldChoices}
+                  onChange={(v) => {
+                    setDraft(d.id, { field: v })
+                    setCrossPicks((cp) => {
+                      const { [v]: _drop, ...rest } = cp
+                      return rest
+                    })
+                  }}
+                />
+                <Tooltip label="Quitar este parámetro">
+                  <button className="icon-btn" aria-label="Quitar parámetro" onClick={() => setDrafts((ds) => (ds.length > 1 ? ds.filter((x) => x.id !== d.id) : [{ ...newRule(), field: '' }]))}>
+                    <X size={14} />
+                  </button>
+                </Tooltip>
+              </div>
+              {d.field && (
+                <>
+                  <div className="bim-cross-head">
+                    <span className="bim-muted">
+                      {(picked ? picked.filter((v) => values.some((f) => f.value === v)).length : values.length)} de {plural(values.length, 'valor', 'valores')}
+                    </span>
+                    <span className="bim-cross-actions">
+                      <button className="link" onClick={() => setCrossPicks((cp) => { const { [d.field]: _drop, ...rest } = cp; return rest })}>
+                        Todos
+                      </button>
+                      <button className="link" onClick={() => setCrossPicks((cp) => ({ ...cp, [d.field]: [] }))}>
+                        Ninguno
+                      </button>
+                    </span>
+                  </div>
+                  {values.length > 8 && <input type="search" className="bim-cross-filter" placeholder="Filtrar valores…" value={crossFilter[d.field] ?? ''} onChange={(e) => setCrossFilter((cf) => ({ ...cf, [d.field]: e.target.value }))} aria-label="Filtrar valores" />}
+                  <div className="bim-cross-list" role="group" aria-label={`Valores de ${shortLabel(d.field)}`}>
+                    {values.length === 0 && <span className="bim-muted">Ningún elemento tiene este parámetro.</span>}
+                    {shown.slice(0, 200).map((f) => (
+                      <label key={f.value} className="bim-cross-item">
+                        <input type="checkbox" checked={isOn(f.value)} onChange={() => toggle(f.value)} />
+                        <span className="bim-cross-value">{f.value}</span>
+                        <span className="bim-muted">{f.count}</span>
+                      </label>
+                    ))}
+                    {shown.length > 200 && <span className="bim-muted">…y {shown.length - 200} más; usa el filtro para encontrarlos.</span>}
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })}
+      {match !== 'cross' &&
+        drafts.map((d) => (
         <div key={d.id} className="bim-rule">
           <Dropdown
             block
@@ -1146,12 +1313,12 @@ export default function BimViewer({
           {needsValue(d.op) && <SuggestInput value={d.value} onChange={(v) => setDraft(d.id, { value: v })} suggestions={facets(elements, d.field).slice(0, 200)} placeholder="Valor…" />}
         </div>
       ))}
-      <button className="bim-addrule" onClick={() => setDrafts((ds) => [...ds, newRule()])}>
-        <Plus size={13} /> Agregar condición
+      <button className="bim-addrule" onClick={() => setDrafts((ds) => [...ds, match === 'cross' ? { ...newRule(), field: '' } : newRule()])}>
+        <Plus size={13} /> {match === 'cross' ? 'Agregar parámetro' : 'Agregar condición'}
       </button>
 
       <div className="bim-results">
-        <b>{query ? `${results.length} de ${elements.length} elementos` : 'Completa una condición'}</b>
+        <b>{query ? `${results.length} de ${elements.length} elementos` : match === 'cross' ? 'Elige un parámetro' : 'Completa una condición'}</b>
         <div className="bim-group-actions">
           <button className="primary" disabled={results.length === 0} onClick={() => selectGuids(results.map((r) => r.guid), 'Búsqueda')}>
             Seleccionar resultados
@@ -1171,6 +1338,12 @@ export default function BimViewer({
           <input type="checkbox" checked={isolate} onChange={(e) => setIsolate(e.target.checked)} /> Aislar los resultados en el modelo
         </label>
       </div>
+      {match === 'cross' && crossSplit && crossFields.length > 0 && (
+        <div className="bim-split">
+          <b>Cruce de {crossFields.map(shortLabel).join(' × ')}</b>
+          {renderSplit(crossSplit, crossFields)}
+        </div>
+      )}
 
       <div className="bim-label">Guardar esta búsqueda</div>
       <div className="bim-newgroup">
@@ -1373,73 +1546,7 @@ export default function BimViewer({
                   options={fieldChoices.filter((o) => !splitFields.includes(o.value))}
                   onChange={(v) => v && setSplitFields((fs) => [...fs, v])}
                 />
-                {split && (
-                  <div className="bim-split-preview">
-                    {split.groups.length === 0 ? (
-                      <span className="bim-muted">Ningún resultado tiene valor en {splitFields.length > 1 ? 'todos esos parámetros' : 'ese parámetro'}.</span>
-                    ) : (
-                      <>
-                        <b>{plural(split.groups.length, 'grupo', 'grupos')}</b>
-                        {splitFields.length === 2 ? (
-                          <>
-                            <div className="bim-matrix-wrap">
-                              <table className="bim-matrix">
-                                <thead>
-                                  <tr>
-                                    <th>
-                                      {shortLabel(splitFields[0])} ↓ · {shortLabel(splitFields[1])} →
-                                    </th>
-                                    {split.axes[1].map((c) => (
-                                      <th key={c}>{c}</th>
-                                    ))}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {split.axes[0].map((r) => (
-                                    <tr key={r}>
-                                      <th>{r}</th>
-                                      {split.axes[1].map((c) => {
-                                        const cell = split.groups.find((g) => g.values[0].trim().toLowerCase() === r.trim().toLowerCase() && g.values[1].trim().toLowerCase() === c.trim().toLowerCase())
-                                        return (
-                                          <td key={c}>
-                                            {cell ? (
-                                              <Tooltip label={`Crear solo «${cell.name}»`} side="top">
-                                                <button className="bim-matrix-cell" onClick={() => saveSplit([cell])}>
-                                                  {cell.count}
-                                                </button>
-                                              </Tooltip>
-                                            ) : (
-                                              <span className="bim-matrix-empty">·</span>
-                                            )}
-                                          </td>
-                                        )
-                                      })}
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            <span className="bim-muted">Cada número es una intersección con elementos (clic para crear solo ese grupo); los puntos no tienen y no se crean.</span>
-                          </>
-                        ) : (
-                          <ul>
-                            {split.groups.slice(0, 6).map((g) => (
-                              <li key={g.name}>
-                                {g.name} <span className="bim-muted">· {plural(g.count, 'elemento', 'elementos')}</span>
-                              </li>
-                            ))}
-                            {split.groups.length > 6 && <li className="bim-muted">…y {split.groups.length - 6} más</li>}
-                          </ul>
-                        )}
-                      </>
-                    )}
-                    {split.skipped > 0 && split.groups.length > 0 && <span className="bim-muted">{plural(split.skipped, 'resultado queda', 'resultados quedan')} fuera por no tener valor en alguno de los parámetros.</span>}
-                    {split.groups.length > MAX_SPLIT && <span className="bim-warn">Son demasiados grupos (máximo {MAX_SPLIT}). Elige parámetros con menos valores distintos.</span>}
-                  </div>
-                )}
-                <button className="primary" disabled={!split || split.groups.length === 0 || split.groups.length > MAX_SPLIT} onClick={() => saveSplit()}>
-                  {split && split.groups.length > 0 ? `Crear ${plural(split.groups.length, 'grupo', 'grupos')}` : 'Crear grupos'}
-                </button>
+                {renderSplit(split, splitFields)}
               </div>
             )}
           </>
