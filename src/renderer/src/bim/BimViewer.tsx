@@ -15,6 +15,7 @@ import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
 import workerUrl from '@thatopen/fragments/worker?url'
+import { splitBy } from '@shared/bimSplit'
 import { evaluate, facets, propertyKeys, type BimElement, type Query, type Rule, type RuleField, type RuleOp } from '@shared/bimQuery'
 import {
   addElementsToTask,
@@ -386,6 +387,7 @@ export default function BimViewer({
   const [searchName, setSearchName] = useState('')
   const [isolate, setIsolate] = useState(false)
   const [groupName, setGroupName] = useState('')
+  const [splitFields, setSplitFields] = useState<string[]>([])
   const [groupSource, setGroupSource] = useState<'selection' | 'search'>('selection')
   const [groupColor, setGroupColor] = useState<string | null>(null)
 
@@ -837,6 +839,25 @@ export default function BimViewer({
     setGroupName('')
     setGroupColor(null)
     say(`Grupo «${name}» creado con ${plural(resolveGroup(group, elements).size, 'elemento', 'elementos')}`)
+  }
+
+  // Splitting the search into one group per combination of values of some fields (e.g. Ciclo × Nivel).
+  const MAX_SPLIT = 200
+  const shortLabel = (field: string): string => BUILTIN_LABELS[field] ?? field.slice(field.indexOf('.') + 1)
+  const split = useMemo(() => (query && splitFields.length > 0 ? splitBy(query, elements, splitFields, shortLabel) : null), [query, elements, splitFields])
+  const saveSplit = (): void => {
+    if (!split || split.groups.length === 0 || split.groups.length > MAX_SPLIT) return
+    const made: BimGroup[] = split.groups.map((s, i) => ({
+      id: newId(),
+      name: s.name,
+      color: GROUP_COLORS[(bim.groups.length + i) % GROUP_COLORS.length],
+      query: s.query,
+      manualInclude: [],
+      manualExclude: []
+    }))
+    onBimChange({ ...bim, groups: [...bim.groups, ...made] })
+    setSplitFields([])
+    say(`${plural(made.length, 'grupo creado', 'grupos creados')} por ${splitFields.map(shortLabel).join(' × ')}`)
   }
 
   const selectionBar =
@@ -1328,6 +1349,54 @@ export default function BimViewer({
             <button className="primary" disabled={!groupName.trim()} onClick={saveGroup}>
               Guardar grupo
             </button>
+            {groupFrom === 'search' && (
+              <div className="bim-split">
+                <b>Dividir en varios grupos</b>
+                <span className="bim-muted">Crea un grupo por cada combinación de valores de los parámetros que elijas, p. ej. Ciclo × Nivel.</span>
+                {splitFields.length > 0 && (
+                  <div className="bim-chips">
+                    {splitFields.map((f) => (
+                      <button key={f} className="bim-chip" onClick={() => setSplitFields((fs) => fs.filter((x) => x !== f))} aria-label={`Quitar ${shortLabel(f)}`}>
+                        {shortLabel(f)} <X size={12} />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <Dropdown
+                  block
+                  searchable
+                  label="Agregar parámetro"
+                  placeholder="Agregar parámetro…"
+                  value=""
+                  options={fieldChoices.filter((o) => !splitFields.includes(o.value))}
+                  onChange={(v) => v && setSplitFields((fs) => [...fs, v])}
+                />
+                {split && (
+                  <div className="bim-split-preview">
+                    {split.groups.length === 0 ? (
+                      <span className="bim-muted">Ningún resultado tiene valor en {splitFields.length > 1 ? 'todos esos parámetros' : 'ese parámetro'}.</span>
+                    ) : (
+                      <>
+                        <b>{plural(split.groups.length, 'grupo', 'grupos')}</b>
+                        <ul>
+                          {split.groups.slice(0, 6).map((g) => (
+                            <li key={g.name}>
+                              {g.name} <span className="bim-muted">· {plural(g.count, 'elemento', 'elementos')}</span>
+                            </li>
+                          ))}
+                          {split.groups.length > 6 && <li className="bim-muted">…y {split.groups.length - 6} más</li>}
+                        </ul>
+                      </>
+                    )}
+                    {split.skipped > 0 && split.groups.length > 0 && <span className="bim-muted">{plural(split.skipped, 'resultado queda', 'resultados quedan')} fuera por no tener valor en alguno de los parámetros.</span>}
+                    {split.groups.length > MAX_SPLIT && <span className="bim-warn">Son demasiados grupos (máximo {MAX_SPLIT}). Elige parámetros con menos valores distintos.</span>}
+                  </div>
+                )}
+                <button className="primary" disabled={!split || split.groups.length === 0 || split.groups.length > MAX_SPLIT} onClick={saveSplit}>
+                  {split && split.groups.length > 0 ? `Crear ${plural(split.groups.length, 'grupo', 'grupos')}` : 'Crear grupos'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>

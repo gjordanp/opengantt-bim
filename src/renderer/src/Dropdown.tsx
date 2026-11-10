@@ -103,7 +103,8 @@ export default function Dropdown<T extends string>({
   onChange,
   label,
   searchable,
-  block
+  block,
+  placeholder
 }: {
   value: T
   options: DropdownOption<T>[]
@@ -113,6 +114,8 @@ export default function Dropdown<T extends string>({
   searchable?: boolean
   /** Fills the width of its container. */
   block?: boolean
+  /** Shown, dimmed, when no option matches the value (e.g. a picker that only adds). */
+  placeholder?: string
 }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
@@ -162,7 +165,7 @@ export default function Dropdown<T extends string>({
         onClick={() => (open ? close() : openList())}
         onKeyDown={onKeyDown}
       >
-        <span>{current?.label ?? value}</span>
+        <span className={current || value ? undefined : 'dd-placeholder'}>{current?.label ?? (value || placeholder)}</span>
         <ChevronDown size={14} aria-hidden />
       </button>
       {open && box && (

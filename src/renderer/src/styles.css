@@ -2553,3 +2553,38 @@ kbd {
   cursor: help;
   border-bottom: 1px dotted var(--muted-foreground);
 }
+
+/* Split a search into groups */
+.bim-split {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.bim-split .bim-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.bim-split-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  font-size: 12px;
+  background: var(--muted);
+  border-radius: calc(var(--radius) - 2px);
+}
+.bim-split-preview ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.bim-warn {
+  color: #b45309;
+}
+
+.dd-placeholder {
+  color: var(--muted-foreground);
+}
