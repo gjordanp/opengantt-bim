@@ -2742,3 +2742,30 @@ kbd {
   min-height: 120px;
   max-width: calc(100vw - 32px);
 }
+
+/* Group cards: the text wraps instead of being cut */
+.bim-group-card .ellipsis {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+.bim-group-top {
+  align-items: flex-start;
+}
+.bim-group-top .bim-swatch {
+  margin-top: 4px;
+}
+.bim-group-top .bim-group-count {
+  margin-top: 3px;
+}
+.bim-group-card .bim-group-assign {
+  height: auto;
+  min-height: 26px;
+  padding-top: 4px;
+  padding-bottom: 4px;
+  text-align: left;
+}
+.bim-group-card .bim-group-assign .ellipsis-host {
+  flex: 1;
+}
