@@ -3,7 +3,7 @@ import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
 import { installPlaceholder, isPlaceholder, type Placeholder } from './placeholder'
-import { installInlineEditors, predecessorsText, rowNumbers } from './inlineEditors'
+import { installInlineEditors, predecessorsText, rowNumbers, type GroupsBridge } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
@@ -57,6 +57,8 @@ interface Props {
   bimCounts?: Record<string, number>
   /** The group codes of each task ("G1, G4"), for the Grupos column. */
   bimGroupCodes?: Record<string, string>
+  /** Lets the Grupos column be typed in the cell. */
+  groupsBridge?: GroupsBridge
   ref?: Ref<GanttHandle>
   /** Called when undo/redo availability changes. */
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
@@ -186,7 +188,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, bimGroupCodes, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, bimGroupCodes, groupsBridge, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -222,6 +224,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   bimCountsRef.current = bimCounts
   const bimGroupCodesRef = useRef(bimGroupCodes)
   bimGroupCodesRef.current = bimGroupCodes
+  const groupsBridgeRef = useRef(groupsBridge)
+  groupsBridgeRef.current = groupsBridge
   const calendar = weekCalendar({ holidays, workWeek: workWeek?.length ? workWeek : undefined })
   const calendarRef = useRef(calendar)
   calendarRef.current = calendar
@@ -471,7 +475,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         align: 'center',
         width: 90,
         resize: true,
-        template: (task: any) => bimGroupCodesRef.current?.[String(task.id)] ?? ''
+        editor: { type: 'groups', map_to: 'groups' },
+        template: (task: any) => (task.type === 'placeholder' ? '' : (bimGroupCodesRef.current?.[String(task.id)] ?? ''))
       },
       {
         name: 'predecessors',
@@ -621,7 +626,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     if (appliedCollapsedRef.current) gantt.config.layout = chartOnlyLayout()
     gantt.init(host)
     installIgnoreTime(gantt)
-    stopEditors = installInlineEditors(gantt)
+    stopEditors = installInlineEditors(gantt, () => groupsBridgeRef.current)
     // Right-click on the table header: choose which columns stay visible.
     const onHeaderMenu = (e: MouseEvent): void => {
       if (!(e.target as HTMLElement).closest?.('.gantt_grid_head_cell')) return

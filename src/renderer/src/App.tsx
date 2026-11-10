@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { DockviewApi } from 'dockview-react'
 import GanttView, { type GanttHandle } from './gantt/GanttView'
+import type { GroupsBridge } from './gantt/inlineEditors'
 import BimViewer, { type BimSlots, type BimViewerHandle } from './bim/BimViewer'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
 import type { ProjectData } from '@shared/model'
-import { emptyBim, groupsOfTask, taskGuids, type BimData } from '@shared/bimGroups'
+import { emptyBim, groupsOfTask, parseGroupCodes, setTaskGroups, taskGuids, type BimData } from '@shared/bimGroups'
 import type { BimElement } from '@shared/bimQuery'
 import type { ProjectSummary } from '@shared/repository'
 import type { DbStatus, UpdateStatus } from '@shared/api'
@@ -302,6 +303,19 @@ export default function App(): React.JSX.Element {
     }
     return codes
   }, [bim])
+
+  // Typing group codes in the Grupos cell of the gantt: read against the groups that exist, applied to the task's links.
+  const groupsBridge = useMemo<GroupsBridge>(
+    () => ({
+      codesOf: (taskId) => bimGroupCodes[taskId] ?? '',
+      isValid: (text) => parseGroupCodes(text, bim.groups).ok,
+      apply: (taskId, text) => {
+        const r = parseGroupCodes(text, bim.groups)
+        if (r.ok) onBimChange({ ...bim, links: setTaskGroups(bim.links, taskId, r.ids) })
+      }
+    }),
+    [bim, bimGroupCodes, onBimChange]
+  )
 
   // What each detail task is worth by volume: an element's volume is split among the tasks that use it in
   // proportion to their durations. The volume curve is only offered once every task has elements with volume.
@@ -600,6 +614,7 @@ export default function App(): React.JSX.Element {
         onTaskSelect={setSelectedTask}
         bimCounts={bimCounts}
         bimGroupCodes={bimGroupCodes}
+        groupsBridge={groupsBridge}
       />
     )
   }

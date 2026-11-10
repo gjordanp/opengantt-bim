@@ -41,7 +41,14 @@ export function predecessorsText(gantt: GanttStatic, id: string | number, nums =
  * a few that speak our units: an end date that is the last day of work, a duration in whole working days, progress
  * in percent and a surface with decimals.
  */
-export function installInlineEditors(gantt: GanttStatic): () => void {
+/** What the table needs from the BIM side to edit the Grupos column: the codes shown, how to read typed ones, and how to apply them. */
+export interface GroupsBridge {
+  codesOf(taskId: string): string
+  isValid(text: string): boolean
+  apply(taskId: string, text: string): void
+}
+
+export function installInlineEditors(gantt: GanttStatic, groups?: () => GroupsBridge | undefined): () => void {
   const g = gantt as any
   const types = g.config.editor_types
   const { date, number } = types
@@ -121,6 +128,17 @@ export function installInlineEditors(gantt: GanttStatic): () => void {
   }
   types.predecessors = preds
 
+  // Groups: typed as `G1, G4`; saving assigns exactly those groups to the task (the data lives with the BIM side, not in the task).
+  const grp = Object.create(text)
+  grp.set_value = function (_value: unknown, id: unknown, column: unknown, node: unknown): void {
+    text.set_value.call(this, groups?.()?.codesOf(String(id)) ?? '', id, column, node)
+  }
+  grp.is_valid = (value: string): boolean => groups?.()?.isValid(String(value ?? '')) ?? false
+  grp.is_changed = function (value: string, id: string, column: unknown, node: unknown): boolean {
+    return String(this.get_value(id, column, node)).replace(/[\s,;]+/g, ',').toUpperCase() !== String(value ?? '').replace(/[\s,;]+/g, ',').toUpperCase()
+  }
+  types.groups = grp
+
   // The dates and progress of a parent task come from its children, and the empty row is not a task.
   const derived = new Set(['start_date', 'end_date', 'duration', 'progress'])
   const noLinks = (task: any, id: string | number): boolean => g.hasChild(id) || task.type === g.config.types.project
@@ -139,6 +157,12 @@ export function installInlineEditors(gantt: GanttStatic): () => void {
   })
   // The column holds no field of the task: apply the typed text to the links instead of storing it.
   const save = editors.attachEvent('onBeforeSave', (state: { id: string | number; columnName: string; newValue: unknown }) => {
+    if (state.columnName === 'groups') {
+      const bridge = groups?.()
+      const typed = String(state.newValue ?? '')
+      if (bridge?.isValid(typed)) bridge.apply(String(state.id), typed)
+      return false
+    }
     if (state.columnName !== 'predecessors') return true
     const r = parsePredecessors(String(state.newValue ?? ''))
     if (!r.ok || !preds.is_valid(String(state.newValue ?? ''), state.id)) return false

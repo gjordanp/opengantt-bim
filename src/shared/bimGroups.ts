@@ -132,3 +132,22 @@ export function groupsOfTask(link: BimTaskLink | undefined, groups: BimGroup[]):
 export function tasksOfGroup(groupId: string, links: BimTaskLink[]): string[] {
   return links.filter((l) => l.groupIds.includes(groupId)).map((l) => l.taskId)
 }
+
+/**
+ * Reads group codes typed in a cell ("G1, g4 G7"): separated by commas, spaces or semicolons, case-insensitive.
+ * Returns the groups' ids in the order typed (no repeats), or an error naming the first code that does not exist.
+ */
+export function parseGroupCodes(text: string, groups: BimGroup[]): { ok: true; ids: string[] } | { ok: false; error: string } {
+  const ids: string[] = []
+  for (const raw of text.split(/[\s,;]+/).filter(Boolean)) {
+    const code = raw.toUpperCase()
+    const group = groups.find((g) => g.code?.toUpperCase() === code)
+    if (!group) return { ok: false, error: `No existe el grupo ${raw}` }
+    if (!ids.includes(group.id)) ids.push(group.id)
+  }
+  return { ok: true, ids }
+}
+
+/** Makes a task's groups exactly these (the elements assigned one by one stay). A task left with nothing loses its link. */
+export const setTaskGroups = (links: BimTaskLink[], taskId: string, groupIds: string[]): BimTaskLink[] =>
+  upsert(links, taskId, (l) => ({ ...l, groupIds: uniq(groupIds) }))

@@ -6,6 +6,8 @@ import {
   ensureGroupCodes,
   groupsOfTask,
   nextGroupCode,
+  parseGroupCodes,
+  setTaskGroups,
   removeElementsFromTask,
   removeGroupFromTask,
   resolveGroup,
@@ -116,5 +118,30 @@ describe('group codes', () => {
     expect(groupsOfTask(undefined, groups)).toEqual([])
     expect(tasksOfGroup('b', links)).toEqual(['t1', 't2'])
     expect(tasksOfGroup('a', links)).toEqual(['t1'])
+  })
+})
+
+describe('typed group codes', () => {
+  const groups: BimGroup[] = ['a', 'b', 'c'].map((id, i) => ({ id, code: `G${i + 1}`, name: id, color: '#000', query: { op: 'and', rules: [] }, manualInclude: [], manualExclude: [] }))
+
+  it('reads codes separated by commas, spaces or semicolons, in any case', () => {
+    expect(parseGroupCodes('G1, g3 ;G2', groups)).toEqual({ ok: true, ids: ['a', 'c', 'b'] })
+    expect(parseGroupCodes('', groups)).toEqual({ ok: true, ids: [] })
+    expect(parseGroupCodes('G2,G2', groups)).toEqual({ ok: true, ids: ['b'] })
+  })
+
+  it('names the code that does not exist', () => {
+    const r = parseGroupCodes('G1, G9', groups)
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toContain('G9')
+    expect(parseGroupCodes('hola', groups).ok).toBe(false)
+  })
+
+  it('sets the groups of a task exactly, keeping its loose elements', () => {
+    const links = [{ taskId: 't1', groupIds: ['a'], guids: ['x'] }]
+    expect(setTaskGroups(links, 't1', ['b', 'c'])).toEqual([{ taskId: 't1', groupIds: ['b', 'c'], guids: ['x'] }])
+    expect(setTaskGroups(links, 't2', ['a'])).toHaveLength(2)
+    // nothing left at all: the link goes away
+    expect(setTaskGroups([{ taskId: 't1', groupIds: ['a'], guids: [] }], 't1', [])).toEqual([])
   })
 })

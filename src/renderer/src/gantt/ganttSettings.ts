@@ -36,7 +36,7 @@ export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   barText: true,
   tableCollapsed: false,
   summaryStyle: 'bar',
-  columns: { num: false, predecessors: true, start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: true, groups: true, deadline: false, constraint: false }
+  columns: { num: false, predecessors: true, start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: false, groups: true, deadline: false, constraint: false }
 }
 
 const KEY = 'ogbim.ganttSettings'
