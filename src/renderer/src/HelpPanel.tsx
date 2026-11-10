@@ -367,6 +367,9 @@ const TOPICS: Topic[] = [
             <span>Busca, por ejemplo, el piso «Nivel 2»; el grupo reúne todo lo que coincide y se actualiza si cambia el modelo.</span>
           </div>
         </div>
+        <p>
+          Cada grupo tiene un <b>identificador</b> (G1, G2…) que no cambia aunque borres otros. La tarjeta del grupo muestra a qué tareas está asignado, y la columna <b>Grupos</b> del Gantt muestra los códigos de cada tarea. Si asignas un grupo a una tarea que ya tiene otro, la app te pregunta antes de sumarlo.
+        </p>
         <Steps
           items={[
             { title: 'Abre «Grupos guardados»', text: 'Tercer icono de la barra de herramientas del visor (arriba).' },

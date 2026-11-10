@@ -3,6 +3,8 @@ import { evaluate, type BimElement, type Query, type Rule } from './bimQuery'
 /** A named, saved search. Dynamic: it is re-run against whatever models are loaded. */
 export interface BimGroup {
   id: string
+  /** Short identifier shown next to the name: G1, G2… Absent in groups saved before codes existed. */
+  code?: string
   name: string
   color: string
   query: Query
@@ -101,4 +103,32 @@ export function deleteGroup(bim: BimData, groupId: string): BimData {
 /** Tasks that use an element, directly or through a group. */
 export function tasksForElement(guid: string, bim: BimData, elements: BimElement[]): string[] {
   return bim.links.filter((l) => taskGuids(l, bim.groups, elements).has(guid)).map((l) => l.taskId)
+}
+
+const codeNumber = (code: string | undefined): number => {
+  const m = code?.match(/^G(\d+)$/)
+  return m ? Number(m[1]) : 0
+}
+
+/** The next free code: one more than the highest G-number in use, so codes are never reused after deleting a group. */
+export function nextGroupCode(groups: BimGroup[]): string {
+  return `G${groups.reduce((max, g) => Math.max(max, codeNumber(g.code)), 0) + 1}`
+}
+
+/** Gives a code to every group that has none (projects saved before codes), in the order they are listed. Same object if none is missing. */
+export function ensureGroupCodes(bim: BimData): BimData {
+  if (bim.groups.every((g) => g.code)) return bim
+  const groups: BimGroup[] = []
+  for (const g of bim.groups) groups.push(g.code ? g : { ...g, code: nextGroupCode([...bim.groups, ...groups]) })
+  return { ...bim, groups }
+}
+
+/** The groups a task is tied to, in the order they were assigned. */
+export function groupsOfTask(link: BimTaskLink | undefined, groups: BimGroup[]): BimGroup[] {
+  return (link?.groupIds ?? []).map((id) => groups.find((g) => g.id === id)).filter((g): g is BimGroup => !!g)
+}
+
+/** The tasks a group is assigned to. */
+export function tasksOfGroup(groupId: string, links: BimTaskLink[]): string[] {
+  return links.filter((l) => l.groupIds.includes(groupId)).map((l) => l.taskId)
 }

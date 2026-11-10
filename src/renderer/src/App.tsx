@@ -5,7 +5,7 @@ import BimViewer, { type BimSlots, type BimViewerHandle } from './bim/BimViewer'
 import type { AutoScheduleOutcome } from './gantt/autoSchedule'
 import { sampleProject } from './sampleProject'
 import type { ProjectData } from '@shared/model'
-import { emptyBim, taskGuids, type BimData } from '@shared/bimGroups'
+import { emptyBim, groupsOfTask, taskGuids, type BimData } from '@shared/bimGroups'
 import type { BimElement } from '@shared/bimQuery'
 import type { ProjectSummary } from '@shared/repository'
 import type { DbStatus, UpdateStatus } from '@shared/api'
@@ -292,6 +292,16 @@ export default function App(): React.JSX.Element {
     for (const l of bim.links) counts[l.taskId] = taskGuids(l, bim.groups, bimElements).size
     return counts
   }, [bim, bimElements])
+
+  // The group codes of each task, for the Grupos column of the gantt.
+  const bimGroupCodes = useMemo(() => {
+    const codes: Record<string, string> = {}
+    for (const l of bim.links) {
+      const text = groupsOfTask(l, bim.groups).map((g) => g.code).filter(Boolean).join(', ')
+      if (text) codes[l.taskId] = text
+    }
+    return codes
+  }, [bim])
 
   // What each detail task is worth by volume: an element's volume is split among the tasks that use it in
   // proportion to their durations. The volume curve is only offered once every task has elements with volume.
@@ -589,6 +599,7 @@ export default function App(): React.JSX.Element {
         onChange={onChange}
         onTaskSelect={setSelectedTask}
         bimCounts={bimCounts}
+        bimGroupCodes={bimGroupCodes}
       />
     )
   }

@@ -2769,3 +2769,43 @@ kbd {
 .bim-group-card .bim-group-assign .ellipsis-host {
   flex: 1;
 }
+
+/* Group codes and the tasks of a group */
+.bim-code {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  color: var(--foreground);
+}
+.bim-group-top .bim-code {
+  margin-top: 0;
+}
+.bim-group-tasks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding-left: 16px;
+  font-size: 12px;
+}
+.bim-task-chip {
+  height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bim-task-chip:hover {
+  background: var(--muted);
+}

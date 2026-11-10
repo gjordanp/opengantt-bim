@@ -3,11 +3,15 @@ import {
   addElementsToTask,
   addGroupToTask,
   deleteGroup,
+  ensureGroupCodes,
+  groupsOfTask,
+  nextGroupCode,
   removeElementsFromTask,
   removeGroupFromTask,
   resolveGroup,
   taskGuids,
   tasksForElement,
+  tasksOfGroup,
   type BimData,
   type BimGroup
 } from './bimGroups'
@@ -82,5 +86,35 @@ describe('bim groups', () => {
     expect(tasksForElement('g1', bim, elements)).toEqual(['t1'])
     expect(tasksForElement('g3', bim, elements)).toEqual(['t2'])
     expect(tasksForElement('gX', bim, elements)).toEqual([])
+  })
+})
+
+describe('group codes', () => {
+  const g = (id: string, code?: string): BimGroup => ({ id, name: id, color: '#000', query: { op: 'and', rules: [] }, manualInclude: [], manualExclude: [], ...(code ? { code } : {}) })
+
+  it('next code is one more than the highest in use, and never reuses a deleted one', () => {
+    expect(nextGroupCode([])).toBe('G1')
+    expect(nextGroupCode([g('a', 'G1'), g('b', 'G2')])).toBe('G3')
+    expect(nextGroupCode([g('a', 'G1'), g('b', 'G7')])).toBe('G8')
+    expect(nextGroupCode([g('a')])).toBe('G1')
+  })
+
+  it('gives codes to groups saved without them, keeping the ones that have one', () => {
+    const bim: BimData = { groups: [g('a'), g('b', 'G5'), g('c')], links: [] }
+    expect(ensureGroupCodes(bim).groups.map((x) => x.code)).toEqual(['G6', 'G5', 'G7'])
+    const done = ensureGroupCodes(bim)
+    expect(ensureGroupCodes(done)).toBe(done)
+  })
+
+  it('finds the groups of a task and the tasks of a group', () => {
+    const groups = [g('a', 'G1'), g('b', 'G2')]
+    const links = [
+      { taskId: 't1', groupIds: ['a', 'b'], guids: [] },
+      { taskId: 't2', groupIds: ['b'], guids: [] }
+    ]
+    expect(groupsOfTask(links[0], groups).map((x) => x.code)).toEqual(['G1', 'G2'])
+    expect(groupsOfTask(undefined, groups)).toEqual([])
+    expect(tasksOfGroup('b', links)).toEqual(['t1', 't2'])
+    expect(tasksOfGroup('a', links)).toEqual(['t1'])
   })
 })

@@ -21,6 +21,10 @@ import { evaluate, facets, propertyKeys, type BimElement, type Query, type Rule,
 import {
   addElementsToTask,
   addGroupToTask,
+  ensureGroupCodes,
+  groupsOfTask,
+  nextGroupCode,
+  tasksOfGroup,
   deleteGroup,
   removeElementsFromTask,
   removeGroupFromTask,
@@ -413,6 +417,11 @@ export default function BimViewer({
   const [isolate, setIsolate] = useState(false)
   const [groupName, setGroupName] = useState('')
   const [splitFields, setSplitFields] = useState<string[]>([])
+  // Groups saved before codes existed get theirs (G1, G2…) once, and it is saved with the project.
+  useEffect(() => {
+    const next = ensureGroupCodes(bim)
+    if (next !== bim) onBimChange(next)
+  }, [bim, onBimChange])
   // Groups whose elements are outlined in the 3D view (the "Ver" button of a group card).
   const [viewed, setViewed] = useState<Set<string>>(new Set())
   const outlinedRef = useRef<Set<string>>(new Set())
@@ -876,6 +885,7 @@ export default function BimViewer({
     const fromPicked = groupFrom === 'selection'
     const group: BimGroup = {
       id: newId(),
+      code: nextGroupCode(bim.groups),
       name,
       color: groupColor ?? nextColor,
       query: fromPicked ? { op: 'or', rules: [] } : query!,
@@ -896,19 +906,34 @@ export default function BimViewer({
   const saveSplit = (sp: SplitResult, fields: string[], only?: SplitGroup[]): void => {
     const chosen = only ?? sp.groups
     if (chosen.length === 0 || chosen.length > MAX_SPLIT) return
-    const made: BimGroup[] = chosen.map((s, i) => ({
+    const sofar = [...bim.groups]
+    const made: BimGroup[] = chosen.map((s, i) => {
+      const code = nextGroupCode(sofar)
+      const group: BimGroup = {
       id: newId(),
+      code,
       name: s.name,
       color: GROUP_COLORS[(bim.groups.length + i) % GROUP_COLORS.length],
       query: s.query,
       manualInclude: [],
       manualExclude: []
-    }))
+      }
+      sofar.push(group)
+      return group
+    })
     onBimChange({ ...bim, groups: [...bim.groups, ...made] })
     if (!only && fields === splitFields) setSplitFields([])
     say(only ? `Grupo «${made[0].name}» creado con ${plural(only[0].count, 'elemento', 'elementos')}` : `${plural(made.length, 'grupo creado', 'grupos creados')} por ${fields.map(shortLabel).join(' × ')}`)
   }
 
+  // Assigning a group to a task that already has another one asks first.
+  const [pendingAssign, setPendingAssign] = useState<BimGroup | null>(null)
+  const assignGroup = (group: BimGroup): void => {
+    if (!task) return
+    const others = groupsOfTask(link, bim.groups).filter((g) => g.id !== group.id)
+    if (others.length > 0) setPendingAssign(group)
+    else setLinks(addGroupToTask(links, task.id, group.id))
+  }
   const toggleViewed = (id: string): void =>
     setViewed((v) => {
       const next = new Set(v)
@@ -1472,7 +1497,7 @@ export default function BimViewer({
                   const group = groupOf(id)
                   return group ? (
                     <span key={id} className="bim-chip" style={{ borderColor: group.color }}>
-                      {group.name} · {resolveGroup(group, elements).size}
+                      <b className="bim-code">{group.code}</b> {group.name} · {resolveGroup(group, elements).size}
                       <Tooltip label="Quitar este grupo de la tarea">
                         <button aria-label="Quitar grupo" onClick={() => setLinks(removeGroupFromTask(links, task.id, id))}>
                           ×
@@ -1531,8 +1556,8 @@ export default function BimViewer({
                 <b>Un grupo guardado</b>
                 <div className="bim-chips">
                   {unassignedGroups.map((g) => (
-                    <button key={g.id} className="bim-chip bim-chip-add" style={{ borderColor: g.color }} onClick={() => setLinks(addGroupToTask(links, task.id, g.id))}>
-                      <Plus size={12} /> {g.name}
+                    <button key={g.id} className="bim-chip bim-chip-add" style={{ borderColor: g.color }} onClick={() => assignGroup(g)}>
+                      <Plus size={12} /> {g.code} · {g.name}
                     </button>
                   ))}
                 </div>
@@ -1623,6 +1648,7 @@ export default function BimViewer({
           <div key={group.id} className="bim-group-card">
             <div className="bim-group-top">
               <span className="bim-swatch" style={{ background: group.color }} />
+              <b className="bim-code">{group.code}</b>
               <EllipsisText className="bim-group-title" text={group.name} />
               <span className="bim-muted bim-group-count">{count}</span>
               <Tooltip label={shown ? 'Quitar el contorno del modelo' : 'Marcar el contorno en el modelo'} side="top">
@@ -1638,13 +1664,27 @@ export default function BimViewer({
             </div>
             {/* Groups made by crossing parameters are named after their own criteria: no need to say it twice. */}
             {describeGroupShort(group).replace(/ = /g, ' ') !== group.name && <EllipsisText className="bim-muted bim-group-desc" text={describeGroupShort(group)} />}
+            <div className="bim-group-tasks">
+              {tasksOfGroup(group.id, bim.links).length === 0 ? (
+                <span className="bim-muted">Sin tarea asignada</span>
+              ) : (
+                <>
+                  <span className="bim-muted">Tareas:</span>
+                  {tasksOfGroup(group.id, bim.links).map((id) => (
+                    <button key={id} className="bim-task-chip" onClick={() => onSelectTask(id)}>
+                      {taskText(id) ?? id}
+                    </button>
+                  ))}
+                </>
+              )}
+            </div>
             {task &&
               (assigned ? (
                 <button className="bim-group-assign" onClick={() => setLinks(removeGroupFromTask(links, task.id, group.id))}>
                   <Check size={13} /> <EllipsisText text={`En «${task.text}» · quitar`} />
                 </button>
               ) : (
-                <button className="primary bim-group-assign" onClick={() => setLinks(addGroupToTask(links, task.id, group.id))}>
+                <button className="primary bim-group-assign" onClick={() => assignGroup(group)}>
                   <EllipsisText text={`Asignar a «${task.text}»`} />
                 </button>
               ))}
@@ -1656,6 +1696,22 @@ export default function BimViewer({
 
   return (
     <>
+      {pendingAssign && task && (
+        <ConfirmDialog
+          title="La tarea ya tiene un grupo"
+          message={`«${task.text}» ya tiene asignado ${groupsOfTask(link, bim.groups)
+            .filter((g) => g.id !== pendingAssign.id)
+            .map((g) => `${g.code} «${g.name}»`)
+            .join(', ')}. ¿Asignarle también ${pendingAssign.code} «${pendingAssign.name}»? La tarea quedará con los elementos de todos sus grupos.`}
+          confirmLabel="Asignar también"
+          onCancel={() => setPendingAssign(null)}
+          onConfirm={() => {
+            const group = pendingAssign
+            setPendingAssign(null)
+            setLinks(addGroupToTask(links, task.id, group.id))
+          }}
+        />
+      )}
       {pendingRemoval && (
         <ConfirmDialog
           title={pendingRemoval.kind === 'model' ? 'Quitar modelo' : 'Eliminar grupo'}
