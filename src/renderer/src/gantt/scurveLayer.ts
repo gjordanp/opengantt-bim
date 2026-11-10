@@ -190,6 +190,11 @@ export class SCurveOverlay {
     const n = curve.planned.length
     // Entry k is the start of day from + k; x comes from the gantt's own date scale, so it follows zoom and scroll.
     const xs = Array.from({ length: n }, (_, k) => this.gantt.posFromDate(dayToDate(curve.from + k)))
+    // With the non-working days hidden, the curve skips them: nobody works on those days, so the planned line would only
+    // show a flat step there. Where the gantt really hides the days they share a position, and nothing changes; where it
+    // cannot (a month or week scale), the line runs straight across the weekend instead of stepping.
+    const ignore = (this.gantt as unknown as { ignore_time?: (d: Date) => boolean }).ignore_time
+    const skip = Array.from({ length: n }, (_, k) => k > 0 && k < n - 1 && typeof ignore === 'function' && ignore.call(this.gantt, dayToDate(curve.from + k)) === true)
     // Exact values, so small early progress is visible (the tooltip shows two decimals).
     const round = {
       planned: curve.planned,
@@ -222,7 +227,7 @@ export class SCurveOverlay {
       let lastX = -Infinity
       let lastIdx = -1
       values.forEach((v, k) => {
-        if (v === null) return
+        if (v === null || skip[k]) return
         if (spacious) {
           out.push([xs[k], y(v)])
           return
