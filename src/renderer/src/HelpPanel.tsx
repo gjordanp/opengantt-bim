@@ -175,7 +175,7 @@ const TOPICS: Topic[] = [
         <p className="help-lead">Opengantt BIM une dos cosas: el cronograma de la obra (Gantt) y el modelo 3D del edificio (BIM). Cada tarea puede tener elementos del modelo y así ves la obra construirse en el tiempo.</p>
         <Steps
           items={[
-            { title: 'Crea o abre un proyecto', text: 'En la pantalla de proyectos, «Nuevo», o importa uno de MS Project.' },
+            { title: 'Crea o abre un proyecto', text: 'En la pantalla de proyectos, «Nuevo», importa uno de MS Project, o usa «Importar con IA»: copias las instrucciones, se las das a ChatGPT, Claude o Gemini junto con la descripción de tu obra, y pegas su respuesta.' },
             { title: 'Arma el cronograma', text: 'Agrega tareas, duraciones y vínculos en el Gantt.' },
             { title: 'Importa el modelo', text: 'En el Visor 3D, el botón de subir carga un archivo .ifc.' },
             { title: 'Asigna elementos', text: 'Selecciona piezas del modelo y asígnalas a la tarea.' },

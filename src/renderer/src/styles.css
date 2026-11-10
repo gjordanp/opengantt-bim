@@ -2431,3 +2431,80 @@ kbd {
 .viewer-colors .viewer-color-custom input[type='color']::-webkit-color-swatch {
   opacity: 0;
 }
+
+/* ---------- Import with AI ---------- */
+.modal.ai-import {
+  width: min(620px, calc(100vw - 32px));
+}
+.ai-import h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ai-import > .muted {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+.ai-step {
+  margin-bottom: 14px;
+}
+.ai-step .muted {
+  margin: 4px 0 8px;
+  font-size: 12.5px;
+}
+.ai-step-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-step-head button {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ai-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #8b5cf6;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ai-import textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) - 2px);
+  background: var(--muted);
+  color: var(--foreground);
+}
+.ai-import textarea.ai-answer {
+  background: var(--background);
+}
+.ai-status {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: calc(var(--radius) - 2px);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+.ai-status.ok {
+  background: color-mix(in srgb, #22c55e 12%, transparent);
+}
+.ai-status.bad {
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+}
+.ai-status ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}

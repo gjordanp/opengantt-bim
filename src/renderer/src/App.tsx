@@ -20,6 +20,8 @@ import CommandPalette, { type Command } from './CommandPalette'
 import Tooltip from './Tooltip'
 import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
+import AiImportDialog from './AiImportDialog'
+import type { AiPlanImport } from '@shared/aiPlan'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
 import { splitVolumes } from '@shared/bimVolume'
@@ -424,6 +426,22 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  // A schedule written by an AI assistant: the dialog reads the pasted answer, and confirming creates a new project.
+  const [aiImporting, setAiImporting] = useState(false)
+  const importAiPlan = async ({ data, warnings }: AiPlanImport): Promise<void> => {
+    setAiImporting(false)
+    if (!api) return
+    try {
+      await flush()
+      const id = await api.projects.create(data.name, { tasks: data.tasks, links: data.links })
+      await refreshList()
+      await openProject(id)
+      setNotice({ title: 'Proyecto creado con IA', message: describeImport(data, 'la respuesta de la IA', warnings) })
+    } catch (error) {
+      setNotice({ title: 'No se pudo importar', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
   const exportMsProject = async (): Promise<void> => {
     if (!api || !projectIdRef.current) return
     try {
@@ -632,6 +650,7 @@ export default function App(): React.JSX.Element {
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
           { id: 'help', section: 'Aplicación', label: 'Ayuda: guía de uso con dibujos', keywords: 'ayuda guia manual tutorial como se usa documentacion', run: () => setHelp('start') },
+          { id: 'ai-import', section: 'Proyectos', label: 'Importar con IA: crear un proyecto desde una respuesta de ChatGPT, Claude…', keywords: 'inteligencia artificial chatgpt claude gemini json prompt crear cronograma', run: () => setAiImporting(true) },
           { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project como proyecto nuevo (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
           ...(projectId ? [{ id: 'msp-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml importar sobrescribir', run: () => void replaceWithMsProject() }] : []),
           ...(projectId ? [{ id: 'msp-export', section: 'Proyectos', label: 'Exportar a MS Project (XML)…', keywords: 'microsoft project xml guardar', run: () => void exportMsProject() }] : []),
@@ -769,6 +788,7 @@ export default function App(): React.JSX.Element {
               onOpen={(id) => (id === projectId ? setView('workspace') : void openProject(id))}
               onCreate={createProject}
               onImportMsProject={importMsProject}
+              onImportAi={() => setAiImporting(true)}
               onRename={renameProject}
               onDuplicate={duplicateProject}
               onDelete={deleteProject}
@@ -782,6 +802,7 @@ export default function App(): React.JSX.Element {
         </div>
       </div>
 
+      {aiImporting && <AiImportDialog onImport={(plan) => void importAiPlan(plan)} onCancel={() => setAiImporting(false)} />}
       {pendingReplace && (
         <ConfirmDialog
           title="Reemplazar el Gantt"

@@ -11,6 +11,8 @@ interface Props {
   onCreate: (name: string, start: string, template: TemplateId) => void | Promise<void>
   /** Creates a project from an MS Project XML file the user picks. */
   onImportMsProject?: () => void | Promise<void>
+  /** Opens the dialog that creates a project from an AI assistant's answer. */
+  onImportAi?: () => void
   onRename: (id: string, name: string) => void | Promise<void>
   onDuplicate: (id: string) => void | Promise<void>
   onDelete: (id: string) => void | Promise<void>
@@ -172,7 +174,7 @@ function Card({
   )
 }
 
-export default function ProjectsHome({ projects, currentId, onOpen, onCreate, onImportMsProject, onRename, onDuplicate, onDelete }: Props): React.JSX.Element {
+export default function ProjectsHome({ projects, currentId, onOpen, onCreate, onImportMsProject, onImportAi, onRename, onDuplicate, onDelete }: Props): React.JSX.Element {
   const [creating, setCreating] = useState(false)
   const [filter, setFilter] = useState('')
   const shown = projects.filter((p) => p.name.toLowerCase().includes(filter.trim().toLowerCase()))
@@ -187,6 +189,11 @@ export default function ProjectsHome({ projects, currentId, onOpen, onCreate, on
         <div className="home-tools">
           {projects.length > 3 && (
             <input type="search" placeholder="Buscar proyecto…" value={filter} onChange={(e) => setFilter(e.target.value)} />
+          )}
+          {onImportAi && (
+            <Tooltip label="Crea un proyecto con la respuesta de una IA (ChatGPT, Claude, Gemini…)">
+              <button onClick={onImportAi}>Importar con IA…</button>
+            </Tooltip>
           )}
           {onImportMsProject && (
             <Tooltip label="Crea un proyecto desde un archivo de MS Project (.mpp o XML)">
