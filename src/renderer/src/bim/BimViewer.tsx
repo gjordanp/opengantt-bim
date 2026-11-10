@@ -251,7 +251,7 @@ export default function BimViewer({
     const A = OBF.PostproductionAspect
     pp.style = v.edges ? A.COLOR_PEN : A.COLOR
     pp.smaaEnabled = v.antialiasing
-    pp.msaaEnabled = false
+    pp.msaaEnabled = v.msaa
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
     renderer.cssSize = false
     pp.edgesPass.color = new THREE.Color(v.edgeColor)
@@ -265,7 +265,7 @@ export default function BimViewer({
   useEffect(() => {
     applyLook()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.edges, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
+  }, [viewer.edges, viewer.antialiasing, viewer.msaa, viewer.adaptive, viewer.edgeColor])
   useEffect(() => {
     if (!viewer.hover) clearHoverRef.current()
   }, [viewer.hover])
