@@ -76,7 +76,6 @@ export default function ViewerSettingsMenu({ settings, onChange }: { settings: V
             <div className="menu-sep" />
             <div className="menu-title">Calidad</div>
             <SwitchRow label="Suavizado de bordes" hint="Quita los dientes de sierra en líneas y aristas" on={settings.antialiasing} onToggle={() => onChange({ ...settings, antialiasing: !settings.antialiasing })} />
-            <SwitchRow label="Multimuestreo (MSAA)" hint="Alternativa de suavizado: solo afecta la geometría y gasta más memoria" on={settings.msaa} onToggle={() => onChange({ ...settings, msaa: !settings.msaa })} />
             <SwitchRow label="Mantener la fluidez" hint="Baja la resolución sola cuando el modelo es pesado y se entrecorta" on={settings.adaptive} onToggle={() => onChange({ ...settings, adaptive: !settings.adaptive })} />
           </div>,
           document.body

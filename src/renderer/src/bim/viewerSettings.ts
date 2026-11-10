@@ -6,8 +6,6 @@ export interface ViewerSettings {
   hover: boolean
   /** Smoothing of jagged edges (SMAA). */
   antialiasing: boolean
-  /** Multisampling (MSAA): smooths geometry edges only, costs memory; to compare with SMAA. */
-  msaa: boolean
   /** Lowers the resolution by itself when the frame rate drops (heavy models). */
   adaptive: boolean
   /** Color of the edge lines, as #rrggbb. */
@@ -24,7 +22,7 @@ export const ELEMENT_COLORS = ['#e5e7eb', '#cbd5e1', '#fde68a', '#bbf7d0', '#bae
 
 export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
 
-export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, antialiasing: true, msaa: false, adaptive: false, edgeColor: '#7a7a7a', modelColors: true, elementColor: '#e5e7eb' }
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, antialiasing: true, adaptive: false, edgeColor: '#7a7a7a', modelColors: true, elementColor: '#e5e7eb' }
 
 
 /** Camera-controls smoothing, in seconds: almost direct, so orbiting follows the mouse without lag. */
@@ -49,7 +47,6 @@ export function loadViewerSettings(): ViewerSettings {
       edges: flag(raw.edges, d.edges),
       hover: flag(raw.hover, d.hover),
       antialiasing: flag(raw.antialiasing, d.antialiasing),
-      msaa: flag(raw.msaa, d.msaa),
       adaptive: flag(raw.adaptive, d.adaptive),
       edgeColor: isHex(raw.edgeColor) ? raw.edgeColor : d.edgeColor,
       modelColors: flag(raw.modelColors, d.modelColors),
