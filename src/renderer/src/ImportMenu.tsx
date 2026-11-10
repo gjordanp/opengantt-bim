@@ -58,7 +58,7 @@ export default function ImportMenu({ onMsProject, onAi }: Props): React.JSX.Elem
         pos &&
         createPortal(
           <div className="menu-pop import-pop" role="menu" aria-label="Importar un cronograma" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
-            <div className="menu-title">Reemplazar este Gantt con…</div>
+            <div className="menu-title">Importar y reemplazar desde…</div>
             <button type="button" role="menuitem" className="menu-item import-item" onClick={pick(onMsProject)}>
               <FileSpreadsheet size={16} />
               <span>
