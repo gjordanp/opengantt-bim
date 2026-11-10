@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Check, ClipboardList, Eye, Info, Layers, Plus, Search, Trash2, Upload, X } from 'lucide-react'
+import { Box, Check, ClipboardList, Eye, EyeOff, Info, Layers, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
+import EllipsisText from '../EllipsisText'
 import { roundValue } from '@shared/formatValue'
 import ConfirmDialog from '../ConfirmDialog'
 import { useTheme } from '../theme'
@@ -200,6 +201,25 @@ function describeElements(els: BimElement[]): string {
 }
 
 /** What defines a saved group, in words. */
+/** What a group collects, in a few words: "Piso = 01-Planta Fundaciones · Ciclo = 01". Redundant "is defined" rules are left out. */
+function describeGroupShort(group: BimGroup): string {
+  const manual = group.manualInclude.length
+  const rules = group.query.rules
+  if (rules.length === 0) return manual > 0 ? `${manual} a mano` : 'Sin criterio'
+  const OP_SHORT: Partial<Record<RuleOp, string>> = { eq: '=', neq: '≠', gt: '>', gte: '≥', lt: '<', lte: '≤', contains: 'contiene', notContains: 'no contiene', startsWith: 'empieza con', in: 'en', exists: 'definido', notExists: 'sin definir' }
+  const parts = (rs: (Rule | Query)[], op: 'and' | 'or'): string =>
+    rs
+      // "Ciclo is defined" says nothing once the same rules also pin its value.
+      .filter((r) => 'rules' in r || r.op !== 'exists' || !rs.some((o) => !('rules' in o) && o !== r && o.field === r.field && o.op !== 'exists'))
+      .map((r) => {
+        if ('rules' in r) return `(${parts(r.rules, r.op)})`
+        const v = Array.isArray(r.value) ? r.value.join(', ') : r.value
+        return needsValue(r.op) ? `${shortLabel(r.field)} ${OP_SHORT[r.op] ?? opLabel(r.op)} ${v}` : `${shortLabel(r.field)} ${OP_SHORT[r.op] ?? opLabel(r.op)}`
+      })
+      .join(op === 'and' ? ' · ' : ' o ')
+  return `${parts(rules, group.query.op)}${manual ? ` + ${manual} a mano` : ''}`
+}
+
 function describeGroup(group: BimGroup): string {
   const manual = group.manualInclude.length
   if (group.query.rules.length === 0) return manual > 0 ? 'Selección manual' : 'Sin criterio'
@@ -393,6 +413,9 @@ export default function BimViewer({
   const [isolate, setIsolate] = useState(false)
   const [groupName, setGroupName] = useState('')
   const [splitFields, setSplitFields] = useState<string[]>([])
+  // Groups whose elements are outlined in the 3D view (the "Ver" button of a group card).
+  const [viewed, setViewed] = useState<Set<string>>(new Set())
+  const outlinedRef = useRef<Set<string>>(new Set())
   const [groupSource, setGroupSource] = useState<'selection' | 'search'>('selection')
   const [groupColor, setGroupColor] = useState<string | null>(null)
 
@@ -885,6 +908,43 @@ export default function BimViewer({
     if (!only && fields === splitFields) setSplitFields([])
     say(only ? `Grupo «${made[0].name}» creado con ${plural(only[0].count, 'elemento', 'elementos')}` : `${plural(made.length, 'grupo creado', 'grupos creados')} por ${fields.map(shortLabel).join(' × ')}`)
   }
+
+  const toggleViewed = (id: string): void =>
+    setViewed((v) => {
+      const next = new Set(v)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  // Keep the 3D outlines in step with the groups being viewed (their elements, color, and what is left of them after deleting or editing).
+  useEffect(() => {
+    const outliner = outlinerRef.current
+    if (!outliner) return
+    let stale = false
+    void (async () => {
+      const wanted = new Set<string>()
+      for (const id of viewed) {
+        const group = bim.groups.find((g) => g.id === id)
+        if (!group) continue
+        wanted.add(id)
+        const name = `grp-${id}`
+        const config = { color: new THREE.Color(group.color), fillColor: new THREE.Color(group.color), fillOpacity: 0.18, thickness: 3, priority: 0 }
+        if (outliner.list().includes(name)) outliner.configure(name, config)
+        else outliner.create(name, config)
+        const guids = resolveGroup(group, elements)
+        const byModel: Record<string, Set<number>> = {}
+        for (const el of elements) if (guids.has(el.guid)) (byModel[el.modelId] ??= new Set()).add(el.localId)
+        outliner.clean(name)
+        if (stale) return
+        if (Object.keys(byModel).length > 0) await outliner.addItems(byModel, name)
+      }
+      for (const id of outlinedRef.current) if (!wanted.has(id)) outliner.remove(`grp-${id}`)
+      outlinedRef.current = wanted
+    })()
+    return () => {
+      stale = true
+    }
+  }, [viewed, bim.groups, elements])
 
   /** The preview of a split (a matrix for two parameters, a list otherwise) and its create button. */
   const renderSplit = (sp: SplitResult | null, fields: string[]): React.JSX.Element => (
@@ -1558,36 +1618,36 @@ export default function BimViewer({
       {bim.groups.map((group) => {
         const count = resolveGroup(group, elements).size
         const assigned = !!link?.groupIds.includes(group.id)
+        const shown = viewed.has(group.id)
         return (
           <div key={group.id} className="bim-group-card">
             <div className="bim-group-top">
               <span className="bim-swatch" style={{ background: group.color }} />
-              <span className="bim-group-name">
-                <b>{group.name}</b> <span className="bim-muted">· {plural(count, 'elemento', 'elementos')}</span>
-              </span>
-              <Tooltip label="Eliminar el grupo">
+              <EllipsisText className="bim-group-title" text={group.name} />
+              <span className="bim-muted bim-group-count">{count}</span>
+              <Tooltip label={shown ? 'Quitar el contorno del modelo' : 'Marcar el contorno en el modelo'} side="top">
+                <button className={`icon-btn${shown ? ' active' : ''}`} aria-label={`Ver ${group.name}`} aria-pressed={shown} onClick={() => toggleViewed(group.id)}>
+                  {shown ? <Eye size={14} /> : <EyeOff size={14} />}
+                </button>
+              </Tooltip>
+              <Tooltip label="Eliminar el grupo" side="top">
                 <button className="icon-btn" aria-label={`Eliminar ${group.name}`} onClick={() => setPendingRemoval({ kind: 'group', id: group.id, name: group.name })}>
                   <Trash2 size={14} />
                 </button>
               </Tooltip>
             </div>
-            <span className="bim-muted bim-group-desc">{describeGroup(group)}</span>
-            <div className="bim-group-actions">
-              <button onClick={() => selectGuids(resolveGroup(group, elements), group.name)}>
-                <Eye size={13} /> Ver
-              </button>
-              {task &&
-                (assigned ? (
-                  <button onClick={() => setLinks(removeGroupFromTask(links, task.id, group.id))}>
-                    <Check size={13} /> En «{task.text}» · quitar
-                  </button>
-                ) : (
-                  <button className="primary" onClick={() => setLinks(addGroupToTask(links, task.id, group.id))}>
-                    Asignar a «{task.text}»
-                  </button>
-                ))}
-              {!task && <span className="bim-muted">Elige una tarea para asignarlo</span>}
-            </div>
+            {/* Groups made by crossing parameters are named after their own criteria: no need to say it twice. */}
+            {describeGroupShort(group).replace(/ = /g, ' ') !== group.name && <EllipsisText className="bim-muted bim-group-desc" text={describeGroupShort(group)} />}
+            {task &&
+              (assigned ? (
+                <button className="bim-group-assign" onClick={() => setLinks(removeGroupFromTask(links, task.id, group.id))}>
+                  <Check size={13} /> <EllipsisText text={`En «${task.text}» · quitar`} />
+                </button>
+              ) : (
+                <button className="primary bim-group-assign" onClick={() => setLinks(addGroupToTask(links, task.id, group.id))}>
+                  <EllipsisText text={`Asignar a «${task.text}»`} />
+                </button>
+              ))}
           </div>
         )
       })}
@@ -1630,7 +1690,7 @@ export default function BimViewer({
                     panelRefs.current[id] = el
                   }}
                   className="bim-tool-panel"
-                  style={{ left: pos.x, top: pos.y, zIndex: 10 + i, maxHeight: Math.max(160, overlaySize.h - 24) }}
+                  style={{ left: pos.x, top: pos.y, zIndex: 10 + i, maxWidth: Math.max(260, overlaySize.w - pos.x - 8), maxHeight: Math.max(160, overlaySize.h - pos.y - 8) }}
                   role="dialog"
                   aria-label={def.label}
                   onPointerDown={() => raiseTool(id)}

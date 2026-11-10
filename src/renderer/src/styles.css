@@ -2685,3 +2685,60 @@ kbd {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Group cards: compact, one line each, text cut with a tooltip */
+.ellipsis-host {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.ellipsis-host .tt {
+  min-width: 0;
+  max-width: 100%;
+}
+.ellipsis {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bim-group-card {
+  gap: 4px;
+  padding: 8px 10px;
+}
+.bim-group-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+.bim-group-count {
+  flex: none;
+  font-size: 12px;
+}
+.bim-group-top .icon-btn.active {
+  background: color-mix(in srgb, #8b5cf6 18%, transparent);
+  color: #7c3aed;
+}
+.bim-group-card .bim-group-desc {
+  padding-left: 16px;
+}
+.bim-group-assign {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 12px;
+  align-self: stretch;
+  overflow: hidden;
+}
+.bim-group-assign .ellipsis-host {
+  flex: 1;
+}
+/* The floating windows can be resized from their lower right corner. */
+.bim-tool-panel {
+  resize: both;
+  min-width: 260px;
+  min-height: 120px;
+  max-width: calc(100vw - 32px);
+}

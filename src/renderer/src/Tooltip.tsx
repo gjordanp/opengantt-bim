@@ -6,13 +6,15 @@ interface Props {
   /** Optional shortcut shown next to the label, e.g. "Ctrl+Z". */
   shortcut?: string
   side?: 'top' | 'bottom' | 'left'
+  /** Keeps the tooltip from showing (e.g. when the text it repeats is fully visible). */
+  disabled?: boolean
   children: React.ReactNode
 }
 
 const SHOW_DELAY_MS = 400
 
 /** A small dark tooltip with a delay, in place of the browser's native one. Shows on hover and on keyboard focus. */
-export default function Tooltip({ label, shortcut, side = 'bottom', children }: Props): React.JSX.Element {
+export default function Tooltip({ label, shortcut, side = 'bottom', disabled, children }: Props): React.JSX.Element {
   const host = useRef<HTMLSpanElement>(null)
   const timer = useRef<number | undefined>(undefined)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -23,6 +25,7 @@ export default function Tooltip({ label, shortcut, side = 'bottom', children }: 
   }
   const show = (): void => {
     window.clearTimeout(timer.current)
+    if (disabled) return
     timer.current = window.setTimeout(() => {
       const r = host.current?.getBoundingClientRect()
       if (!r) return
