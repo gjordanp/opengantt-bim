@@ -31,7 +31,7 @@ import {
 } from '@shared/bimGroups'
 import { phasesAt, spanRange, type TaskSpan } from '@shared/bim4d'
 import { fromDay } from '@shared/scheduling'
-import { indexModel } from './indexModel'
+import { indexModel, readProps, readSlice } from './indexModel'
 
 /** Where each part of the BIM UI is drawn: the dock panels hand their elements over. */
 export interface BimSlots {
@@ -355,6 +355,7 @@ export default function BimViewer({
   }
   const [elements, setElements] = useState<BimElement[]>([])
   const [selected, setSelected] = useState<Selected | null>(null)
+  const [propFilter, setPropFilter] = useState('')
   // Everything picked in the 3D view (Ctrl/Shift+click adds or removes); `selected` is the last one clicked, with its attributes.
   const [picked, setPicked] = useState<BimElement[]>([])
   const pickedRef = useRef<BimElement[]>([])
@@ -477,10 +478,13 @@ export default function BimViewer({
         }
         return
       }
-      const [data] = await hit.model.getItemsData([hit.localId], { attributesDefault: true })
-      const rows = flatten((data ?? {}) as Record<string, unknown>)
+      // Same read as the search index (attributes plus property sets, also those of the type), so the panel shows all of them.
+      const [data] = await readSlice(hit.model, [hit.localId])
+      const rec = (data ?? {}) as Record<string, unknown>
+      const rows = flatten(rec)
+      const found = readProps(rec)
       const known = elementsRef.current.find((el) => el.modelId === hit.model.modelId && el.localId === hit.localId)
-      const element: BimElement = known ?? {
+      const element: BimElement = known ? { ...known, props: Object.keys(found).length > 0 ? found : known.props } : {
           modelId: hit.model.modelId,
           localId: hit.localId,
           guid: rows.find(([k]) => k === '_guid')?.[1] ?? '',
@@ -965,6 +969,36 @@ export default function BimViewer({
     </div>
   )
 
+  // The selected element's properties in groups: general data, attributes, then each property set.
+  const propGroups = useMemo(() => {
+    if (!selected) return []
+    const el = selected.element
+    const groups: { title: string; rows: [string, string][] }[] = [
+      {
+        title: 'General',
+        rows: [
+          ['Clase', el.category],
+          ...(el.storey ? ([['Piso', el.storey]] as [string, string][]) : []),
+          ['GlobalId', el.guid],
+          ...(el.volume ? ([['Volumen', `${el.volume.toFixed(3)} m³`]] as [string, string][]) : [])
+        ]
+      },
+      { title: 'Atributos', rows: selected.attributes }
+    ]
+    const sets = new Map<string, [string, string][]>()
+    for (const [key, value] of Object.entries(el.props ?? {})) {
+      if (key.startsWith('Atributos.')) continue
+      const dot = key.indexOf('.')
+      const set = dot < 0 ? 'Otras' : key.slice(0, dot)
+      sets.set(set, [...(sets.get(set) ?? []), [dot < 0 ? key : key.slice(dot + 1), value]])
+    }
+    for (const [title, rows] of sets) groups.push({ title, rows })
+    const q = propFilter.trim().toLowerCase()
+    return groups
+      .map((g) => ({ ...g, rows: g.rows.filter(([k, v]) => v !== '' && (!q || k.toLowerCase().includes(q) || v.toLowerCase().includes(q) || g.title.toLowerCase().includes(q))) }))
+      .filter((g) => g.rows.length > 0)
+  }, [selected, propFilter])
+
   const propsUi = selected ? (
     <div className="panel-body bim-props">
       <div className="bim-props-head">
@@ -998,24 +1032,23 @@ export default function BimViewer({
           ))}
         </div>
       )}
-      <dl>
-        <dt>Clase</dt>
-        <dd>{selected.element.category}</dd>
-        {selected.element.storey && (
-          <>
-            <dt>Piso</dt>
-            <dd>{selected.element.storey}</dd>
-          </>
-        )}
-        <dt>GlobalId</dt>
-        <dd>{selected.element.guid}</dd>
-        {selected.attributes.map(([k, v]) => (
-          <div key={k}>
-            <dt>{k}</dt>
-            <dd>{v}</dd>
-          </div>
-        ))}
-      </dl>
+      {propGroups.length > 0 && (
+        <input type="search" className="bim-props-filter" placeholder="Filtrar propiedades…" value={propFilter} onChange={(e) => setPropFilter(e.target.value)} aria-label="Filtrar propiedades" />
+      )}
+      {propGroups.map((g) => (
+        <section key={g.title} className="bim-props-set">
+          <h4>{g.title}</h4>
+          <dl>
+            {g.rows.map(([k, v]) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
+      {propGroups.length === 0 && propFilter && <div className="bim-muted">Ninguna propiedad coincide con «{propFilter}».</div>}
     </div>
   ) : (
     <div className="panel-body bim-muted">Haz clic en un elemento del visor para ver sus propiedades.</div>

@@ -30,7 +30,7 @@ function addSet(set: Record<string, unknown>, out: Record<string, string>): void
 }
 
 /** Attributes and property sets of an element (and of its type), from `getItemsData` with its relations. */
-function readProps(rec: Record<string, unknown>): Record<string, string> {
+export function readProps(rec: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {}
   for (const a of ATTRIBUTES) {
     const v = str(rec[a])
@@ -104,7 +104,7 @@ export async function indexModel(model: FRAGS.FragmentsModel): Promise<BimElemen
 }
 
 /** Name, attributes and property sets of a slice of elements; without the relations if the model won't give them. */
-async function readSlice(model: FRAGS.FragmentsModel, slice: number[]): Promise<unknown[]> {
+export async function readSlice(model: FRAGS.FragmentsModel, slice: number[]): Promise<unknown[]> {
   try {
     return await model.getItemsData(slice, {
       attributesDefault: true,
