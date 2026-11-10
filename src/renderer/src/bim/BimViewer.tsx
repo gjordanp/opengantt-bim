@@ -2,6 +2,7 @@ import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 import { createPortal } from 'react-dom'
 import { Box, Check, ClipboardList, Eye, Info, Layers, Plus, Search, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
+import { roundValue } from '@shared/formatValue'
 import ConfirmDialog from '../ConfirmDialog'
 import { useTheme } from '../theme'
 import SuggestInput from '../SuggestInput'
@@ -142,6 +143,17 @@ function describeRules(rules: (Rule | Query)[], match: 'and' | 'or'): string {
 interface Selected {
   element: BimElement
   attributes: [string, string][]
+}
+
+/** A property value: numbers show rounded to 3 decimals, and the full value appears in a tooltip. */
+function PropValue({ value }: { value: string }): React.JSX.Element {
+  const shown = roundValue(value)
+  if (shown === value) return <>{value}</>
+  return (
+    <Tooltip label={value} side="top">
+      <span className="bim-rounded">{shown}</span>
+    </Tooltip>
+  )
 }
 
 function flatten(data: Record<string, unknown>): [string, string][] {
@@ -980,7 +992,7 @@ export default function BimViewer({
           ['Clase', el.category],
           ...(el.storey ? ([['Piso', el.storey]] as [string, string][]) : []),
           ['GlobalId', el.guid],
-          ...(el.volume ? ([['Volumen', `${el.volume.toFixed(3)} m³`]] as [string, string][]) : [])
+          ...(el.volume ? ([['Volumen (m³)', String(el.volume)]] as [string, string][]) : [])
         ]
       },
       { title: 'Atributos', rows: selected.attributes }
@@ -1042,7 +1054,9 @@ export default function BimViewer({
             {g.rows.map(([k, v]) => (
               <div key={k}>
                 <dt>{k}</dt>
-                <dd>{v}</dd>
+                <dd>
+                  <PropValue value={v} />
+                </dd>
               </div>
             ))}
           </dl>
