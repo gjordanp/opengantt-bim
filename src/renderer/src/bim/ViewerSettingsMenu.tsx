@@ -22,7 +22,7 @@ function ColorRow({ label, value, colors, onPick }: { label: string; value: stri
   )
 }
 
-/** The "Configuración" button of the 3D view: edges, shadows, hover outline and quality. */
+/** The "Configuración" button of the 3D view: edges, colors, hover outline and quality. */
 export default function ViewerSettingsMenu({ settings, onChange }: { settings: ViewerSettings; onChange: (next: ViewerSettings) => void }): React.JSX.Element {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
@@ -67,7 +67,6 @@ export default function ViewerSettingsMenu({ settings, onChange }: { settings: V
           <div className="menu-pop viewer-settings-pop" role="dialog" aria-label="Configuración del visor" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
             <div className="menu-title">Apariencia</div>
             <SwitchRow label="Bordes de los elementos" hint="Líneas que marcan las aristas, como un dibujo" on={settings.edges} onToggle={() => onChange({ ...settings, edges: !settings.edges })} />
-            <SwitchRow label="Sombras" hint="Oscurece las esquinas y huecos donde se juntan las superficies" on={settings.shadows} onToggle={() => onChange({ ...settings, shadows: !settings.shadows })} />
             <SwitchRow label="Resaltar al pasar el mouse" hint="Marca el contorno del elemento bajo el cursor" on={settings.hover} onToggle={() => onChange({ ...settings, hover: !settings.hover })} />
             <div className="menu-sep" />
             <div className="menu-title">Colores</div>

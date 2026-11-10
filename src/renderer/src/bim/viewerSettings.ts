@@ -4,8 +4,6 @@ export interface ViewerSettings {
   edges: boolean
   /** Outline the element under the cursor. */
   hover: boolean
-  /** Ambient occlusion: soft contact shadows where surfaces meet. */
-  shadows: boolean
   /** Smoothing of jagged edges (SMAA). */
   antialiasing: boolean
   /** Lowers the resolution by itself when the frame rate drops (heavy models). */
@@ -24,11 +22,8 @@ export const ELEMENT_COLORS = ['#e5e7eb', '#cbd5e1', '#fde68a', '#bbf7d0', '#bae
 
 export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
 
-export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, shadows: true, antialiasing: true, adaptive: false, edgeColor: '#475569', modelColors: true, elementColor: '#e5e7eb' }
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, antialiasing: true, adaptive: false, edgeColor: '#475569', modelColors: true, elementColor: '#e5e7eb' }
 
-
-/** Ambient-occlusion parameters, on top of the library's defaults. */
-export const SHADOW_PARAMS = { radius: 0.2, scale: 1.1 }
 
 /** Camera-controls smoothing, in seconds: almost direct, so orbiting follows the mouse without lag. */
 export const CAMERA_FEEL = { smoothTime: 0.03, draggingSmoothTime: 0.008 }
@@ -51,7 +46,6 @@ export function loadViewerSettings(): ViewerSettings {
     return {
       edges: flag(raw.edges, d.edges),
       hover: flag(raw.hover, d.hover),
-      shadows: flag(raw.shadows, d.shadows),
       antialiasing: flag(raw.antialiasing, d.antialiasing),
       adaptive: flag(raw.adaptive, d.adaptive),
       edgeColor: isHex(raw.edgeColor) ? raw.edgeColor : d.edgeColor,

@@ -9,7 +9,7 @@ import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as OBF from '@thatopen/components-front'
 import ViewerSettingsMenu from './ViewerSettingsMenu'
-import { CAMERA_FEEL, SHADOW_PARAMS, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
+import { CAMERA_FEEL, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
@@ -240,7 +240,7 @@ export default function BimViewer({
   const outlinerRef = useRef<OBF.Outliner | null>(null)
   const clearHoverRef = useRef<() => void>(() => undefined)
 
-  // Look of the view, from the postproduction pipeline: pen-line edges, ambient-occlusion shadows and anti-aliasing.
+  // Look of the view, from the postproduction pipeline: pen-line edges and anti-aliasing.
   // Applied once when the view is created and again whenever a setting changes (the effect below runs before the view exists on first render).
   const applyLook = (): void => {
     const world = worldRef.current
@@ -249,8 +249,7 @@ export default function BimViewer({
     if (!world || !renderer || !pp) return
     const v = viewerRef.current
     const A = OBF.PostproductionAspect
-    pp.style = v.edges ? (v.shadows ? A.COLOR_PEN_SHADOWS : A.COLOR_PEN) : v.shadows ? A.COLOR_SHADOWS : A.COLOR
-    if (v.shadows) pp.aoPass.updateGtaoMaterial({ ...pp.defaultAoParameters, ...SHADOW_PARAMS })
+    pp.style = v.edges ? A.COLOR_PEN : A.COLOR
     pp.smaaEnabled = v.antialiasing
     pp.msaaEnabled = false
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
@@ -266,7 +265,7 @@ export default function BimViewer({
   useEffect(() => {
     applyLook()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.edges, viewer.shadows, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
+  }, [viewer.edges, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
   useEffect(() => {
     if (!viewer.hover) clearHoverRef.current()
   }, [viewer.hover])
