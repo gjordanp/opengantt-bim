@@ -3,13 +3,15 @@ import { Bot, Check, Copy } from 'lucide-react'
 import { AI_PROMPT, parseAiPlan, type AiPlanImport } from '@shared/aiPlan'
 
 interface Props {
+  /** The plan will replace the open Gantt instead of creating a project. */
+  replacing?: boolean
   /** Called with the parsed plan when the user confirms. */
   onImport: (plan: AiPlanImport) => void
   onCancel: () => void
 }
 
 /** Two steps: copy the prompt into any AI chat, then paste its JSON answer back. */
-export default function AiImportDialog({ onImport, onCancel }: Props): React.JSX.Element {
+export default function AiImportDialog({ replacing, onImport, onCancel }: Props): React.JSX.Element {
   const [answer, setAnswer] = useState('')
   const [copied, setCopied] = useState(false)
 
@@ -49,7 +51,7 @@ export default function AiImportDialog({ onImport, onCancel }: Props): React.JSX
         <h2 id="ai-import-title">
           <Bot size={18} /> Importar con IA
         </h2>
-        <p className="muted">Describe tu proyecto a un asistente de IA (ChatGPT, Claude, Gemini…) y pega aquí su respuesta para crear el cronograma.</p>
+        <p className="muted">Describe tu proyecto a un asistente de IA (ChatGPT, Claude, Gemini…) y pega aquí su respuesta para {replacing ? 'reemplazar el cronograma de este proyecto' : 'crear el cronograma'}.</p>
 
         <div className="ai-step">
           <div className="ai-step-head">
@@ -92,7 +94,7 @@ export default function AiImportDialog({ onImport, onCancel }: Props): React.JSX
             Cancelar
           </button>
           <button type="button" className="primary" disabled={!plan} onClick={() => plan && onImport(plan)}>
-            Crear proyecto
+            {replacing ? 'Continuar' : 'Crear proyecto'}
           </button>
         </div>
       </div>

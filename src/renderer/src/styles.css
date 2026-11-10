@@ -2508,3 +2508,27 @@ kbd {
   margin: 4px 0 0;
   padding-left: 18px;
 }
+
+.import-pop {
+  width: 300px;
+}
+.import-item {
+  height: auto;
+  gap: 10px;
+  padding: 8px;
+  align-items: flex-start;
+}
+.import-item svg {
+  margin-top: 2px;
+  flex: none;
+  color: var(--muted-foreground);
+}
+.import-item span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.import-item small {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}

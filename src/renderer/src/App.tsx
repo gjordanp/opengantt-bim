@@ -21,12 +21,13 @@ import Tooltip from './Tooltip'
 import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
 import AiImportDialog from './AiImportDialog'
+import ImportMenu from './ImportMenu'
 import type { AiPlanImport } from '@shared/aiPlan'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
 import { splitVolumes } from '@shared/bimVolume'
 import { countWorkDays, weekCalendar } from '@shared/scheduling'
-import { Activity, Box, CalendarDays, CircleHelp, FileInput, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
+import { Activity, Box, CalendarDays, CircleHelp, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import SCurvePanel from './SCurvePanel'
 import SCurveIcon from './SCurveIcon'
 import GanttSettingsMenu from './gantt/GanttSettingsMenu'
@@ -427,9 +428,11 @@ export default function App(): React.JSX.Element {
   }
 
   // A schedule written by an AI assistant: the dialog reads the pasted answer, and confirming creates a new project.
-  const [aiImporting, setAiImporting] = useState(false)
+  const [aiImporting, setAiImporting] = useState<false | 'new' | 'replace'>(false)
   const importAiPlan = async ({ data, warnings }: AiPlanImport): Promise<void> => {
+    const mode = aiImporting
     setAiImporting(false)
+    if (mode === 'replace') return setPendingReplace({ name: 'la respuesta de la IA', data, warnings }) // confirmed in the same dialog as MS Project
     if (!api) return
     try {
       await flush()
@@ -521,11 +524,7 @@ export default function App(): React.JSX.Element {
         </button>
       </Tooltip>
       <span className="sep" />
-      <Tooltip label="Reemplazar este Gantt con un archivo de MS Project (.mpp o XML)">
-        <button className="icon-btn" onClick={() => void replaceWithMsProject()} aria-label="Reemplazar con MS Project">
-          <FileInput size={16} />
-        </button>
-      </Tooltip>
+      <ImportMenu onMsProject={() => void replaceWithMsProject()} onAi={() => setAiImporting('replace')} />
       <Tooltip label="Curva S sobre el Gantt: avance planificado vs real">
         <button className={`icon-btn${showScurve ? ' active' : ''}`} onClick={() => setShowScurve((v) => !v)} aria-label="Curva S" aria-pressed={showScurve}>
           <SCurveIcon size={16} />
@@ -650,8 +649,9 @@ export default function App(): React.JSX.Element {
       ? [
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
           { id: 'help', section: 'Aplicación', label: 'Ayuda: guía de uso con dibujos', keywords: 'ayuda guia manual tutorial como se usa documentacion', run: () => setHelp('start') },
-          { id: 'ai-import', section: 'Proyectos', label: 'Importar con IA: crear un proyecto desde una respuesta de ChatGPT, Claude…', keywords: 'inteligencia artificial chatgpt claude gemini json prompt crear cronograma', run: () => setAiImporting(true) },
+          { id: 'ai-import', section: 'Proyectos', label: 'Importar con IA: crear un proyecto desde una respuesta de ChatGPT, Claude…', keywords: 'inteligencia artificial chatgpt claude gemini json prompt crear cronograma', run: () => setAiImporting('new') },
           { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project como proyecto nuevo (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
+          ...(projectId ? [{ id: 'ai-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con una respuesta de IA…', keywords: 'inteligencia artificial chatgpt claude gemini json importar sobrescribir', run: () => setAiImporting('replace') }] : []),
           ...(projectId ? [{ id: 'msp-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml importar sobrescribir', run: () => void replaceWithMsProject() }] : []),
           ...(projectId ? [{ id: 'msp-export', section: 'Proyectos', label: 'Exportar a MS Project (XML)…', keywords: 'microsoft project xml guardar', run: () => void exportMsProject() }] : []),
           ...(projectId ? [{ id: 'back', section: 'Proyectos', label: `Volver a «${projectName}»`, run: () => setView('workspace') }] : []),
@@ -788,7 +788,7 @@ export default function App(): React.JSX.Element {
               onOpen={(id) => (id === projectId ? setView('workspace') : void openProject(id))}
               onCreate={createProject}
               onImportMsProject={importMsProject}
-              onImportAi={() => setAiImporting(true)}
+              onImportAi={() => setAiImporting('new')}
               onRename={renameProject}
               onDuplicate={duplicateProject}
               onDelete={deleteProject}
@@ -802,7 +802,7 @@ export default function App(): React.JSX.Element {
         </div>
       </div>
 
-      {aiImporting && <AiImportDialog onImport={(plan) => void importAiPlan(plan)} onCancel={() => setAiImporting(false)} />}
+      {aiImporting && <AiImportDialog replacing={aiImporting === 'replace'} onImport={(plan) => void importAiPlan(plan)} onCancel={() => setAiImporting(false)} />}
       {pendingReplace && (
         <ConfirmDialog
           title="Reemplazar el Gantt"
