@@ -846,6 +846,7 @@ export default function App(): React.JSX.Element {
         onElementsChange={setBimElements}
         onSelectTask={(id) => ganttRef.current?.selectTask(id)}
         taskText={(id) => ganttRef.current?.taskText(id)}
+        taskLabel={(id) => ganttRef.current?.taskLabel(id)}
         getSpans={getSpans}
         scheduleVersion={scheduleVersion}
         projectId={api ? projectId : null}

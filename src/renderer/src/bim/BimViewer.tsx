@@ -75,6 +75,8 @@ interface Props {
   onElementsChange: (elements: BimElement[]) => void
   onSelectTask: (taskId: string) => void
   taskText: (taskId: string) => string | undefined
+  /** Row number and name ("T28-Ciclo 8"), the way the Nº column of the gantt numbers it. */
+  taskLabel: (taskId: string) => string | undefined
   /** Start/end of every task, for the 4D simulation. */
   getSpans: () => TaskSpan[]
   /** Changes whenever task dates may have changed, so the 4D range is read again. */
@@ -240,6 +242,7 @@ export default function BimViewer({
   onElementsChange,
   onSelectTask,
   taskText,
+  taskLabel,
   getSpans,
   scheduleVersion,
   projectId,
@@ -754,6 +757,8 @@ export default function BimViewer({
   const deleteSearch = (id: string): void => onBimChange({ ...bim, searches: savedSearches.filter((x) => x.id !== id) })
 
   // ---- task <-> elements ----
+  // The chosen task as the gantt numbers it ("T28-Ciclo 8"), wherever the panels name it.
+  const taskTitle = task ? (taskLabel(task.id) ?? task.text) : ''
   const link = task ? bim.links.find((l) => l.taskId === task.id) : undefined
   const taskSet = useMemo(() => taskGuids(link, bim.groups, elements), [link, bim.groups, elements])
   const selectedTasks = useMemo(
@@ -856,12 +861,12 @@ export default function BimViewer({
   const assignPicked = (): void => {
     if (!task || pickedGuids.length === 0) return
     setLinks(addElementsToTask(links, task.id, pickedGuids))
-    say(`${plural(pickedGuids.length, 'elemento asignado', 'elementos asignados')} a «${task.text}»`)
+    say(`${plural(pickedGuids.length, 'elemento asignado', 'elementos asignados')} a «${taskTitle}»`)
   }
   const unassignPicked = (): void => {
     if (!task) return
     setLinks(removeElementsFromTask(links, task.id, pickedGuids))
-    say(`${plural(pickedGuids.length, 'elemento quitado', 'elementos quitados')} de «${task.text}»`)
+    say(`${plural(pickedGuids.length, 'elemento quitado', 'elementos quitados')} de «${taskTitle}»`)
   }
   const clearPicked = (): void => {
     setPicked([])
@@ -1064,10 +1069,10 @@ export default function BimViewer({
             <div className="bim-selbar-actions">
               {task ? (
                 allPickedAssigned ? (
-                  <button onClick={unassignPicked}>Quitar de «{task.text}»</button>
+                  <button onClick={unassignPicked}>Quitar de «{taskTitle}»</button>
                 ) : (
                   <button className="primary" onClick={assignPicked}>
-                    Asignar a «{task.text}»
+                    Asignar a «{taskTitle}»
                   </button>
                 )
               ) : (
@@ -1234,7 +1239,7 @@ export default function BimViewer({
               disabled={!selected.element.guid}
               onClick={() => setLinks(addElementsToTask(links, task.id, [selected.element.guid]))}
             >
-              Asignar a «{task.text}»
+              Asignar a «{taskTitle}»
             </button>
           )}
         </div>
@@ -1244,7 +1249,7 @@ export default function BimViewer({
           Tareas:{' '}
           {selectedTasks.map((id) => (
             <button key={id} className="link" onClick={() => onSelectTask(id)}>
-              {taskText(id) ?? id}
+              {taskLabel(id) ?? taskText(id) ?? id}
             </button>
           ))}
         </div>
@@ -1478,12 +1483,12 @@ export default function BimViewer({
         <>
           <div className="bim-task-card">
             <span className="bim-muted">Tarea elegida en el Gantt</span>
-            <b>{task.text}</b>
+            <b>{taskTitle}</b>
             <span className="bim-task-total">
               {taskSet.size === 0 ? 'Sin elementos asignados' : `${plural(taskSet.size, 'elemento', 'elementos')} (se ven en verde)`}
             </span>
             {taskSet.size > 0 && (
-              <button onClick={() => selectGuids(taskSet, `«${task.text}»`)}>
+              <button onClick={() => selectGuids(taskSet, `«${taskTitle}»`)}>
                 <Eye size={13} /> Ver en el visor
               </button>
             )}
@@ -1545,7 +1550,7 @@ export default function BimViewer({
                 disabled={!query || results.length === 0}
                 onClick={() => {
                   setLinks(addElementsToTask(links, task.id, results.map((r) => r.guid)))
-                  say(`${plural(results.length, 'elemento asignado', 'elementos asignados')} a «${task.text}»`)
+                  say(`${plural(results.length, 'elemento asignado', 'elementos asignados')} a «${taskTitle}»`)
                 }}
               >
                 Asignar
@@ -1672,7 +1677,7 @@ export default function BimViewer({
                   <span className="bim-muted">Tareas:</span>
                   {tasksOfGroup(group.id, bim.links).map((id) => (
                     <button key={id} className="bim-task-chip" onClick={() => onSelectTask(id)}>
-                      {taskText(id) ?? id}
+                      {taskLabel(id) ?? taskText(id) ?? id}
                     </button>
                   ))}
                 </>
@@ -1681,11 +1686,11 @@ export default function BimViewer({
             {task &&
               (assigned ? (
                 <button className="bim-group-assign" onClick={() => setLinks(removeGroupFromTask(links, task.id, group.id))}>
-                  <Check size={13} /> <EllipsisText text={`En «${task.text}» · quitar`} />
+                  <Check size={13} /> <EllipsisText text={`En «${taskTitle}» · quitar`} />
                 </button>
               ) : (
                 <button className="primary bim-group-assign" onClick={() => assignGroup(group)}>
-                  <EllipsisText text={`Asignar a «${task.text}»`} />
+                  <EllipsisText text={`Asignar a «${taskTitle}»`} />
                 </button>
               ))}
           </div>
@@ -1699,7 +1704,7 @@ export default function BimViewer({
       {pendingAssign && task && (
         <ConfirmDialog
           title="La tarea ya tiene un grupo"
-          message={`«${task.text}» ya tiene asignado ${groupsOfTask(link, bim.groups)
+          message={`«${taskTitle}» ya tiene asignado ${groupsOfTask(link, bim.groups)
             .filter((g) => g.id !== pendingAssign.id)
             .map((g) => `${g.code} «${g.name}»`)
             .join(', ')}. ¿Asignarle también ${pendingAssign.code} «${pendingAssign.name}»? La tarea quedará con los elementos de todos sus grupos.`}

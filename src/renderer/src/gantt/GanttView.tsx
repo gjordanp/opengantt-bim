@@ -73,6 +73,8 @@ export interface GanttHandle {
   selectTask(id: string): void
   /** Name of a task, if it exists. */
   taskText(id: string): string | undefined
+  /** Row number and name, as in the Nº column: "T28-Ciclo 8". */
+  taskLabel(id: string): string | undefined
   /** Start and (exclusive) end of every task, in days since the epoch. */
   spans(): TaskSpan[]
   /** The detail tasks (no summaries or milestones) with their span and progress, for the S-curve. */
@@ -338,6 +340,13 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   useImperativeHandle(ref, () => ({
     undo: () => restore(historyRef.current.undo()),
     redo: () => restore(historyRef.current.redo()),
+    taskLabel: (id) => {
+      const gantt = ganttRef.current
+      if (!gantt || !gantt.isTaskExists(id)) return undefined
+      const num = rowNumbers(gantt).byId.get(String(id))
+      const text = String(gantt.getTask(id).text ?? '')
+      return num ? `T${num}-${text}` : text
+    },
     selectTask: (id) => {
       const gantt = ganttRef.current
       if (!gantt || !gantt.isTaskExists(id)) return
