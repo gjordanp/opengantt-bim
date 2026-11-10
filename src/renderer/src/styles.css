@@ -2588,3 +2588,47 @@ kbd {
 .dd-placeholder {
   color: var(--muted-foreground);
 }
+
+.bim-matrix-wrap {
+  max-width: 100%;
+  overflow: auto;
+  max-height: 260px;
+}
+.bim-matrix {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.bim-matrix th,
+.bim-matrix td {
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  text-align: center;
+  white-space: nowrap;
+}
+.bim-matrix thead th {
+  position: sticky;
+  top: 0;
+  background: var(--muted);
+}
+.bim-matrix tbody th {
+  position: sticky;
+  left: 0;
+  background: var(--muted);
+  text-align: left;
+}
+.bim-matrix-cell {
+  min-width: 28px;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: color-mix(in srgb, #8b5cf6 16%, transparent);
+  font-weight: 600;
+  cursor: pointer;
+}
+.bim-matrix-cell:hover {
+  background: color-mix(in srgb, #8b5cf6 32%, transparent);
+}
+.bim-matrix-empty {
+  color: var(--muted-foreground);
+}

@@ -71,4 +71,9 @@ describe('splitBy', () => {
     expect(r.groups).toEqual([])
     expect(r.skipped).toBe(6)
   })
+
+  it('lists the values of each field as the axes of a matrix', () => {
+    const { axes } = splitBy(walls, elements, ['Ubicación.Ciclo', 'Ubicación.Nivel'], label)
+    expect(axes).toEqual([['01', '02'], ['2', '10']])
+  })
 })

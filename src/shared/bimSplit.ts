@@ -10,6 +10,8 @@ export interface SplitGroup {
 }
 
 export interface SplitResult {
+  /** The distinct values of each field among the results, in order (the rows and columns of a matrix). */
+  axes: string[][]
   groups: SplitGroup[]
   /** Elements of the search that have no value in one of the fields, so they belong to no group. */
   skipped: number
@@ -22,7 +24,12 @@ const norm = (s: string): string => s.trim().toLowerCase()
  * With "Ciclo" and "Nivel" that is "Ciclo 01 · Nivel 3", "Ciclo 01 · Nivel 4", "Ciclo 02 · Nivel 3"…
  * Each group's query is the search plus one "is equal to" condition per field, so it keeps following the model.
  */
-export function splitBy(base: Query, elements: BimElement[], fields: RuleField[], labelOf: (field: RuleField) => string): SplitResult {
+export function splitBy(
+  base: Query,
+  elements: BimElement[],
+  fields: RuleField[],
+  labelOf: (field: RuleField) => string
+): SplitResult {
   const found = new Map<string, { values: string[]; count: number }>()
   let skipped = 0
   for (const el of evaluate(base, elements)) {
@@ -39,6 +46,14 @@ export function splitBy(base: Query, elements: BimElement[], fields: RuleField[]
   }
 
   const collator = new Intl.Collator('es', { numeric: true, sensitivity: 'base' })
+
+  // The values of each field, once each (first spelling wins), in natural order.
+  const axes = fields.map((_, i) => {
+    const seen = new Map<string, string>()
+    for (const { values } of found.values()) if (!seen.has(norm(values[i]))) seen.set(norm(values[i]), values[i])
+    return [...seen.values()].sort((a, b) => collator.compare(a, b))
+  })
+
   const groups = [...found.values()]
     .sort((a, b) => {
       for (let i = 0; i < fields.length; i++) {
@@ -58,5 +73,5 @@ export function splitBy(base: Query, elements: BimElement[], fields: RuleField[]
         count
       }
     })
-  return { groups, skipped }
+  return { axes, groups, skipped }
 }

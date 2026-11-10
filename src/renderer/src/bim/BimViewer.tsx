@@ -15,7 +15,7 @@ import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
 import workerUrl from '@thatopen/fragments/worker?url'
-import { splitBy } from '@shared/bimSplit'
+import { splitBy, type SplitGroup } from '@shared/bimSplit'
 import { evaluate, facets, propertyKeys, type BimElement, type Query, type Rule, type RuleField, type RuleOp } from '@shared/bimQuery'
 import {
   addElementsToTask,
@@ -845,9 +845,11 @@ export default function BimViewer({
   const MAX_SPLIT = 200
   const shortLabel = (field: string): string => BUILTIN_LABELS[field] ?? field.slice(field.indexOf('.') + 1)
   const split = useMemo(() => (query && splitFields.length > 0 ? splitBy(query, elements, splitFields, shortLabel) : null), [query, elements, splitFields])
-  const saveSplit = (): void => {
-    if (!split || split.groups.length === 0 || split.groups.length > MAX_SPLIT) return
-    const made: BimGroup[] = split.groups.map((s, i) => ({
+  /** Creates the groups of the split: all of them, or only the given ones (a cell of the matrix). */
+  const saveSplit = (only?: SplitGroup[]): void => {
+    const chosen = only ?? split?.groups ?? []
+    if (chosen.length === 0 || chosen.length > MAX_SPLIT) return
+    const made: BimGroup[] = chosen.map((s, i) => ({
       id: newId(),
       name: s.name,
       color: GROUP_COLORS[(bim.groups.length + i) % GROUP_COLORS.length],
@@ -856,8 +858,8 @@ export default function BimViewer({
       manualExclude: []
     }))
     onBimChange({ ...bim, groups: [...bim.groups, ...made] })
-    setSplitFields([])
-    say(`${plural(made.length, 'grupo creado', 'grupos creados')} por ${splitFields.map(shortLabel).join(' × ')}`)
+    if (!only) setSplitFields([])
+    say(only ? `Grupo «${made[0].name}» creado con ${plural(only[0].count, 'elemento', 'elementos')}` : `${plural(made.length, 'grupo creado', 'grupos creados')} por ${splitFields.map(shortLabel).join(' × ')}`)
   }
 
   const selectionBar =
@@ -1378,21 +1380,64 @@ export default function BimViewer({
                     ) : (
                       <>
                         <b>{plural(split.groups.length, 'grupo', 'grupos')}</b>
-                        <ul>
-                          {split.groups.slice(0, 6).map((g) => (
-                            <li key={g.name}>
-                              {g.name} <span className="bim-muted">· {plural(g.count, 'elemento', 'elementos')}</span>
-                            </li>
-                          ))}
-                          {split.groups.length > 6 && <li className="bim-muted">…y {split.groups.length - 6} más</li>}
-                        </ul>
+                        {splitFields.length === 2 ? (
+                          <>
+                            <div className="bim-matrix-wrap">
+                              <table className="bim-matrix">
+                                <thead>
+                                  <tr>
+                                    <th>
+                                      {shortLabel(splitFields[0])} ↓ · {shortLabel(splitFields[1])} →
+                                    </th>
+                                    {split.axes[1].map((c) => (
+                                      <th key={c}>{c}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {split.axes[0].map((r) => (
+                                    <tr key={r}>
+                                      <th>{r}</th>
+                                      {split.axes[1].map((c) => {
+                                        const cell = split.groups.find((g) => g.values[0].trim().toLowerCase() === r.trim().toLowerCase() && g.values[1].trim().toLowerCase() === c.trim().toLowerCase())
+                                        return (
+                                          <td key={c}>
+                                            {cell ? (
+                                              <Tooltip label={`Crear solo «${cell.name}»`} side="top">
+                                                <button className="bim-matrix-cell" onClick={() => saveSplit([cell])}>
+                                                  {cell.count}
+                                                </button>
+                                              </Tooltip>
+                                            ) : (
+                                              <span className="bim-matrix-empty">·</span>
+                                            )}
+                                          </td>
+                                        )
+                                      })}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <span className="bim-muted">Cada número es una intersección con elementos (clic para crear solo ese grupo); los puntos no tienen y no se crean.</span>
+                          </>
+                        ) : (
+                          <ul>
+                            {split.groups.slice(0, 6).map((g) => (
+                              <li key={g.name}>
+                                {g.name} <span className="bim-muted">· {plural(g.count, 'elemento', 'elementos')}</span>
+                              </li>
+                            ))}
+                            {split.groups.length > 6 && <li className="bim-muted">…y {split.groups.length - 6} más</li>}
+                          </ul>
+                        )}
                       </>
                     )}
                     {split.skipped > 0 && split.groups.length > 0 && <span className="bim-muted">{plural(split.skipped, 'resultado queda', 'resultados quedan')} fuera por no tener valor en alguno de los parámetros.</span>}
                     {split.groups.length > MAX_SPLIT && <span className="bim-warn">Son demasiados grupos (máximo {MAX_SPLIT}). Elige parámetros con menos valores distintos.</span>}
                   </div>
                 )}
-                <button className="primary" disabled={!split || split.groups.length === 0 || split.groups.length > MAX_SPLIT} onClick={saveSplit}>
+                <button className="primary" disabled={!split || split.groups.length === 0 || split.groups.length > MAX_SPLIT} onClick={() => saveSplit()}>
                   {split && split.groups.length > 0 ? `Crear ${plural(split.groups.length, 'grupo', 'grupos')}` : 'Crear grupos'}
                 </button>
               </div>
