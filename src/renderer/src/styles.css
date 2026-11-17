@@ -2857,3 +2857,17 @@ kbd {
   margin: 4px -4px;
   background: var(--border);
 }
+
+/* Connect groups to tasks by name */
+.bim-connect {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bim-connect-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 12px;
+}

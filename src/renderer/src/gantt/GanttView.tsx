@@ -84,6 +84,8 @@ export interface GanttHandle {
   taskText(id: string): string | undefined
   /** Row number and name, as in the Nº column: "T28-Ciclo 8". */
   taskLabel(id: string): string | undefined
+  /** Every task with its name and parent, for matching groups to tasks by name. */
+  taskList(): { id: string; text: string; parent: string }[]
   /** Adds a task above or below the selected one, or inside it as a subtask, and starts typing its name. */
   insertTask(where: 'above' | 'below' | 'child'): void
   /** Start and (exclusive) end of every task, in days since the epoch. */
@@ -411,6 +413,13 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
   useImperativeHandle(ref, () => ({
     insertTask: (where) => insertTaskRef.current(where),
+    taskList: () => {
+      const out: { id: string; text: string; parent: string }[] = []
+      ganttRef.current?.eachTask((t: any) => {
+        if (!isPlaceholder(t)) out.push({ id: String(t.id), text: String(t.text ?? ''), parent: String(t.parent ?? '0') })
+      })
+      return out
+    },
     undo: () => restore(historyRef.current.undo()),
     redo: () => restore(historyRef.current.redo()),
     taskLabel: (id) => {

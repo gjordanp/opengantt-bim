@@ -17,6 +17,7 @@ import * as THREE from 'three'
 // Served from our own bundle: the default helper downloads the worker from a CDN.
 import workerUrl from '@thatopen/fragments/worker?url'
 import { splitBy, type SplitGroup, type SplitResult } from '@shared/bimSplit'
+import { applyMatches, matchGroupsToTasks, type MatchTask } from '@shared/bimMatch'
 import { evaluate, facets, propertyKeys, type BimElement, type Query, type Rule, type RuleField, type RuleOp } from '@shared/bimQuery'
 import {
   addElementsToTask,
@@ -79,6 +80,8 @@ interface Props {
   taskLabel: (taskId: string) => string | undefined
   /** Start/end of every task, for the 4D simulation. */
   getSpans: () => TaskSpan[]
+  /** The tasks with their names and parents, to connect groups to tasks by name. */
+  getTasks: () => MatchTask[]
   /** Changes whenever task dates may have changed, so the 4D range is read again. */
   scheduleVersion: number
   /** Open project; its models are stored under this id. Null in the plain-browser build. */
@@ -244,6 +247,7 @@ export default function BimViewer({
   taskText,
   taskLabel,
   getSpans,
+  getTasks,
   scheduleVersion,
   projectId,
   slots,
@@ -425,6 +429,17 @@ export default function BimViewer({
     const next = ensureGroupCodes(bim)
     if (next !== bim) onBimChange(next)
   }, [bim, onBimChange])
+  // Connecting the groups to the tasks that carry their name: what would be connected, before doing it.
+  const matchPreview = useMemo(() => {
+    const result = matchGroupsToTasks(bim.groups, getTasks(), shortLabel)
+    const fresh = result.pairs.filter((p) => !bim.links.some((l) => l.taskId === p.taskId && l.groupIds.includes(p.groupId)))
+    return { ...result, fresh }
+  }, [bim.groups, bim.links, getTasks, scheduleVersion])
+  const connectByName = (): void => {
+    if (matchPreview.fresh.length === 0) return
+    onBimChange({ ...bim, links: applyMatches(bim.links, matchPreview.fresh) })
+    say(`${plural(matchPreview.fresh.length, 'grupo conectado', 'grupos conectados')} a su tarea por el nombre`)
+  }
   // Groups whose elements are outlined in the 3D view (the "Ver" button of a group card).
   const [viewed, setViewed] = useState<Set<string>>(new Set())
   const outlinedRef = useRef<Set<string>>(new Set())
@@ -1642,6 +1657,29 @@ export default function BimViewer({
           </>
         )}
       </div>
+
+      {bim.groups.length > 0 && (
+        <>
+          <div className="bim-label">Conectar con las tareas</div>
+          <div className="bim-newgroup-card bim-connect">
+            <span className="bim-muted">Empareja cada grupo con la tarea que lleva su nombre (por ejemplo «Planta Cielo 1° Piso» y «Ciclo 1»), sin importar mayúsculas, tildes ni ceros.</span>
+            <div className="bim-connect-stats">
+              <b>{plural(matchPreview.pairs.length, 'pareja', 'parejas')}</b>
+              <span className="bim-muted">
+                {matchPreview.fresh.length < matchPreview.pairs.length ? ` · ${matchPreview.pairs.length - matchPreview.fresh.length} ya conectadas` : ''}
+                {matchPreview.unmatched.length > 0 ? ` · ${matchPreview.unmatched.length} sin pareja` : ''}
+                {matchPreview.ambiguous.length > 0 ? ` · ${matchPreview.ambiguous.length} dudosas` : ''}
+              </span>
+            </div>
+            {matchPreview.unmatched.length > 0 && (
+              <EllipsisText className="bim-muted" text={`Sin pareja: ${matchPreview.unmatched.slice(0, 4).map((id) => bim.groups.find((g) => g.id === id)?.code ?? id).join(', ')}${matchPreview.unmatched.length > 4 ? '…' : ''}`} />
+            )}
+            <button className="primary" disabled={matchPreview.fresh.length === 0} onClick={connectByName}>
+              {matchPreview.fresh.length > 0 ? `Conectar ${plural(matchPreview.fresh.length, 'grupo', 'grupos')}` : 'Nada por conectar'}
+            </button>
+          </div>
+        </>
+      )}
 
       <div className="bim-label">Grupos guardados ({bim.groups.length})</div>
       {bim.groups.length === 0 && <div className="bim-muted">Aún no hay grupos.</div>}
