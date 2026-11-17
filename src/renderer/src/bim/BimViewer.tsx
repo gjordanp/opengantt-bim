@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Check, ClipboardList, Eye, EyeOff, Info, Layers, Plus, Search, Trash2, Upload, X } from 'lucide-react'
+import { Box, Check, ChevronLeft, ChevronRight, ClipboardList, Eye, EyeOff, Info, Layers, Pause, Play, Plus, Search, SkipBack, SkipForward, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
 import EllipsisText from '../EllipsisText'
 import { roundValue } from '@shared/formatValue'
@@ -94,19 +94,30 @@ type World = OBC.SimpleWorld<OBC.SimpleScene, OBC.OrthoPerspectiveCamera, OBF.Po
 /** The 3D view's background follows the theme (--canvas in styles.css). */
 const canvasColor = (): string => getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f4f4f5'
 
-const SELECT_COLOR = new THREE.Color('#f59e0b')
+const SELECT_COLOR = new THREE.Color('#ec4899') // not the amber of "en obra"
 const MATCH_COLOR = new THREE.Color('#8b5cf6')
 const TASK_COLOR = new THREE.Color('#22c55e')
 const BUILDING_COLOR = new THREE.Color('#f59e0b')
 const DONE_COLOR = new THREE.Color('#38bdf8')
 const GROUP_COLORS = ['#0ea5e9', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#14b8a6', '#ec4899', '#64748b']
 
-const highlightMaterial = (color: THREE.Color): FRAGS.MaterialDefinition => ({
-  color,
-  renderedFaces: FRAGS.RenderedFaces.TWO,
-  opacity: 1,
-  transparent: false
-})
+// One material per color: repainting every few frames must not create new ones each time.
+const materialCache = new Map<number, FRAGS.MaterialDefinition>()
+const highlightMaterial = (color: THREE.Color): FRAGS.MaterialDefinition => {
+  const key = color.getHex()
+  let m = materialCache.get(key)
+  if (!m) {
+    m = { color: color.clone(), renderedFaces: FRAGS.RenderedFaces.TWO, opacity: 1, transparent: false }
+    materialCache.set(key, m)
+  }
+  return m
+}
+
+const SPEEDS = [0.5, 1, 2, 4]
+const longDate = (day: number): string =>
+  new Date(day * 86400000).toLocaleDateString('es-CL', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).replace(/\./g, '')
+const shortDate = (day: number): string =>
+  new Date(day * 86400000).toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }).replace(/\./g, '')
 
 const BUILTIN_LABELS: Record<string, string> = { category: 'Clase IFC', storey: 'Piso', name: 'Nombre', guid: 'GlobalId', volume: 'Volumen' }
 const OPS: { op: RuleOp; label: string; needsValue: boolean }[] = [
@@ -436,6 +447,9 @@ export default function BimViewer({
   const [simDay, setSimDay] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [hideUnlinked, setHideUnlinked] = useState(false)
+  const [hidePending, setHidePending] = useState(false) // pending elements show as a ghost unless this is on
+  const [speed, setSpeed] = useState(1)
+  const paintSeq = useRef(0) // the latest repaint wins: an older one still running stops
 
   // Models kept with the project: loaded ids, and a token that cancels stale restores.
   const loadedRef = useRef<Set<string>>(new Set())
@@ -794,9 +808,47 @@ export default function BimViewer({
         }
         return d + 1
       })
-    }, 150)
+    }, 150 / speed)
     return () => window.clearInterval(timer)
-  }, [playing, range])
+  }, [playing, range, speed])
+  const togglePlay = (): void => {
+    if (!range) return
+    if (!playing && simDay >= range.to) setSimDay(range.from) // at the end, Play starts over
+    setPlaying((p) => !p)
+  }
+  const stepDay = (delta: number): void => {
+    if (!range) return
+    setPlaying(false)
+    setSimDay((d) => Math.min(range.to, Math.max(range.from, d + delta)))
+  }
+  const goTo = (day: number): void => {
+    setPlaying(false)
+    setSimDay(day)
+  }
+  // Choosing a task in the Gantt takes the simulation to the day it starts.
+  useEffect(() => {
+    if (!sim || !range || !task) return
+    const span = getSpans().find((x) => x.id === task.id)
+    if (span) setSimDay(Math.min(range.to, Math.max(range.from, span.start)))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id, sim])
+  // Keys while simulating: Space plays or pauses, arrows step a day, Home and End go to the ends.
+  useEffect(() => {
+    if (!sim || !range) return
+    const onKey = (e: KeyboardEvent): void => {
+      const t = e.target as HTMLElement | null
+      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable || t.closest('.gantt_container,.gantt_cal_light'))) return
+      if (e.key === ' ') togglePlay()
+      else if (e.key === 'ArrowRight') stepDay(1)
+      else if (e.key === 'ArrowLeft') stepDay(-1)
+      else if (e.key === 'Home') goTo(range.from)
+      else if (e.key === 'End') goTo(range.to)
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  })
 
   // Paint, lowest to highest priority: search matches, the task's elements, the clicked element.
   useEffect(() => {
@@ -804,8 +856,10 @@ export default function BimViewer({
     if (!manager || !manager.initialized) return
     const byGuid = new Map<string, BimElement>()
     for (const el of elements) byGuid.set(el.guid, el)
+    const seq = ++paintSeq.current
     void (async () => {
       for (const [modelId, model] of manager.list) {
+        if (seq !== paintSeq.current) return
         const searchIds = results.filter((r) => r.modelId === modelId).map((r) => r.localId)
         const taskIds = [...taskSet]
           .map((g) => byGuid.get(g))
@@ -831,11 +885,18 @@ export default function BimViewer({
               .filter((e): e is BimElement => !!e && e.modelId === modelId)
               .map((e) => e.localId)
           const inSim = new Set<string>([...phases.pending, ...phases.building, ...phases.done])
-          const hide = [...local(phases.pending)]
+          const hide = hidePending ? [...local(phases.pending)] : []
           if (hideUnlinked) {
             for (const e of elements) if (e.modelId === modelId && !inSim.has(e.guid)) hide.push(e.localId)
           }
           if (hide.length > 0) await model.setVisible(hide, false)
+          // Pending elements stay as a faint ghost, so the building shows what is still to come.
+          if (!hidePending) {
+            const pending = local(phases.pending)
+            if (pending.length > 0) await model.setGhostItems(pending)
+            else model.clearGhost()
+          }
+          if (seq !== paintSeq.current) return
           const done = local(phases.done)
           const building = local(phases.building)
           if (done.length > 0) await model.highlight(done, highlightMaterial(DONE_COLOR))
@@ -854,9 +915,9 @@ export default function BimViewer({
         if (taskIds.length > 0) await model.highlight(taskIds, highlightMaterial(TASK_COLOR))
         if (pickedIds.length > 0) await model.highlight(pickedIds, highlightMaterial(SELECT_COLOR))
       }
-      manager.core.update(true)
+      if (seq === paintSeq.current) manager.core.update(true)
     })()
-  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked, modelColors, elementColor, viewMode, viewOpacity])
+  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked, hidePending, modelColors, elementColor, viewMode, viewOpacity])
 
   // ---- actions ----
   const links = bim.links
@@ -1169,21 +1230,60 @@ export default function BimViewer({
         <div className="bim-4d">
           {range ? (
             <>
-              <button onClick={() => setPlaying((p) => !p)}>{playing ? 'Pausa' : 'Reproducir'}</button>
+              <div className="sim-btns">
+                <button className="icon-btn" onClick={() => goTo(range.from)} aria-label="Ir al inicio" title="Inicio (Inicio)">
+                  <SkipBack size={14} />
+                </button>
+                <button className="icon-btn" onClick={() => stepDay(-1)} aria-label="Un día atrás" title="−1 día (←)">
+                  <ChevronLeft size={16} />
+                </button>
+                <button className="sim-play" onClick={togglePlay} title="Reproducir o pausar (Espacio)">
+                  {playing ? <Pause size={14} /> : <Play size={14} />} {playing ? 'Pausa' : simDay >= range.to ? 'Repetir' : 'Reproducir'}
+                </button>
+                <button className="icon-btn" onClick={() => stepDay(1)} aria-label="Un día adelante" title="+1 día (→)">
+                  <ChevronRight size={16} />
+                </button>
+                <button className="icon-btn" onClick={() => goTo(range.to)} aria-label="Ir al final" title="Final (Fin)">
+                  <SkipForward size={14} />
+                </button>
+              </div>
+              <div className="bim-seg sim-speed" role="radiogroup" aria-label="Velocidad">
+                {SPEEDS.map((v) => (
+                  <button key={v} role="radio" aria-checked={speed === v} className={speed === v ? 'on' : ''} onClick={() => setSpeed(v)}>
+                    {v}×
+                  </button>
+                ))}
+              </div>
               <input
                 type="range"
                 min={range.from}
                 max={range.to}
                 value={Math.min(Math.max(simDay, range.from), range.to)}
-                onChange={(e) => {
-                  setPlaying(false)
-                  setSimDay(Number(e.target.value))
-                }}
+                onChange={(e) => goTo(Number(e.target.value))}
+                onPointerUp={(e) => e.currentTarget.blur()}
               />
-              <strong>{fromDay(simDay)}</strong>
-              <span className="bim-muted">
-                {phases ? phases.done.size + ' listos · ' + phases.building.size + ' en obra · ' + phases.pending.size + ' pendientes' : ''}
-              </span>
+              <div className="sim-date">
+                <strong>{longDate(simDay)}</strong>
+                <span className="bim-muted">
+                  día {Math.min(range.to, Math.max(range.from, simDay)) - range.from + 1} de {range.to - range.from + 1} · {shortDate(range.from)} – {shortDate(range.to)}
+                </span>
+              </div>
+              {phases && (
+                <div className="sim-legend" aria-label="Estados">
+                  <span className="sim-chip done">
+                    <i /> {phases.done.size} listos
+                  </span>
+                  <span className="sim-chip building">
+                    <i /> {phases.building.size} en obra
+                  </span>
+                  <span className="sim-chip pending">
+                    <i /> {phases.pending.size} pendientes
+                  </span>
+                </div>
+              )}
+              <label className="bim-isolate">
+                <input type="checkbox" checked={hidePending} onChange={(e) => setHidePending(e.target.checked)} /> Ocultar pendientes
+              </label>
               <label className="bim-isolate">
                 <input type="checkbox" checked={hideUnlinked} onChange={(e) => setHideUnlinked(e.target.checked)} /> Ocultar sin tarea
               </label>

@@ -2871,3 +2871,79 @@ kbd {
   font-variant-numeric: tabular-nums;
   color: var(--muted-foreground);
 }
+
+/* ---------- 4D bar ---------- */
+.bim-4d {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding: 6px 10px;
+}
+.bim-4d .sim-btns {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.bim-4d .sim-btns .icon-btn {
+  width: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bim-4d .sim-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 112px;
+  justify-content: center;
+  font-weight: 600;
+}
+.bim-4d .sim-speed {
+  width: 160px;
+  flex: none;
+}
+.bim-4d .sim-date {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 170px;
+}
+.bim-4d .sim-date strong {
+  font-size: 15px;
+  text-transform: capitalize;
+}
+.bim-4d .sim-date .bim-muted {
+  font-size: 11px;
+}
+.sim-legend {
+  display: flex;
+  gap: 6px;
+}
+.sim-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.sim-chip i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #94a3b8;
+}
+.sim-chip.done i {
+  background: #38bdf8;
+}
+.sim-chip.building i {
+  background: #f59e0b;
+}
+.sim-chip.pending i {
+  background: #cbd5e1;
+  border: 1px dashed #64748b;
+}
