@@ -36,7 +36,7 @@ import {
   type BimModelRef,
   type BimSearch
 } from '@shared/bimGroups'
-import { phasesAt, spanRange, type TaskSpan } from '@shared/bim4d'
+import { phasesAt, spanRange, type Phases, type TaskSpan } from '@shared/bim4d'
 import { fromDay } from '@shared/scheduling'
 import { indexModel, readProps, readSlice } from './indexModel'
 
@@ -449,6 +449,9 @@ export default function BimViewer({
   const [hideUnlinked, setHideUnlinked] = useState(false)
   const [hidePending, setHidePending] = useState(false) // pending elements show as a ghost unless this is on
   const [speed, setSpeed] = useState(1)
+  const phasesRef = useRef<Phases | null>(null) // the phases of the day on screen, read by the painters
+  const painted = useRef<Map<string, Map<number, number>> | null>(null) // phase painted on each element: 0 pending, 1 building, 2 done
+  const paintChain = useRef<Promise<void>>(Promise.resolve()) // painters run one after the other
   const paintSeq = useRef(0) // the latest repaint wins: an older one still running stops
 
   // Models kept with the project: loaded ids, and a token that cancels stale restores.
@@ -795,6 +798,9 @@ export default function BimViewer({
     () => (sim && range ? phasesAt(simDay, getSpans(), guidsByTask) : null),
     [sim, range, simDay, guidsByTask, getSpans, scheduleVersion]
   )
+  phasesRef.current = phases
+  // Changes whenever the simulation itself changes (on/off, range, links, schedule), not with the day.
+  const phasesStructure = useMemo(() => ({ on: !!phases }), [sim, range?.from, range?.to, guidsByTask, scheduleVersion]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (range && (simDay < range.from || simDay > range.to)) setSimDay(range.from)
   }, [range, simDay])
@@ -857,7 +863,10 @@ export default function BimViewer({
     const byGuid = new Map<string, BimElement>()
     for (const el of elements) byGuid.set(el.guid, el)
     const seq = ++paintSeq.current
-    void (async () => {
+    const phases = phasesRef.current
+    const nextPainted = new Map<string, Map<number, number>>()
+    const job = async (): Promise<void> => {
+      if (seq !== paintSeq.current) return
       for (const [modelId, model] of manager.list) {
         if (seq !== paintSeq.current) return
         const searchIds = results.filter((r) => r.modelId === modelId).map((r) => r.localId)
@@ -899,6 +908,11 @@ export default function BimViewer({
           if (seq !== paintSeq.current) return
           const done = local(phases.done)
           const building = local(phases.building)
+          const mark = new Map<number, number>()
+          for (const id of local(phases.pending)) mark.set(id, 0)
+          for (const id of building) mark.set(id, 1)
+          for (const id of done) mark.set(id, 2)
+          nextPainted.set(modelId, mark)
           if (done.length > 0) await model.highlight(done, highlightMaterial(DONE_COLOR))
           if (building.length > 0) await model.highlight(building, highlightMaterial(BUILDING_COLOR))
           if (pickedIds.length > 0) await model.highlight(pickedIds, highlightMaterial(SELECT_COLOR))
@@ -915,9 +929,76 @@ export default function BimViewer({
         if (taskIds.length > 0) await model.highlight(taskIds, highlightMaterial(TASK_COLOR))
         if (pickedIds.length > 0) await model.highlight(pickedIds, highlightMaterial(SELECT_COLOR))
       }
-      if (seq === paintSeq.current) manager.core.update(true)
-    })()
-  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked, hidePending, modelColors, elementColor, viewMode, viewOpacity])
+      if (seq === paintSeq.current) {
+        painted.current = phases ? nextPainted : null
+        manager.core.update(true)
+      }
+    }
+    paintChain.current = paintChain.current.then(job, job)
+    // The day is not a dependency: a change of day is painted by the effect below, touching only what changed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, isolate, taskSet, picked, elements, phasesStructure, hideUnlinked, hidePending, modelColors, elementColor, viewMode, viewOpacity])
+
+  // A new day: only the elements that changed phase are repainted (no reset of the whole model, so nothing flashes).
+  useEffect(() => {
+    const manager = componentsRef.current?.get(OBC.FragmentsManager)
+    if (!manager || !manager.initialized || !phases) return
+    const job = async (): Promise<void> => {
+      const ph = phasesRef.current
+      const before = painted.current
+      if (!ph || !before) return
+      const byGuid = new Map<string, BimElement>()
+      for (const el of elements) byGuid.set(el.guid, el)
+      for (const [modelId, model] of manager.list) {
+        const prev = before.get(modelId)
+        if (!prev) continue
+        const next = new Map<number, number>()
+        const collect = (guids: Set<string>, code: number): void => {
+          for (const g of guids) {
+            const e = byGuid.get(g)
+            if (e && e.modelId === modelId) next.set(e.localId, code)
+          }
+        }
+        collect(ph.pending, 0)
+        collect(ph.building, 1)
+        collect(ph.done, 2)
+        const toDone: number[] = []
+        const toBuilding: number[] = []
+        const toPending: number[] = []
+        const leavePending: number[] = []
+        for (const [id, code] of next) {
+          const was = prev.get(id)
+          if (was === code) continue
+          if (code === 2) toDone.push(id)
+          else if (code === 1) toBuilding.push(id)
+          else toPending.push(id)
+          if (was === 0) leavePending.push(id)
+          prev.set(id, code)
+        }
+        if (toDone.length + toBuilding.length + toPending.length === 0) continue
+        // Elements that stop being pending leave the ghost first, so their new color is not washed out.
+        if (!hidePending && toPending.length === 0 && leavePending.length > 0) await model.unsetGhostItems(leavePending)
+        if (hidePending && leavePending.length > 0) await model.setVisible(leavePending, true)
+        if (toDone.length > 0) await model.highlight(toDone, highlightMaterial(DONE_COLOR))
+        if (toBuilding.length > 0) await model.highlight(toBuilding, highlightMaterial(BUILDING_COLOR))
+        if (toPending.length > 0) await model.resetHighlight(toPending)
+        if (hidePending) {
+          if (toPending.length > 0) await model.setVisible(toPending, false)
+        } else if (toPending.length > 0) {
+          // Going back in time: the ghost is replaced by the whole pending set.
+          await model.setGhostItems([...next].filter(([, c]) => c === 0).map(([id]) => id))
+        }
+        // What the user has picked keeps its color.
+        const pickedIds = picked.filter((q) => q.modelId === modelId && next.has(q.localId)).map((q) => q.localId)
+        const changed = new Set([...toDone, ...toBuilding, ...toPending])
+        const again = pickedIds.filter((id) => changed.has(id))
+        if (again.length > 0) await model.highlight(again, highlightMaterial(SELECT_COLOR))
+      }
+      manager.core.update(true)
+    }
+    paintChain.current = paintChain.current.then(job, job)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phases])
 
   // ---- actions ----
   const links = bim.links
