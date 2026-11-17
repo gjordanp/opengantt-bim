@@ -361,6 +361,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     let parent: string | number = ref.parent
     let index = gantt.getTaskIndex(ref.id) + (where === 'below' ? 1 : 0)
     let start: Date = ref.start_date
+    let firstChildDuration = 1
     if (where === 'below' && ref.end_date) start = dayAfter(ref.end_date)
     if (where === 'child') {
       parent = ref.id
@@ -368,17 +369,21 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       index = kids.length
       const last = kids.length > 0 ? gantt.getTask(kids[kids.length - 1]) : null
       start = last?.end_date ? dayAfter(last.end_date) : ref.start_date
+      // The first subtask takes over the task's own work, so the summary keeps its dates.
+      if (kids.length === 0) firstChildDuration = Math.max(1, Number(ref.duration) || 1)
     }
     gantt.batchUpdate(() => {
       // A task that gets a subtask becomes a summary, like the ones that come from an import.
       if (where === 'child' && ref.type !== gantt.config.types.project) {
+        // Remembered so that, if the subtask goes away, the task gets its own span back.
+        ref.$leaf = { start_date: ref.start_date, duration: ref.duration }
         ref.type = gantt.config.types.project
         ref.open = true
         gantt.updateTask(ref.id)
       }
     })
     const newId = gantt.addTask(
-      { text: 'Nueva tarea', start_date: start, end_date: gantt.calculateEndDate({ start_date: start, duration: 1, task: {} as any }), duration: 1, progress: 0 },
+      { text: 'Nueva tarea', start_date: start, end_date: gantt.calculateEndDate({ start_date: start, duration: firstChildDuration, task: {} as any }), duration: firstChildDuration, progress: 0 },
       parent,
       index
     )
@@ -767,6 +772,32 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
           progress: 0
         }
       }
+    })
+    // A summary that loses its last subtask (deleted or moved away) goes back to being a plain task, as in MS Project.
+    const demoteEmptyParents = (): boolean => {
+      const empty: any[] = []
+      gantt.eachTask((t: any) => {
+        if (t.type === gantt.config.types.project && !gantt.hasChild(t.id)) empty.push(t)
+      })
+      for (const t of empty) {
+        t.type = gantt.config.types.task
+        // It was a plain task before it got a subtask: back to its own dates (a summary's come from its children).
+        if (t.$leaf) {
+          t.start_date = t.$leaf.start_date
+          t.duration = t.$leaf.duration
+          t.end_date = gantt.calculateEndDate({ start_date: t.start_date, duration: t.duration, task: t })
+          delete t.$leaf
+        }
+        gantt.updateTask(t.id)
+      }
+      return true
+    }
+    gantt.attachEvent('onAfterTaskDelete', demoteEmptyParents)
+    gantt.attachEvent('onAfterTaskMove', demoteEmptyParents)
+    // Projects saved with an empty summary heal when they open.
+    gantt.attachEvent('onParse', () => {
+      window.setTimeout(() => demoteEmptyParents(), 0)
+      return true
     })
     // The gantt only follows window resizes; its pane can also change size (BIM viewer).
     const resizeObserver = new ResizeObserver(() => {
