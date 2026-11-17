@@ -447,7 +447,7 @@ export default function BimViewer({
   const [simDay, setSimDay] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [hideUnlinked, setHideUnlinked] = useState(false)
-  const [hidePending, setHidePending] = useState(false) // pending elements show as a ghost unless this is on
+  const [hidePending, setHidePending] = useState(true) // pending elements are hidden (the building builds up); off shows them as a ghost
   const [speed, setSpeed] = useState(1)
   const phasesRef = useRef<Phases | null>(null) // the phases of the day on screen, read by the painters
   const painted = useRef<Map<string, Map<number, number>> | null>(null) // phase painted on each element: 0 pending, 1 building, 2 done
