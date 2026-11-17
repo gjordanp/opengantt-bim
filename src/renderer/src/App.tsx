@@ -287,13 +287,6 @@ export default function App(): React.JSX.Element {
 
   const getSpans = useCallback(() => ganttRef.current?.spans() ?? [], [])
 
-  // Elements tied to each task, for the BIM column of the gantt.
-  const bimCounts = useMemo(() => {
-    const counts: Record<string, number> = {}
-    for (const l of bim.links) counts[l.taskId] = taskGuids(l, bim.groups, bimElements).size
-    return counts
-  }, [bim, bimElements])
-
   // The group codes of each task, for the Grupos column of the gantt.
   const bimGroupCodes = useMemo(() => {
     const codes: Record<string, string> = {}
@@ -617,7 +610,6 @@ export default function App(): React.JSX.Element {
         onScheduled={onScheduled}
         onChange={onChange}
         onTaskSelect={setSelectedTask}
-        bimCounts={bimCounts}
         bimGroupCodes={bimGroupCodes}
         groupsBridge={groupsBridge}
       />

@@ -55,7 +55,6 @@ interface Props {
   /** Called when the user selects a task (null when the selection is cleared). */
   onTaskSelect?: (task: { id: string; text: string } | null) => void
   /** Number of BIM elements tied to each task id; shown in the BIM column. */
-  bimCounts?: Record<string, number>
   /** The group codes of each task ("G1, G4"), for the Grupos column. */
   bimGroupCodes?: Record<string, string>
   /** Lets the Grupos column be typed in the cell. */
@@ -191,7 +190,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimCounts, bimGroupCodes, groupsBridge, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimGroupCodes, groupsBridge, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -223,8 +222,6 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const loadingRef = useRef(false)
   const onTaskSelectRef = useRef(onTaskSelect)
   onTaskSelectRef.current = onTaskSelect
-  const bimCountsRef = useRef(bimCounts)
-  bimCountsRef.current = bimCounts
   const bimGroupCodesRef = useRef(bimGroupCodes)
   bimGroupCodesRef.current = bimGroupCodes
   const groupsBridgeRef = useRef(groupsBridge)
@@ -520,13 +517,6 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       { name: 'duration', label: 'Días', align: 'center', width: 60, resize: true, editor: { type: 'days', map_to: 'duration', min: 0, max: 3650 } },
       { name: 'progress', label: 'Avance', align: 'center', width: 70, resize: true, editor: { type: 'percent', map_to: 'progress' }, template: (task: any) => `${Math.round((Number(task.progress) || 0) * 100)}%` },
       { name: 'location_surface', label: 'Superficie', align: 'center', width: 80, resize: true, editor: { type: 'decimal', map_to: 'location_surface' } },
-      {
-        name: 'bim',
-        label: 'BIM',
-        align: 'center',
-        width: 60,
-        template: (task: any) => String(bimCountsRef.current?.[String(task.id)] || '')
-      },
       {
         name: 'groups',
         label: 'Grupos',
@@ -982,7 +972,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
   useEffect(() => {
     ganttRef.current?.render()
-  }, [showCritical, bimCounts, bimGroupCodes])
+  }, [showCritical, bimGroupCodes])
 
   // A calendar change reschedules and is saved like any other edit.
   const calendarKey = `${holidays?.join(',') ?? ''}|${workWeek?.join(',') ?? ''}|${planning?.projectStart ?? ''}|${planning?.projectEnd ?? ''}|${planning?.scheduleFromEnd ? 1 : 0}`

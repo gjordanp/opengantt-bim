@@ -6,7 +6,6 @@ export const COLUMN_DEFS = [
   { id: 'duration', label: 'Días' },
   { id: 'progress', label: 'Avance %' },
   { id: 'location_surface', label: 'Superficie' },
-  { id: 'bim', label: 'BIM' },
   { id: 'groups', label: 'Grupos' },
   { id: 'deadline', label: 'Plazo' },
   { id: 'predecessors', label: 'Predecesoras' },
@@ -36,7 +35,7 @@ export const DEFAULT_GANTT_SETTINGS: GanttSettings = {
   barText: true,
   tableCollapsed: false,
   summaryStyle: 'bar',
-  columns: { num: false, predecessors: true, start_date: true, end_date: false, duration: true, progress: false, location_surface: true, bim: false, groups: true, deadline: false, constraint: false }
+  columns: { num: false, predecessors: true, start_date: true, end_date: false, duration: true, progress: false, location_surface: true, groups: true, deadline: false, constraint: false }
 }
 
 const KEY = 'ogbim.ganttSettings'
