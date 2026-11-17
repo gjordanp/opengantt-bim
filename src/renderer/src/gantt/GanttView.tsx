@@ -14,9 +14,13 @@ import { installPlaceholder, isPlaceholder, type Placeholder } from './placehold
 import { installInlineEditors, predecessorsText, rowNumbers, type GroupsBridge } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
 import { History } from '@shared/history'
+import type { BimTaskLink } from '@shared/bimGroups'
 import { computeLobRowHeights, findLobSections, type LobTaskInput } from '@shared/lob'
 import { TodayLine } from './todayLine'
 import { installWorkTime } from './workTime'
+import { installCellNav } from './cellNav'
+import { installPanDrag } from './panDrag'
+import { installLinkDrag } from './linkDrag'
 import { installDragDurations, installMultiSelect, type MultiSelect } from './multiSelect'
 import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './planLayer'
 import { previousDay } from '@shared/plan'
@@ -66,6 +70,9 @@ interface Props {
   bimGroupCodes?: Record<string, string>
   /** Lets the Grupos column be typed in the cell. */
   groupsBridge?: GroupsBridge
+  /** The task <-> BIM element assignments: undo and redo bring them back with the tasks. */
+  getBimLinks?: () => BimTaskLink[]
+  onRestoreBimLinks?: (links: BimTaskLink[]) => void
   ref?: Ref<GanttHandle>
   /** Called when undo/redo availability changes. */
   onHistoryChange?: (state: { canUndo: boolean; canRedo: boolean }) => void
@@ -78,6 +85,8 @@ interface Props {
 export interface GanttHandle {
   undo(): void
   redo(): void
+  /** Records an undo step for a change made outside the gantt (the BIM assignments). */
+  recordHistory(): void
   /** Selects a task and scrolls to it. */
   selectTask(id: string): void
   /** Name of a task, if it exists. */
@@ -197,7 +206,7 @@ function lobInputs(gantt: GanttStatic): LobTaskInput[] {
   return inputs
 }
 
-export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimGroupCodes, groupsBridge, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
+export default function GanttView({ project, lobMode, autoScheduling, showCritical, showScurve, volumeWeights, settings, onScheduled, onChange, holidays, workWeek, planning, onTaskSelect, bimGroupCodes, groupsBridge, getBimLinks, onRestoreBimLinks, ref, onHistoryChange, onToggleTable, onColumnsChange }: Props): React.JSX.Element {
   const hostRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<GanttStatic | null>(null)
   const overlayRef = useRef<LobOverlay | null>(null)
@@ -227,6 +236,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const loadingRef = useRef(false)
+  const bulkRef = useRef(false) // a fill writes many cells: reschedule and save once at the end
   const onTaskSelectRef = useRef(onTaskSelect)
   onTaskSelectRef.current = onTaskSelect
   const bimGroupCodesRef = useRef(bimGroupCodes)
@@ -253,11 +263,19 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       ...(p?.scheduleFromEnd ? { scheduleFromEnd: true } : {})
     }
   }
-  const snapshot = (): ProjectData | null => {
+  const getBimLinksRef = useRef(getBimLinks)
+  getBimLinksRef.current = getBimLinks
+  const onRestoreBimLinksRef = useRef(onRestoreBimLinks)
+  onRestoreBimLinksRef.current = onRestoreBimLinks
+  // What undo keeps: the project, and which elements and groups are assigned to each task.
+  type Snap = ProjectData & { bimLinks?: BimTaskLink[] }
+  const plain = ({ bimLinks: _links, ...rest }: Snap): ProjectData => rest
+  const snapshot = (): Snap | null => {
     const gantt = ganttRef.current
     if (!gantt) return null
     const { data, links } = gantt.serialize() as { data: any[]; links: any[] }
     return {
+      ...(getBimLinksRef.current ? { bimLinks: getBimLinksRef.current() } : {}),
       name: project.name,
       holidays: settingsRef.current.holidays ?? [],
       ...(settingsRef.current.workWeek ? { workWeek: settingsRef.current.workWeek } : {}),
@@ -288,7 +306,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       }))
     }
   }
-  const historyRef = useRef(new History<ProjectData>())
+  const historyRef = useRef(new History<Snap>())
   const onHistoryChangeRef = useRef(onHistoryChange)
   onHistoryChangeRef.current = onHistoryChange
   const notifyHistory = (): void =>
@@ -298,10 +316,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     if (!snap) return
     historyRef.current.push(snap)
     notifyHistory()
-    onChangeRef.current?.(snap)
+    onChangeRef.current?.(plain(snap))
   }
   // Replaces the gantt's contents with a stored snapshot (undo/redo) and saves it.
-  const restore = (snap: ProjectData | undefined): void => {
+  const restore = (snap: Snap | undefined): void => {
     const gantt = ganttRef.current
     if (!gantt || !snap) return
     loadingRef.current = true
@@ -314,7 +332,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       loadingRef.current = false
     }
     notifyHistory()
-    onChangeRef.current?.({ ...snap, holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek, ...planningFields(planningRef.current) })
+    if (snap.bimLinks) onRestoreBimLinksRef.current?.(snap.bimLinks)
+    onChangeRef.current?.({ ...plain(snap), holidays: settingsRef.current.holidays ?? [], workWeek: settingsRef.current.workWeek, ...planningFields(planningRef.current) })
   }
   const allColumnsRef = useRef<any[]>([])
   const visibleColumns = (all: any[], s: GanttSettings): any[] => all.filter((c) => c.name === 'text' || s.columns[c.name as ColumnId] !== false)
@@ -413,6 +432,12 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     insertTask: (where) => insertTaskRef.current(where),
     undo: () => restore(historyRef.current.undo()),
     redo: () => restore(historyRef.current.redo()),
+    recordHistory: () => {
+      const snap = snapshot()
+      if (!snap) return
+      historyRef.current.push(snap)
+      notifyHistory()
+    },
     taskLabel: (id) => {
       const gantt = ganttRef.current
       if (!gantt || !gantt.isTaskExists(id)) return undefined
@@ -852,7 +877,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
 
     // Reschedule when the structure or the data changes.
     const reschedule = (edited: string[] = []): void => {
-      if (schedulingRef.current || loadingRef.current) return
+      if (schedulingRef.current || loadingRef.current || bulkRef.current) return
       // Like PRO, an edited task keeps a start later than its predecessors ask for, and what depends on it is
       // scheduled again (so it loses any such delay of its own). Reloading the project starts over.
       for (const id of edited) {
@@ -890,36 +915,90 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       if (!schedulingRef.current) reschedule(moved)
     })
 
+    // Spreadsheet-style work in the table: select cells, move with the arrows, fill down.
+    const FILLABLE = new Set(['text', 'duration', 'progress', 'location_surface', 'groups'])
+    const isSummary = (id: string): boolean => Boolean(gantt.hasChild(id)) ||(gantt.getTask(id) as any).type === gantt.config.types.project
+    const stopPan = installPanDrag(gantt, host)
+    const stopLinkDrag = installLinkDrag(gantt, host, (id) => {
+      const num = rowNumbers(gantt).byId.get(String(id))
+      const text = String((gantt.getTask(id) as any)?.text ?? '')
+      return num ? `T${num}-${text}` : text
+    })
+    const stopCellNav = installCellNav(gantt, host, {
+      fillable: FILLABLE,
+      read: (column, id) => {
+        const t: any = gantt.getTask(id)
+        if (column === 'groups') return groupsBridgeRef.current?.codesOf(id) ?? ''
+        if (column === 'progress') return String(Math.round((Number(t.progress) || 0) * 100))
+        if (column === 'duration') return String(Number(t.duration) || 0)
+        return String(t[column] ?? '')
+      },
+      // Summary tasks derive duration and progress from their children, and groups belong to tasks, not to summaries.
+      canFill: (column, id) => {
+        if ((column === 'duration' || column === 'progress') && isSummary(id)) return false
+        // Groups go on tasks only: not on summaries and not on milestones.
+        return !(column === 'groups' && (isSummary(id) || (gantt.getTask(id) as any).type === gantt.config.types.milestone))
+      },
+      fill: (column, entries) => {
+        if (column === 'groups') {
+          const bridge = groupsBridgeRef.current
+          const ok = entries.filter((e) => bridge?.isValid(e.value))
+          if (ok.length > 0) bridge?.applyMany(ok.map((e) => ({ taskId: e.id, text: e.value })))
+          return
+        }
+        bulkRef.current = true
+        const edited: string[] = []
+        try {
+          for (const { id, value } of entries) {
+            const t: any = gantt.getTask(id)
+            const num = Number(value)
+            if (column === 'text') t.text = value
+            else if (column === 'progress') t.progress = Math.min(1, Math.max(0, num / 100))
+            else if (column === 'duration') {
+              if (!Number.isFinite(num) || num < 0) continue
+              t.duration = Math.round(num)
+              if (t.type === gantt.config.types.milestone && t.duration > 0) t.type = gantt.config.types.task
+            } else if (column === 'location_surface') {
+              if (!Number.isFinite(num) || num < 0) continue
+              t.location_surface = num
+            }
+            gantt.updateTask(id)
+            edited.push(id)
+          }
+        } finally {
+          bulkRef.current = false
+        }
+        if (edited.length > 0) reschedule(edited)
+      },
+      selectTask: (id) => multiRef.current?.set([id])
+    })
+
     const zoomConfig = {
+      // Each level must show more pixels per day than the one before (a month column of 130 px is 4.3 px a day; a week column of 36 px is 5.1),
+      // or zooming in would make the bars shrink.
       levels: [
         { name: 'year', scale_height: 50, min_column_width: 80, scales: [{ unit: 'year', step: 1, format: '%Y' }] },
         {
-          name: 'month',
+          name: 'quarter',
           scale_height: 50,
-          min_column_width: 90,
+          min_column_width: 80,
           scales: [
             { unit: 'year', step: 1, format: '%Y' },
-            { unit: 'month', step: 1, format: '%M' }
+            { unit: 'quarter', step: 1, template: (d: Date) => 'T' + (Math.floor(d.getMonth() / 3) + 1) }
           ]
         },
-        {
-          name: 'week',
-          scale_height: 50,
-          min_column_width: 50,
-          scales: [
-            { unit: 'month', step: 1, format: '%M %Y' },
-            { unit: 'week', step: 1, format: 'Sem %W' }
-          ]
-        },
-        {
-          name: 'day',
-          scale_height: 50,
-          min_column_width: 40,
-          scales: [
-            { unit: 'month', step: 1, format: '%M %Y' },
-            { unit: 'day', step: 1, format: '%d' }
-          ]
-        }
+        { name: 'month-xs', scale_height: 50, min_column_width: 48, scales: [{ unit: 'year', step: 1, format: '%Y' }, { unit: 'month', step: 1, format: '%M' }] },
+        { name: 'month-s', scale_height: 50, min_column_width: 68, scales: [{ unit: 'year', step: 1, format: '%Y' }, { unit: 'month', step: 1, format: '%M' }] },
+        { name: 'month', scale_height: 50, min_column_width: 90, scales: [{ unit: 'year', step: 1, format: '%Y' }, { unit: 'month', step: 1, format: '%M' }] },
+        { name: 'month-l', scale_height: 50, min_column_width: 130, scales: [{ unit: 'year', step: 1, format: '%Y' }, { unit: 'month', step: 1, format: '%F' }] },
+        { name: 'week-xs', scale_height: 50, min_column_width: 36, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'week', step: 1, format: '%W' }] },
+        { name: 'week-s', scale_height: 50, min_column_width: 43, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'week', step: 1, format: '%W' }] },
+        { name: 'week', scale_height: 50, min_column_width: 50, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'week', step: 1, format: 'Sem %W' }] },
+        { name: 'week-l', scale_height: 50, min_column_width: 80, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'week', step: 1, format: 'Sem %W' }] },
+        { name: 'day-xs', scale_height: 50, min_column_width: 22, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'day', step: 1, format: '%d' }] },
+        { name: 'day-s', scale_height: 50, min_column_width: 30, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'day', step: 1, format: '%d' }] },
+        { name: 'day', scale_height: 50, min_column_width: 40, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'day', step: 1, format: '%d' }] },
+        { name: 'day-l', scale_height: 50, min_column_width: 64, scales: [{ unit: 'month', step: 1, format: '%M %Y' }, { unit: 'day', step: 1, format: '%D %d' }] }
       ],
       useKey: 'ctrlKey',
       trigger: 'wheel',
@@ -932,6 +1011,9 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     return () => {
       for (const id of eventIds) gantt.detachEvent(id)
       stopDrag()
+      stopCellNav()
+      stopPan()
+      stopLinkDrag()
       multiRef.current?.destroy()
       stopEditors()
       stopSelects()

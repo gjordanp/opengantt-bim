@@ -22,6 +22,7 @@ import Tooltip from './Tooltip'
 import StatusBar from './StatusBar'
 import ConfirmDialog from './ConfirmDialog'
 import AiImportDialog from './AiImportDialog'
+import CalendarDialog, { CalendarForm, calendarOf, type CalendarValue } from './CalendarDialog'
 import ImportMenu from './ImportMenu'
 import type { AiPlanImport } from '@shared/aiPlan'
 import { buildMspdi, parseMspdi } from '@shared/mspdi'
@@ -41,83 +42,6 @@ const MSP_FILTERS = [{ name: 'MS Project (XML)', extensions: ['xml'] }]
 const MSP_IMPORT_FILTERS = [{ name: 'MS Project (.mpp, .xml)', extensions: ['mpp', 'xml'] }, ...MSP_FILTERS]
 type SaveState = 'idle' | 'pending' | 'saved' | 'error'
 type View = 'home' | 'workspace'
-
-const DAYS = [
-  [1, 'Lun'],
-  [2, 'Mar'],
-  [3, 'Mié'],
-  [4, 'Jue'],
-  [5, 'Vie'],
-  [6, 'Sáb'],
-  [0, 'Dom']
-] as const
-
-interface CalendarValue {
-  holidays: string[]
-  workWeek: number[]
-  projectStart?: string
-  projectEnd?: string
-  scheduleFromEnd?: boolean
-}
-
-/** The calendar and planning dates a project brings. */
-const calendarOf = (data: ProjectData): CalendarValue => ({
-  holidays: data.holidays ?? [],
-  workWeek: data.workWeek ?? [1, 2, 3, 4, 5],
-  ...(data.projectStart ? { projectStart: data.projectStart } : {}),
-  ...(data.projectEnd ? { projectEnd: data.projectEnd } : {}),
-  ...(data.scheduleFromEnd ? { scheduleFromEnd: true } : {})
-})
-
-function CalendarPanel({ value, onChange }: { value: CalendarValue; onChange: (v: CalendarValue) => void }): React.JSX.Element {
-  const [text, setText] = useState(value.holidays.join('\n'))
-  const toggle = (d: number): void => {
-    const next = value.workWeek.includes(d) ? value.workWeek.filter((x) => x !== d) : [...value.workWeek, d]
-    if (next.length > 0) onChange({ ...value, workWeek: next })
-  }
-  const applyHolidays = (): void => {
-    const list = [...new Set(text.split(/[\s,;]+/).filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t)))].sort()
-    onChange({ ...value, holidays: list })
-    setText(list.join('\n'))
-  }
-  return (
-    <div className="calendar-panel">
-      <div className="field">
-        <span>Días laborables</span>
-        <div className="weekdays">
-          {DAYS.map(([d, label]) => (
-            <label key={d} className={value.workWeek.includes(d) ? 'on' : ''}>
-              <input type="checkbox" checked={value.workWeek.includes(d)} onChange={() => toggle(d)} />
-              {label}
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="field">
-        <span>Feriados (uno por línea, AAAA-MM-DD)</span>
-        <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} onBlur={applyHolidays} />
-      </div>
-      <div className="field">
-        <span>Fechas del proyecto</span>
-        <label className="plan-row">
-          Inicio
-          <input type="date" value={value.projectStart ?? ''} onChange={(e) => onChange({ ...value, projectStart: e.target.value || undefined })} />
-        </label>
-        <p className="hint">Las tareas sin predecesora que empiezan antes se mueven a esta fecha.</p>
-        <label className="plan-row">
-          Fin
-          <input type="date" value={value.projectEnd ?? ''} onChange={(e) => onChange({ ...value, projectEnd: e.target.value || undefined })} />
-        </label>
-        <p className="hint">Último día de trabajo. Las tareas «lo más tarde posible» sin sucesora terminan aquí.</p>
-        <label className="plan-row check">
-          <input type="checkbox" checked={value.scheduleFromEnd === true} onChange={(e) => onChange({ ...value, scheduleFromEnd: e.target.checked || undefined })} />
-          Programar desde el fin
-        </label>
-        <p className="hint">Las tareas sin restricción van lo más tarde posible: se alinean contra sus sucesoras y el fin del proyecto.</p>
-      </div>
-    </div>
-  )
-}
 
 export default function App(): React.JSX.Element {
   const api = window.api
@@ -139,6 +63,7 @@ export default function App(): React.JSX.Element {
   const [project, setProject] = useState<ProjectData>(sampleProject)
   const [projectName, setProjectName] = useState(sampleProject.name)
   const [calendar, setCalendar] = useState<CalendarValue>({ holidays: [], workWeek: [1, 2, 3, 4, 5] })
+  const [showCalendar, setShowCalendar] = useState(false)
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const [dock, setDock] = useState<DockviewApi | null>(null)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -275,8 +200,11 @@ export default function App(): React.JSX.Element {
   )
 
   const onBimChange = useCallback(
-    (next: BimData) => {
+    (next: BimData, record = true) => {
+      // Changing which elements or groups a task has is an undo step of the gantt too.
+      const assignmentsChanged = next.links !== bimDataRef.current.links
       bimDataRef.current = next
+      if (record && assignmentsChanged) ganttRef.current?.recordHistory()
       setBim(next)
       const base = latestRef.current ?? lastDataRef.current
       if (!api || !projectIdRef.current || !base) return
@@ -285,6 +213,8 @@ export default function App(): React.JSX.Element {
     [api, schedule]
   )
 
+  // Undo and redo bring back the assignments the snapshot was taken with.
+  const restoreBimLinks = useCallback((links: BimData['links']) => onBimChange({ ...bimDataRef.current, links }, false), [onBimChange])
   const getSpans = useCallback(() => ganttRef.current?.spans() ?? [], [])
 
   // The group codes of each task, for the Grupos column of the gantt.
@@ -305,6 +235,14 @@ export default function App(): React.JSX.Element {
       apply: (taskId, text) => {
         const r = parseGroupCodes(text, bim.groups)
         if (r.ok) onBimChange({ ...bim, links: setTaskGroups(bim.links, taskId, r.ids) })
+      },
+      applyMany: (entries) => {
+        let links = bim.links
+        for (const { taskId, text } of entries) {
+          const r = parseGroupCodes(text, bim.groups)
+          if (r.ok) links = setTaskGroups(links, taskId, r.ids)
+        }
+        onBimChange({ ...bim, links })
       }
     }),
     [bim, bimGroupCodes, onBimChange]
@@ -324,8 +262,10 @@ export default function App(): React.JSX.Element {
       (g) => volumeOf.get(g),
       bimElements.map((e) => e.guid)
     )
-    const withoutVolume = tasks.filter((t) => !((split.byTask.get(t.id ?? '') ?? 0) > 0)).length
-    return { weights: split.byTask, total: tasks.length, withoutVolume, split }
+    // A milestone has no duration, so it takes no share of any volume (and takes no groups): it doesn't hold the curve back.
+    const timed = tasks.filter((t) => countWorkDays(cal, t.start, t.end) > 0)
+    const withoutVolume = timed.filter((t) => !((split.byTask.get(t.id ?? '') ?? 0) > 0)).length
+    return { weights: split.byTask, total: timed.length, withoutVolume, split }
     // scheduleVersion: the gantt's tasks changed (progressTasks reads live state).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scheduleVersion, bim, bimElements, calendar])
@@ -576,7 +516,7 @@ export default function App(): React.JSX.Element {
         </button>
       </Tooltip>
       <Tooltip label="Calendario laboral y feriados">
-        <button className="icon-btn" onClick={() => dock && openPanel(dock, 'calendar')} aria-label="Calendario">
+        <button className="icon-btn" onClick={() => setShowCalendar(true)} aria-label="Calendario">
           <CalendarDays size={16} />
         </button>
       </Tooltip>
@@ -589,10 +529,12 @@ export default function App(): React.JSX.Element {
   const workspaceCtx: WorkspaceCtx = {
     setSlot,
     ganttToolbar,
-    calendar: <CalendarPanel value={calendar} onChange={setCalendar} />,
+    calendar: <CalendarForm value={calendar} onChange={setCalendar} />,
     scurve: <SCurvePanel getTasks={() => ganttRef.current?.progressTasks() ?? []} version={scheduleVersion} basis={volumeWeights} plan={ganttSettings.scurvePlan} holidays={calendar.holidays} workWeek={calendar.workWeek} />,
     gantt: (
       <GanttView
+        getBimLinks={() => bimDataRef.current.links}
+        onRestoreBimLinks={restoreBimLinks}
         holidays={calendar.holidays}
         workWeek={calendar.workWeek}
         planning={calendar}
@@ -708,10 +650,10 @@ export default function App(): React.JSX.Element {
                   keywords: 'abrir ventana panel',
                   run: () => openPanel(dock, pn.id)
                 })),
-                ...(['task', 'groups', 'props', 'models'] as const).map((t, i) => ({
+                ...(['groups', 'props', 'models'] as const).map((t, i) => ({
                   id: `tool-${t}`,
                   section: 'BIM',
-                  label: `Herramienta: ${['Asignación a tareas', 'Grupos guardados', 'Propiedades', 'Modelos'][i]}`,
+                  label: `Herramienta: ${['Grupos guardados', 'Propiedades', 'Modelos'][i]}`,
                   keywords: 'bim visor panel',
                   run: () => {
                     openPanel(dock, 'viewer')
@@ -826,6 +768,7 @@ export default function App(): React.JSX.Element {
       </div>
 
       {aiImporting && <AiImportDialog replacing={aiImporting === 'replace'} onImport={(plan) => void importAiPlan(plan)} onCancel={() => setAiImporting(false)} />}
+      {showCalendar && <CalendarDialog value={calendar} onChange={setCalendar} onClose={() => setShowCalendar(false)} />}
       {pendingReplace && (
         <ConfirmDialog
           title="Reemplazar el Gantt"

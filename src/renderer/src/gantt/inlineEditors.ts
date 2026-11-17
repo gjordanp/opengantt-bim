@@ -46,6 +46,8 @@ export interface GroupsBridge {
   codesOf(taskId: string): string
   isValid(text: string): boolean
   apply(taskId: string, text: string): void
+  /** Several tasks at once (filling down): one change, so none overwrites another. */
+  applyMany(entries: { taskId: string; text: string }[]): void
 }
 
 export function installInlineEditors(gantt: GanttStatic, groups?: () => GroupsBridge | undefined): () => void {
@@ -134,8 +136,10 @@ export function installInlineEditors(gantt: GanttStatic, groups?: () => GroupsBr
     text.set_value.call(this, groups?.()?.codesOf(String(id)) ?? '', id, column, node)
   }
   grp.is_valid = (value: string): boolean => groups?.()?.isValid(String(value ?? '')) ?? false
-  grp.is_changed = function (value: string, id: string, column: unknown, node: unknown): boolean {
-    return String(this.get_value(id, column, node)).replace(/[\s,;]+/g, ',').toUpperCase() !== String(value ?? '').replace(/[\s,;]+/g, ',').toUpperCase()
+  // Compared with the codes the task has now (the task itself stores none), so clearing the cell counts as a change.
+  const norm = (v: unknown): string => String(v ?? '').replace(/[\s,;]+/g, ',').replace(/^,|,$/g, '').toUpperCase()
+  grp.is_changed = function (_value: string, id: string, column: unknown, node: unknown): boolean {
+    return norm(this.get_value(id, column, node)) !== norm(groups?.()?.codesOf(String(id)))
   }
   types.groups = grp
 
@@ -151,7 +155,8 @@ export function installInlineEditors(gantt: GanttStatic, groups?: () => GroupsBr
   const guard = editors.attachEvent('onBeforeEditStart', (state: { id: string | number; columnName: string }) => {
     const task = g.getTask(state.id)
     if (isPlaceholder(task)) return false
-    if (state.columnName === 'predecessors' && noLinks(task, state.id)) return false
+    if ((state.columnName === 'predecessors' || state.columnName === 'groups') && noLinks(task, state.id)) return false
+    if (state.columnName === 'groups' && task.type === g.config.types.milestone) return false
     if (derived.has(state.columnName) && (g.hasChild(state.id) || task.type === g.config.types.project)) return false
     return true
   })
@@ -194,14 +199,4 @@ export function installInlineEditors(gantt: GanttStatic, groups?: () => GroupsBr
     editors.detachEvent(save)
     g.detachEvent(renumber)
   }
-}
-
-/** Opens the editor of the cell under a plain click, if its column has one. */
-export function startEditAt(gantt: GanttStatic, target: EventTarget | null): void {
-  const editors = (gantt as any).ext.inlineEditors
-  const cell = editors.locateCell(target)
-  if (!cell || !editors.getEditorConfig(cell.columnName)) return
-  const state = editors.getState()
-  if (editors.isVisible() && state.id == cell.id && state.columnName == cell.columnName) return
-  editors.startEdit(cell.id, cell.columnName)
 }

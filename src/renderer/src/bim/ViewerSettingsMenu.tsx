@@ -22,7 +22,7 @@ function ColorRow({ label, value, colors, onPick }: { label: string; value: stri
   )
 }
 
-const MODE_LABELS: Record<ViewMode, string> = { normal: 'Sólido', lines: 'Solo líneas', xray: 'Rayos X' }
+const MODE_LABELS: Record<ViewMode, string> = { normal: 'Sólido', shaded: 'Sombreado', lines: 'Solo líneas', xray: 'Rayos X' }
 
 /** The "Configuración" button of the 3D view: edges, colors, hover outline and quality. */
 export default function ViewerSettingsMenu({ settings, onChange }: { settings: ViewerSettings; onChange: (next: ViewerSettings) => void }): React.JSX.Element {
@@ -66,11 +66,11 @@ export default function ViewerSettingsMenu({ settings, onChange }: { settings: V
       {open &&
         pos &&
         createPortal(
-          <div className="menu-pop viewer-settings-pop" role="dialog" aria-label="Configuración del visor" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
+          <div className="menu-pop viewer-settings-pop" role="dialog" aria-label="Configuración del visor" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto', maxHeight: Math.max(160, window.innerHeight - pos.y - 12) }}>
             <div className="menu-title">Vista</div>
             <div className="viewer-choice">
               <span className="switch-label">Modo</span>
-              <div className="bim-seg" role="radiogroup" aria-label="Modo de vista">
+              <div className="bim-seg wrap" role="radiogroup" aria-label="Modo de vista">
                 {VIEW_MODES.map((m) => (
                   <button key={m} role="radio" aria-checked={settings.mode === m} className={settings.mode === m ? 'on' : ''} onClick={() => onChange({ ...settings, mode: m })}>
                     {MODE_LABELS[m]}
@@ -81,8 +81,17 @@ export default function ViewerSettingsMenu({ settings, onChange }: { settings: V
             <div className="viewer-choice">
               <span className="switch-label">Transparencia del modelo</span>
               <div className="viewer-opacity">
-                <input type="range" min={10} max={100} step={5} value={Math.round(settings.opacity * 100)} aria-label="Opacidad del modelo" onChange={(e) => onChange({ ...settings, opacity: Number(e.target.value) / 100 })} />
-                <span>{Math.round(settings.opacity * 100)}%</span>
+                {/* The slider shows transparency (0 % solid, the right end almost see-through); the setting stores the opacity. */}
+                <input
+                  type="range"
+                  min={0}
+                  max={90}
+                  step={5}
+                  value={Math.round((1 - settings.opacity) * 100)}
+                  aria-label="Transparencia del modelo"
+                  onChange={(e) => onChange({ ...settings, opacity: Math.round((1 - Number(e.target.value) / 100) * 100) / 100 })}
+                />
+                <span>{Math.round((1 - settings.opacity) * 100)}%</span>
               </div>
             </div>
             <div className="menu-sep" />

@@ -73,7 +73,7 @@ export default function GanttSettingsMenu({ settings, onChange }: Props): React.
       {open &&
         pos &&
         createPortal(
-          <div className="menu-pop gantt-settings-pop" role="dialog" aria-label="Configuración del Gantt" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
+          <div className="menu-pop gantt-settings-pop" role="dialog" aria-label="Configuración del Gantt" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto', maxHeight: Math.max(160, window.innerHeight - pos.y - 12) }}>
             <div className="menu-title">Vista</div>
             <SwitchRow
               label="Mostrar la tabla"

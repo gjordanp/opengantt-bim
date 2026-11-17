@@ -203,7 +203,7 @@ const TOPICS: Topic[] = [
           </div>
           <div className="help-card">
             <b>Editar en la tabla</b>
-            <span>Un clic en una celda la abre: nombre, inicio, fin, días, avance. <Kbd>Enter</Kbd> acepta y <Kbd>Esc</Kbd> cancela.</span>
+            <span>Funciona como una planilla. Un clic selecciona la celda; muévete con las <Kbd>flechas</Kbd> (<Kbd>Shift</Kbd> + <Kbd>↑</Kbd>/<Kbd>↓</Kbd> selecciona varias). <Kbd>Enter</Kbd>, <Kbd>F2</Kbd>, doble clic o simplemente escribir la edita; <Kbd>Enter</Kbd> acepta y baja, <Kbd>Esc</Kbd> cancela. Arrastrando con el mouse (botón izquierdo o derecho) amplías la selección. Para rellenar hacia abajo, arrastra el cuadrito del borde inferior de la selección (Grupos, Avance, Días, Superficie, Tarea): una celda se copia; varias que cuentan con un paso fijo siguen la serie (G1, G2 → G3, G4…); si no, repiten su patrón.</span>
           </div>
           <div className="help-card">
             <b>Mover y alargar</b>
@@ -444,8 +444,11 @@ const TOPICS: Topic[] = [
             {[
               [<><Kbd>Ctrl</Kbd> + <Kbd>K</Kbd></>, 'Paleta de comandos: buscar acciones y proyectos'],
               [<><Kbd>Ctrl</Kbd> + <Kbd>Z</Kbd> / <Kbd>Y</Kbd></>, 'Deshacer y rehacer en el Gantt'],
-              [<>Clic en una celda</>, 'Editar en la tabla (Enter acepta, Esc cancela)'],
+              [<>Clic en una celda</>, 'Seleccionarla; doble clic, Enter o escribir la edita (Esc cancela)'],
+              [<><Kbd>←</Kbd> <Kbd>→</Kbd> <Kbd>↑</Kbd> <Kbd>↓</Kbd></>, 'Moverse entre celdas de la tabla (con Shift, selecciona varias hacia abajo o arriba)'],
+              [<>Arrastrar el cuadrito de la selección</>, 'Rellenar hacia abajo repitiendo el valor o el patrón'],
               [<>Clic derecho en la cabecera</>, 'Elegir las columnas visibles'],
+              [<>Arrastrar con la rueda presionada</>, 'Desplazar el Gantt en horizontal y vertical'],
               [<><Kbd>Ctrl</Kbd> + clic en el modelo</>, 'Sumar o quitar elementos de la selección'],
               [<><Kbd>Esc</Kbd> en el visor</>, 'Quitar la selección'],
               [<><Kbd>Ctrl</Kbd> + clic en tareas</>, 'Seleccionar varias tareas del Gantt'],

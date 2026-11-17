@@ -1,1099 +1,847 @@
 {
-  "name": "Edificio Lyon corto",
+  "name": "Edificio 2 subterráneos + 7 pisos",
   "tasks": [
     {
       "id": 1,
-      "text": "Edificio Lyon · obra gruesa por ciclos",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Subterráneo -2",
+      "start_date": "2026-03-02",
+      "duration": 128,
       "progress": 0,
       "parent": null,
       "type": "project"
     },
     {
       "id": 2,
-      "text": "Planta Fundaciones",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 1",
+      "start_date": "2026-03-02",
+      "duration": 16,
       "progress": 0,
       "parent": 1,
-      "type": "project"
+      "type": "task"
     },
     {
       "id": 3,
-      "text": "Ciclo 1",
-      "start_date": "2026-11-02",
-      "duration": 8,
+      "text": "Ciclo 2",
+      "start_date": "2026-03-24",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 4,
-      "text": "Ciclo 2",
-      "start_date": "2026-11-12",
-      "duration": 8,
+      "text": "Ciclo 3",
+      "start_date": "2026-04-15",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 5,
-      "text": "Ciclo 3",
-      "start_date": "2026-11-24",
-      "duration": 8,
+      "text": "Ciclo 4",
+      "start_date": "2026-05-07",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 6,
-      "text": "Ciclo 4",
-      "start_date": "2026-12-04",
-      "duration": 8,
+      "text": "Ciclo 5",
+      "start_date": "2026-05-29",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 7,
-      "text": "Ciclo 5",
-      "start_date": "2026-12-16",
-      "duration": 8,
+      "text": "Ciclo 6",
+      "start_date": "2026-06-22",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 8,
-      "text": "Ciclo 6",
-      "start_date": "2026-12-28",
-      "duration": 8,
+      "text": "Ciclo 7",
+      "start_date": "2026-07-14",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 9,
-      "text": "Ciclo 7",
-      "start_date": "2027-01-07",
-      "duration": 8,
+      "text": "Ciclo 8",
+      "start_date": "2026-08-05",
+      "duration": 16,
       "progress": 0,
-      "parent": 2,
+      "parent": 1,
       "type": "task"
     },
     {
       "id": 10,
-      "text": "Ciclo 8",
-      "start_date": "2027-01-19",
-      "duration": 8,
+      "text": "Subterráneo -1",
+      "start_date": "2026-08-27",
+      "duration": 128,
       "progress": 0,
-      "parent": 2,
-      "type": "task"
-    },
-    {
-      "id": 11,
-      "text": "Planta Cielo 2° Subterráneo",
-      "start_date": "2026-11-02",
-      "duration": 0,
-      "progress": 0,
-      "parent": 1,
+      "parent": null,
       "type": "project"
     },
     {
-      "id": 12,
+      "id": 11,
       "text": "Ciclo 1",
-      "start_date": "2026-11-12",
-      "duration": 8,
+      "start_date": "2026-08-27",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
+      "type": "task"
+    },
+    {
+      "id": 12,
+      "text": "Ciclo 2",
+      "start_date": "2026-09-18",
+      "duration": 16,
+      "progress": 0,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 13,
-      "text": "Ciclo 2",
-      "start_date": "2026-11-24",
-      "duration": 8,
+      "text": "Ciclo 3",
+      "start_date": "2026-10-12",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 14,
-      "text": "Ciclo 3",
-      "start_date": "2026-12-04",
-      "duration": 8,
+      "text": "Ciclo 4",
+      "start_date": "2026-11-03",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 15,
-      "text": "Ciclo 4",
-      "start_date": "2026-12-16",
-      "duration": 8,
+      "text": "Ciclo 5",
+      "start_date": "2026-11-25",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 16,
-      "text": "Ciclo 5",
-      "start_date": "2026-12-28",
-      "duration": 8,
+      "text": "Ciclo 6",
+      "start_date": "2026-12-17",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 17,
-      "text": "Ciclo 6",
-      "start_date": "2027-01-07",
-      "duration": 8,
+      "text": "Ciclo 7",
+      "start_date": "2027-01-08",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 18,
-      "text": "Ciclo 7",
-      "start_date": "2027-01-19",
-      "duration": 8,
+      "text": "Ciclo 8",
+      "start_date": "2027-02-01",
+      "duration": 16,
       "progress": 0,
-      "parent": 11,
+      "parent": 10,
       "type": "task"
     },
     {
       "id": 19,
-      "text": "Ciclo 8",
-      "start_date": "2027-01-29",
-      "duration": 8,
+      "text": "Piso 1",
+      "start_date": "2027-02-23",
+      "duration": 40,
       "progress": 0,
-      "parent": 11,
-      "type": "task"
-    },
-    {
-      "id": 20,
-      "text": "Planta Cielo 1° Subterráneo",
-      "start_date": "2026-11-02",
-      "duration": 0,
-      "progress": 0,
-      "parent": 1,
+      "parent": null,
       "type": "project"
     },
     {
-      "id": 21,
+      "id": 20,
       "text": "Ciclo 1",
-      "start_date": "2026-11-24",
+      "start_date": "2027-02-23",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 19,
+      "type": "task"
+    },
+    {
+      "id": 21,
+      "text": "Ciclo 2",
+      "start_date": "2027-03-05",
+      "duration": 8,
+      "progress": 0,
+      "parent": 19,
       "type": "task"
     },
     {
       "id": 22,
-      "text": "Ciclo 2",
-      "start_date": "2026-12-04",
+      "text": "Ciclo 3",
+      "start_date": "2027-03-17",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 19,
       "type": "task"
     },
     {
       "id": 23,
-      "text": "Ciclo 3",
-      "start_date": "2026-12-16",
+      "text": "Ciclo 4",
+      "start_date": "2027-03-29",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 19,
       "type": "task"
     },
     {
       "id": 24,
-      "text": "Ciclo 4",
-      "start_date": "2026-12-28",
+      "text": "Ciclo 5",
+      "start_date": "2027-04-08",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 19,
       "type": "task"
     },
     {
       "id": 25,
-      "text": "Ciclo 5",
-      "start_date": "2027-01-07",
-      "duration": 8,
+      "text": "Piso 2",
+      "start_date": "2027-04-20",
+      "duration": 40,
       "progress": 0,
-      "parent": 20,
-      "type": "task"
+      "parent": null,
+      "type": "project"
     },
     {
       "id": 26,
-      "text": "Ciclo 6",
-      "start_date": "2027-01-19",
+      "text": "Ciclo 1",
+      "start_date": "2027-04-20",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 25,
       "type": "task"
     },
     {
       "id": 27,
-      "text": "Ciclo 7",
-      "start_date": "2027-01-29",
+      "text": "Ciclo 2",
+      "start_date": "2027-04-30",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 25,
       "type": "task"
     },
     {
       "id": 28,
-      "text": "Ciclo 8",
-      "start_date": "2027-02-10",
+      "text": "Ciclo 3",
+      "start_date": "2027-05-12",
       "duration": 8,
       "progress": 0,
-      "parent": 20,
+      "parent": 25,
       "type": "task"
     },
     {
       "id": 29,
-      "text": "Planta Cielo 1° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 4",
+      "start_date": "2027-05-24",
+      "duration": 8,
       "progress": 0,
-      "parent": 1,
-      "type": "project"
+      "parent": 25,
+      "type": "task"
     },
     {
       "id": 30,
-      "text": "Ciclo 1",
-      "start_date": "2026-12-04",
-      "duration": 4,
+      "text": "Ciclo 5",
+      "start_date": "2027-06-03",
+      "duration": 8,
       "progress": 0,
-      "parent": 29,
+      "parent": 25,
       "type": "task"
     },
     {
       "id": 31,
-      "text": "Ciclo 2",
-      "start_date": "2026-12-16",
-      "duration": 4,
+      "text": "Piso 3",
+      "start_date": "2027-06-15",
+      "duration": 40,
       "progress": 0,
-      "parent": 29,
-      "type": "task"
+      "parent": null,
+      "type": "project"
     },
     {
       "id": 32,
-      "text": "Ciclo 3",
-      "start_date": "2026-12-28",
-      "duration": 4,
+      "text": "Ciclo 1",
+      "start_date": "2027-06-15",
+      "duration": 8,
       "progress": 0,
-      "parent": 29,
+      "parent": 31,
       "type": "task"
     },
     {
       "id": 33,
-      "text": "Ciclo 4",
-      "start_date": "2027-01-07",
-      "duration": 4,
+      "text": "Ciclo 2",
+      "start_date": "2027-06-25",
+      "duration": 8,
       "progress": 0,
-      "parent": 29,
+      "parent": 31,
       "type": "task"
     },
     {
       "id": 34,
-      "text": "Ciclo 5",
-      "start_date": "2027-01-19",
-      "duration": 4,
+      "text": "Ciclo 3",
+      "start_date": "2027-07-07",
+      "duration": 8,
       "progress": 0,
-      "parent": 29,
+      "parent": 31,
       "type": "task"
     },
     {
       "id": 35,
-      "text": "Planta Cielo 2° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 4",
+      "start_date": "2027-07-19",
+      "duration": 8,
       "progress": 0,
-      "parent": 1,
-      "type": "project"
+      "parent": 31,
+      "type": "task"
     },
     {
       "id": 36,
-      "text": "Ciclo 1",
-      "start_date": "2026-12-10",
-      "duration": 4,
+      "text": "Ciclo 5",
+      "start_date": "2027-07-29",
+      "duration": 8,
       "progress": 0,
-      "parent": 35,
+      "parent": 31,
       "type": "task"
     },
     {
       "id": 37,
-      "text": "Ciclo 2",
-      "start_date": "2026-12-22",
-      "duration": 4,
+      "text": "Piso 4",
+      "start_date": "2027-08-10",
+      "duration": 40,
       "progress": 0,
-      "parent": 35,
-      "type": "task"
+      "parent": null,
+      "type": "project"
     },
     {
       "id": 38,
-      "text": "Ciclo 3",
-      "start_date": "2027-01-01",
-      "duration": 4,
+      "text": "Ciclo 1",
+      "start_date": "2027-08-10",
+      "duration": 8,
       "progress": 0,
-      "parent": 35,
+      "parent": 37,
       "type": "task"
     },
     {
       "id": 39,
-      "text": "Ciclo 4",
-      "start_date": "2027-01-13",
-      "duration": 4,
+      "text": "Ciclo 2",
+      "start_date": "2027-08-20",
+      "duration": 8,
       "progress": 0,
-      "parent": 35,
+      "parent": 37,
       "type": "task"
     },
     {
       "id": 40,
-      "text": "Ciclo 5",
-      "start_date": "2027-01-25",
-      "duration": 4,
+      "text": "Ciclo 3",
+      "start_date": "2027-09-01",
+      "duration": 8,
       "progress": 0,
-      "parent": 35,
+      "parent": 37,
       "type": "task"
     },
     {
       "id": 41,
-      "text": "Planta Cielo 3° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 4",
+      "start_date": "2027-09-13",
+      "duration": 8,
       "progress": 0,
-      "parent": 1,
-      "type": "project"
+      "parent": 37,
+      "type": "task"
     },
     {
       "id": 42,
-      "text": "Ciclo 1",
-      "start_date": "2026-12-16",
-      "duration": 4,
+      "text": "Ciclo 5",
+      "start_date": "2027-09-23",
+      "duration": 8,
       "progress": 0,
-      "parent": 41,
+      "parent": 37,
       "type": "task"
     },
     {
       "id": 43,
-      "text": "Ciclo 2",
-      "start_date": "2026-12-28",
-      "duration": 4,
+      "text": "Piso 5",
+      "start_date": "2027-10-05",
+      "duration": 40,
       "progress": 0,
-      "parent": 41,
-      "type": "task"
+      "parent": null,
+      "type": "project"
     },
     {
       "id": 44,
-      "text": "Ciclo 3",
-      "start_date": "2027-01-07",
-      "duration": 4,
+      "text": "Ciclo 1",
+      "start_date": "2027-10-05",
+      "duration": 8,
       "progress": 0,
-      "parent": 41,
+      "parent": 43,
       "type": "task"
     },
     {
       "id": 45,
-      "text": "Ciclo 4",
-      "start_date": "2027-01-19",
-      "duration": 4,
+      "text": "Ciclo 2",
+      "start_date": "2027-10-15",
+      "duration": 8,
       "progress": 0,
-      "parent": 41,
+      "parent": 43,
       "type": "task"
     },
     {
       "id": 46,
-      "text": "Ciclo 5",
-      "start_date": "2027-01-29",
-      "duration": 4,
+      "text": "Ciclo 3",
+      "start_date": "2027-10-27",
+      "duration": 8,
       "progress": 0,
-      "parent": 41,
+      "parent": 43,
       "type": "task"
     },
     {
       "id": 47,
-      "text": "Planta Cielo 4° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 4",
+      "start_date": "2027-11-08",
+      "duration": 8,
       "progress": 0,
-      "parent": 1,
-      "type": "project"
+      "parent": 43,
+      "type": "task"
     },
     {
       "id": 48,
-      "text": "Ciclo 1",
-      "start_date": "2026-12-22",
-      "duration": 4,
+      "text": "Ciclo 5",
+      "start_date": "2027-11-18",
+      "duration": 8,
       "progress": 0,
-      "parent": 47,
+      "parent": 43,
       "type": "task"
     },
     {
       "id": 49,
-      "text": "Ciclo 2",
-      "start_date": "2027-01-01",
-      "duration": 4,
+      "text": "Piso 6",
+      "start_date": "2027-11-30",
+      "duration": 40,
       "progress": 0,
-      "parent": 47,
-      "type": "task"
+      "parent": null,
+      "type": "project"
     },
     {
       "id": 50,
-      "text": "Ciclo 3",
-      "start_date": "2027-01-13",
-      "duration": 4,
+      "text": "Ciclo 1",
+      "start_date": "2027-11-30",
+      "duration": 8,
       "progress": 0,
-      "parent": 47,
+      "parent": 49,
       "type": "task"
     },
     {
       "id": 51,
-      "text": "Ciclo 4",
-      "start_date": "2027-01-25",
-      "duration": 4,
+      "text": "Ciclo 2",
+      "start_date": "2027-12-10",
+      "duration": 8,
       "progress": 0,
-      "parent": 47,
+      "parent": 49,
       "type": "task"
     },
     {
       "id": 52,
-      "text": "Ciclo 5",
-      "start_date": "2027-02-04",
-      "duration": 4,
+      "text": "Ciclo 3",
+      "start_date": "2027-12-22",
+      "duration": 8,
       "progress": 0,
-      "parent": 47,
+      "parent": 49,
       "type": "task"
     },
     {
       "id": 53,
-      "text": "Planta Cielo 5° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 4",
+      "start_date": "2028-01-03",
+      "duration": 8,
       "progress": 0,
-      "parent": 1,
-      "type": "project"
+      "parent": 49,
+      "type": "task"
     },
     {
       "id": 54,
-      "text": "Ciclo 1",
-      "start_date": "2026-12-28",
-      "duration": 4,
+      "text": "Ciclo 5",
+      "start_date": "2028-01-13",
+      "duration": 8,
       "progress": 0,
-      "parent": 53,
+      "parent": 49,
       "type": "task"
     },
     {
       "id": 55,
-      "text": "Ciclo 2",
-      "start_date": "2027-01-07",
-      "duration": 4,
+      "text": "Piso 7",
+      "start_date": "2028-01-25",
+      "duration": 40,
       "progress": 0,
-      "parent": 53,
-      "type": "task"
+      "parent": null,
+      "type": "project"
     },
     {
       "id": 56,
-      "text": "Ciclo 3",
-      "start_date": "2027-01-19",
-      "duration": 4,
+      "text": "Ciclo 1",
+      "start_date": "2028-01-25",
+      "duration": 8,
       "progress": 0,
-      "parent": 53,
+      "parent": 55,
       "type": "task"
     },
     {
       "id": 57,
-      "text": "Ciclo 4",
-      "start_date": "2027-01-29",
-      "duration": 4,
+      "text": "Ciclo 2",
+      "start_date": "2028-02-04",
+      "duration": 8,
       "progress": 0,
-      "parent": 53,
+      "parent": 55,
       "type": "task"
     },
     {
       "id": 58,
-      "text": "Ciclo 5",
-      "start_date": "2027-02-10",
-      "duration": 4,
+      "text": "Ciclo 3",
+      "start_date": "2028-02-16",
+      "duration": 8,
       "progress": 0,
-      "parent": 53,
+      "parent": 55,
       "type": "task"
     },
     {
       "id": 59,
-      "text": "Planta Cielo 6° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
+      "text": "Ciclo 4",
+      "start_date": "2028-02-28",
+      "duration": 8,
       "progress": 0,
-      "parent": 1,
-      "type": "project"
+      "parent": 55,
+      "type": "task"
     },
     {
       "id": 60,
-      "text": "Ciclo 1",
-      "start_date": "2027-01-01",
-      "duration": 4,
-      "progress": 0,
-      "parent": 59,
-      "type": "task"
-    },
-    {
-      "id": 61,
-      "text": "Ciclo 2",
-      "start_date": "2027-01-13",
-      "duration": 4,
-      "progress": 0,
-      "parent": 59,
-      "type": "task"
-    },
-    {
-      "id": 62,
-      "text": "Ciclo 3",
-      "start_date": "2027-01-25",
-      "duration": 4,
-      "progress": 0,
-      "parent": 59,
-      "type": "task"
-    },
-    {
-      "id": 63,
-      "text": "Ciclo 4",
-      "start_date": "2027-02-04",
-      "duration": 4,
-      "progress": 0,
-      "parent": 59,
-      "type": "task"
-    },
-    {
-      "id": 64,
       "text": "Ciclo 5",
-      "start_date": "2027-02-16",
-      "duration": 4,
+      "start_date": "2028-03-09",
+      "duration": 8,
       "progress": 0,
-      "parent": 59,
-      "type": "task"
-    },
-    {
-      "id": 65,
-      "text": "Planta Cielo 7° Piso",
-      "start_date": "2026-11-02",
-      "duration": 0,
-      "progress": 0,
-      "parent": 1,
-      "type": "project"
-    },
-    {
-      "id": 66,
-      "text": "Ciclo 2",
-      "start_date": "2027-01-19",
-      "duration": 4,
-      "progress": 0,
-      "parent": 65,
-      "type": "task"
-    },
-    {
-      "id": 67,
-      "text": "Ciclo 3",
-      "start_date": "2027-01-29",
-      "duration": 4,
-      "progress": 0,
-      "parent": 65,
-      "type": "task"
-    },
-    {
-      "id": 68,
-      "text": "Ciclo 4",
-      "start_date": "2027-02-10",
-      "duration": 4,
-      "progress": 0,
-      "parent": 65,
+      "parent": 55,
       "type": "task"
     }
   ],
   "links": [
     {
+      "source": 2,
+      "target": 3,
+      "type": "FS",
+      "lag": 0
+    },
+    {
       "source": 3,
       "target": 4,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 4,
       "target": 5,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 5,
       "target": 6,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 6,
       "target": 7,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 7,
       "target": 8,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 8,
       "target": 9,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 9,
-      "target": 10,
-      "type": "FS"
+      "target": 11,
+      "type": "FS",
+      "lag": 0
     },
     {
-      "source": 3,
+      "source": 11,
       "target": 12,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 12,
       "target": 13,
-      "type": "FS"
-    },
-    {
-      "source": 4,
-      "target": 13,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 13,
       "target": 14,
-      "type": "FS"
-    },
-    {
-      "source": 5,
-      "target": 14,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 14,
       "target": 15,
-      "type": "FS"
-    },
-    {
-      "source": 6,
-      "target": 15,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 15,
       "target": 16,
-      "type": "FS"
-    },
-    {
-      "source": 7,
-      "target": 16,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 16,
       "target": 17,
-      "type": "FS"
-    },
-    {
-      "source": 8,
-      "target": 17,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 17,
       "target": 18,
-      "type": "FS"
-    },
-    {
-      "source": 9,
-      "target": 18,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 18,
-      "target": 19,
-      "type": "FS"
+      "target": 20,
+      "type": "FS",
+      "lag": 0
     },
     {
-      "source": 10,
-      "target": 19,
-      "type": "FS"
-    },
-    {
-      "source": 12,
+      "source": 20,
       "target": 21,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 21,
       "target": 22,
-      "type": "FS"
-    },
-    {
-      "source": 13,
-      "target": 22,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 22,
       "target": 23,
-      "type": "FS"
-    },
-    {
-      "source": 14,
-      "target": 23,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 23,
       "target": 24,
-      "type": "FS"
-    },
-    {
-      "source": 15,
-      "target": 24,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 24,
-      "target": 25,
-      "type": "FS"
-    },
-    {
-      "source": 16,
-      "target": 25,
-      "type": "FS"
-    },
-    {
-      "source": 25,
       "target": 26,
-      "type": "FS"
-    },
-    {
-      "source": 17,
-      "target": 26,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 26,
       "target": 27,
-      "type": "FS"
-    },
-    {
-      "source": 18,
-      "target": 27,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 27,
       "target": 28,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
-      "source": 19,
-      "target": 28,
-      "type": "FS"
+      "source": 28,
+      "target": 29,
+      "type": "FS",
+      "lag": 0
     },
     {
-      "source": 21,
+      "source": 29,
       "target": 30,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 30,
-      "target": 31,
-      "type": "FS"
-    },
-    {
-      "source": 22,
-      "target": 31,
-      "type": "FS"
-    },
-    {
-      "source": 31,
       "target": 32,
-      "type": "FS"
-    },
-    {
-      "source": 23,
-      "target": 32,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 32,
       "target": 33,
-      "type": "FS"
-    },
-    {
-      "source": 24,
-      "target": 33,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 33,
       "target": 34,
-      "type": "FS"
-    },
-    {
-      "source": 25,
-      "target": 34,
-      "type": "FS"
-    },
-    {
-      "source": 30,
-      "target": 36,
-      "type": "FS"
-    },
-    {
-      "source": 36,
-      "target": 37,
-      "type": "FS"
-    },
-    {
-      "source": 31,
-      "target": 37,
-      "type": "FS"
-    },
-    {
-      "source": 37,
-      "target": 38,
-      "type": "FS"
-    },
-    {
-      "source": 32,
-      "target": 38,
-      "type": "FS"
-    },
-    {
-      "source": 38,
-      "target": 39,
-      "type": "FS"
-    },
-    {
-      "source": 33,
-      "target": 39,
-      "type": "FS"
-    },
-    {
-      "source": 39,
-      "target": 40,
-      "type": "FS"
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 34,
-      "target": 40,
-      "type": "FS"
+      "target": 35,
+      "type": "FS",
+      "lag": 0
+    },
+    {
+      "source": 35,
+      "target": 36,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 36,
-      "target": 42,
-      "type": "FS"
-    },
-    {
-      "source": 42,
-      "target": 43,
-      "type": "FS"
-    },
-    {
-      "source": 37,
-      "target": 43,
-      "type": "FS"
-    },
-    {
-      "source": 43,
-      "target": 44,
-      "type": "FS"
+      "target": 38,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 38,
-      "target": 44,
-      "type": "FS"
-    },
-    {
-      "source": 44,
-      "target": 45,
-      "type": "FS"
+      "target": 39,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 39,
-      "target": 45,
-      "type": "FS"
-    },
-    {
-      "source": 45,
-      "target": 46,
-      "type": "FS"
+      "target": 40,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 40,
-      "target": 46,
-      "type": "FS"
+      "target": 41,
+      "type": "FS",
+      "lag": 0
+    },
+    {
+      "source": 41,
+      "target": 42,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 42,
-      "target": 48,
-      "type": "FS"
-    },
-    {
-      "source": 48,
-      "target": 49,
-      "type": "FS"
-    },
-    {
-      "source": 43,
-      "target": 49,
-      "type": "FS"
-    },
-    {
-      "source": 49,
-      "target": 50,
-      "type": "FS"
+      "target": 44,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 44,
-      "target": 50,
-      "type": "FS"
-    },
-    {
-      "source": 50,
-      "target": 51,
-      "type": "FS"
+      "target": 45,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 45,
-      "target": 51,
-      "type": "FS"
-    },
-    {
-      "source": 51,
-      "target": 52,
-      "type": "FS"
+      "target": 46,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 46,
-      "target": 52,
-      "type": "FS"
+      "target": 47,
+      "type": "FS",
+      "lag": 0
+    },
+    {
+      "source": 47,
+      "target": 48,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 48,
-      "target": 54,
-      "type": "FS"
-    },
-    {
-      "source": 54,
-      "target": 55,
-      "type": "FS"
-    },
-    {
-      "source": 49,
-      "target": 55,
-      "type": "FS"
-    },
-    {
-      "source": 55,
-      "target": 56,
-      "type": "FS"
+      "target": 50,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 50,
-      "target": 56,
-      "type": "FS"
-    },
-    {
-      "source": 56,
-      "target": 57,
-      "type": "FS"
+      "target": 51,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 51,
-      "target": 57,
-      "type": "FS"
-    },
-    {
-      "source": 57,
-      "target": 58,
-      "type": "FS"
+      "target": 52,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 52,
-      "target": 58,
-      "type": "FS"
+      "target": 53,
+      "type": "FS",
+      "lag": 0
+    },
+    {
+      "source": 53,
+      "target": 54,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 54,
-      "target": 60,
-      "type": "FS"
-    },
-    {
-      "source": 60,
-      "target": 61,
-      "type": "FS"
-    },
-    {
-      "source": 55,
-      "target": 61,
-      "type": "FS"
-    },
-    {
-      "source": 61,
-      "target": 62,
-      "type": "FS"
+      "target": 56,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 56,
-      "target": 62,
-      "type": "FS"
-    },
-    {
-      "source": 62,
-      "target": 63,
-      "type": "FS"
+      "target": 57,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 57,
-      "target": 63,
-      "type": "FS"
-    },
-    {
-      "source": 63,
-      "target": 64,
-      "type": "FS"
+      "target": 58,
+      "type": "FS",
+      "lag": 0
     },
     {
       "source": 58,
-      "target": 64,
-      "type": "FS"
+      "target": 59,
+      "type": "FS",
+      "lag": 0
     },
     {
-      "source": 61,
-      "target": 66,
-      "type": "FS"
-    },
-    {
-      "source": 66,
-      "target": 67,
-      "type": "FS"
-    },
-    {
-      "source": 62,
-      "target": 67,
-      "type": "FS"
-    },
-    {
-      "source": 67,
-      "target": 68,
-      "type": "FS"
-    },
-    {
-      "source": 63,
-      "target": 68,
-      "type": "FS"
+      "source": 59,
+      "target": 60,
+      "type": "FS",
+      "lag": 0
     }
   ]
 }

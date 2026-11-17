@@ -2,7 +2,6 @@ import type { GanttStatic } from 'dhtmlx-gantt'
 import { clickSelection, emptySelection, type Selection } from '@shared/selection'
 import { countWorkDays, fromDay, nextWorkingDay, prevWorkingDay, toDay, type Calendar } from '@shared/scheduling'
 import { dateToIso, isoToDate } from './localDates'
-import { startEditAt } from './inlineEditors'
 
 export interface MultiSelect {
   /** Replaces the selection (empty list clears it). */
@@ -73,8 +72,6 @@ export function installMultiSelect(gantt: GanttStatic): MultiSelect {
       // The open/close arrow of a branch is not a selection.
       if ((e?.target as HTMLElement | undefined)?.closest?.('.gantt_tree_icon.gantt_open, .gantt_tree_icon.gantt_close')) return true
       click(id, e)
-      // A plain click on an editable cell of the table edits it in place.
-      if (!e.ctrlKey && !e.metaKey && !e.shiftKey && g.getTask(id)?.type !== 'placeholder') startEditAt(gantt, e.target)
       return true
     }),
     // A new project (or an undo) starts with nothing selected.

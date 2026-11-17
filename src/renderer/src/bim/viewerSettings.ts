@@ -1,5 +1,10 @@
-export type ViewMode = 'normal' | 'lines' | 'xray'
-export const VIEW_MODES: ViewMode[] = ['normal', 'lines', 'xray']
+/**
+ * How the model is drawn, as in other BIM viewers (Speckle's default, shaded and pen modes):
+ * normal: its own colors, with the edges switch; shaded: colors with soft shadows in the corners (ambient occlusion);
+ * lines: pen lines only; xray: a ghost.
+ */
+export type ViewMode = 'normal' | 'shaded' | 'lines' | 'xray'
+export const VIEW_MODES: ViewMode[] = ['normal', 'shaded', 'lines', 'xray']
 
 /** How the 3D view looks, kept on this computer (not part of the project). Every option is on or off. */
 export interface ViewerSettings {

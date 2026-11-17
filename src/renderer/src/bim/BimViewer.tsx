@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Check, ChevronLeft, ChevronRight, ClipboardList, Eye, EyeOff, Info, Layers, Pause, Play, Plus, Search, SkipBack, SkipForward, Trash2, Upload, X } from 'lucide-react'
+import { Box, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Layers, Pause, Play, Plus, Search, SkipBack, SkipForward, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
 import EllipsisText from '../EllipsisText'
 import { roundValue } from '@shared/formatValue'
@@ -45,11 +45,10 @@ export interface BimSlots {
   viewer: HTMLElement | null
 }
 
-export type BimTool = 'search' | 'task' | 'groups' | 'props' | 'models'
+export type BimTool = 'search' | 'groups' | 'props' | 'models'
 
 const TOOLS: { id: BimTool; label: string; icon: React.ReactNode }[] = [
   { id: 'search', label: 'Buscar elementos', icon: <Search size={16} /> },
-  { id: 'task', label: 'Asignación a tareas', icon: <ClipboardList size={16} /> },
   { id: 'groups', label: 'Grupos guardados', icon: <Layers size={16} /> },
   { id: 'props', label: 'Propiedades del elemento', icon: <Info size={16} /> },
   { id: 'models', label: 'Modelos del proyecto', icon: <Box size={16} /> }
@@ -302,7 +301,8 @@ export default function BimViewer({
     if (!world || !renderer || !pp) return
     const v = viewerRef.current
     const A = OBF.PostproductionAspect
-    pp.style = v.mode === 'lines' ? A.PEN : v.edges ? A.COLOR_PEN : A.COLOR
+    // Shaded adds soft shadows in the corners.
+    pp.style = v.mode === 'lines' ? A.PEN : v.mode === 'shaded' ? (v.edges ? A.COLOR_PEN_SHADOWS : A.COLOR_SHADOWS) : v.edges ? A.COLOR_PEN : A.COLOR
     pp.smaaEnabled = v.antialiasing
     pp.msaaEnabled = false
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
@@ -1086,6 +1086,17 @@ export default function BimViewer({
     if (others.length > 0) setPendingAssign(group)
     else setLinks(addGroupToTask(links, task.id, group.id))
   }
+  // The Grupos window follows the task chosen in the Gantt: its groups are highlighted and the first one is brought into view.
+  const [groupFilter, setGroupFilter] = useState('')
+  const groupCardRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const taskGroupKey = task ? (link?.groupIds ?? []).join(',') : ''
+  useEffect(() => {
+    if (!task || !openTools.includes('groups')) return
+    const first = (link?.groupIds ?? []).find((id) => groupCardRefs.current.has(id))
+    groupCardRefs.current.get(first ?? '')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    // Only when the chosen task (or its groups) changes, not on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task?.id, taskGroupKey, openTools.includes('groups')])
   const toggleViewed = (id: string): void =>
     setViewed((v) => {
       const next = new Set(v)
@@ -1440,7 +1451,7 @@ export default function BimViewer({
           ))}
         </div>
       )}
-      {propGroups.length > 0 && (
+      {(propGroups.length > 0 || propFilter) && (
         <input type="search" className="bim-props-filter" placeholder="Filtrar propiedades…" value={propFilter} onChange={(e) => setPropFilter(e.target.value)} aria-label="Filtrar propiedades" />
       )}
       {propGroups.map((g) => (
@@ -1608,6 +1619,17 @@ export default function BimViewer({
           >
             Crear grupo
           </button>
+          {task && (
+            <button
+              disabled={results.length === 0}
+              onClick={() => {
+                setLinks(addElementsToTask(links, task.id, results.map((r) => r.guid)))
+                say(`${plural(results.length, 'elemento asignado', 'elementos asignados')} a «${taskTitle}»`)
+              }}
+            >
+              Asignar a «{taskTitle}»
+            </button>
+          )}
           <button onClick={clearSearch}>Limpiar</button>
         </div>
         <label className="bim-isolate">
@@ -1658,107 +1680,15 @@ export default function BimViewer({
   const looseCount = link?.guids.length ?? 0
   const unassignedGroups = bim.groups.filter((g) => !link?.groupIds.includes(g.id))
 
-  const taskUi = (
-    <div className="panel-body bim-task">
-      {!task ? (
-        <div className="bim-empty">
-          <b>Ninguna tarea elegida</b>
-          <span>Haz clic en una tarea del Gantt y aquí podrás asignarle elementos del modelo.</span>
-        </div>
-      ) : (
-        <>
-          <div className="bim-task-card">
-            <span className="bim-muted">Tarea elegida en el Gantt</span>
-            <b>{taskTitle}</b>
-            <span className="bim-task-total">
-              {taskSet.size === 0 ? 'Sin elementos asignados' : `${plural(taskSet.size, 'elemento', 'elementos')} (se ven en verde)`}
-            </span>
-            {taskSet.size > 0 && (
-              <button onClick={() => selectGuids(taskSet, `«${taskTitle}»`)}>
-                <Eye size={13} /> Ver en el visor
-              </button>
-            )}
-          </div>
-
-          {(link?.groupIds.length ?? 0) + looseCount > 0 && (
-            <>
-              <div className="bim-label">Asignado por</div>
-              <div className="bim-chips">
-                {(link?.groupIds ?? []).map((id) => {
-                  const group = groupOf(id)
-                  return group ? (
-                    <span key={id} className="bim-chip" style={{ borderColor: group.color }}>
-                      <b className="bim-code">{group.code}</b> {group.name} · {resolveGroup(group, elements).size}
-                      <Tooltip label="Quitar este grupo de la tarea">
-                        <button aria-label="Quitar grupo" onClick={() => setLinks(removeGroupFromTask(links, task.id, id))}>
-                          ×
-                        </button>
-                      </Tooltip>
-                    </span>
-                  ) : null
-                })}
-                {looseCount > 0 && (
-                  <span className="bim-chip">
-                    {plural(looseCount, 'elemento suelto', 'elementos sueltos')}
-                    <Tooltip label="Ver estos elementos en el visor">
-                      <button aria-label="Ver elementos sueltos" onClick={() => selectGuids(link?.guids ?? [], 'Sueltos')}>
-                        <Eye size={12} />
-                      </button>
-                    </Tooltip>
-                    <Tooltip label="Quitar los elementos sueltos de la tarea">
-                      <button aria-label="Quitar elementos sueltos" onClick={() => setLinks(removeElementsFromTask(links, task.id, link?.guids ?? []))}>
-                        ×
-                      </button>
-                    </Tooltip>
-                  </span>
-                )}
-              </div>
-            </>
-          )}
-
-          <div className="bim-label">Agregar a la tarea</div>
-          <div className="bim-adds">
-            <div className="bim-add">
-              <div>
-                <b>Lo que tienes seleccionado</b>
-                <span className="bim-muted">{picked.length > 0 ? `${plural(picked.length, 'elemento', 'elementos')} · ${describeElements(picked)}` : 'Haz clic en el modelo (Ctrl + clic suma más)'}</span>
-              </div>
-              <button className="primary" disabled={picked.length === 0 || allPickedAssigned} onClick={assignPicked}>
-                {allPickedAssigned ? 'Ya asignado' : 'Asignar'}
-              </button>
-            </div>
-            <div className="bim-add">
-              <div>
-                <b>Resultado de la búsqueda</b>
-                <span className="bim-muted">{query ? `${plural(results.length, 'elemento', 'elementos')} · ${queryText}` : 'Define una búsqueda en «Buscar elementos»'}</span>
-              </div>
-              <button
-                disabled={!query || results.length === 0}
-                onClick={() => {
-                  setLinks(addElementsToTask(links, task.id, results.map((r) => r.guid)))
-                  say(`${plural(results.length, 'elemento asignado', 'elementos asignados')} a «${taskTitle}»`)
-                }}
-              >
-                Asignar
-              </button>
-            </div>
-            {unassignedGroups.length > 0 && (
-              <div className="bim-add bim-add-groups">
-                <b>Un grupo guardado</b>
-                <div className="bim-chips">
-                  {unassignedGroups.map((g) => (
-                    <button key={g.id} className="bim-chip bim-chip-add" style={{ borderColor: g.color }} onClick={() => assignGroup(g)}>
-                      <Plus size={12} /> {g.code} · {g.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  )
+  const filteredGroups = useMemo(() => {
+    const terms = groupFilter.trim().toLowerCase().split(/\s+/).filter(Boolean)
+    if (terms.length === 0) return bim.groups
+    return bim.groups.filter((g) => {
+      const hay = [g.code ?? '', g.name, describeGroupShort(g), ...tasksOfGroup(g.id, bim.links).map((id) => taskLabel(id) ?? taskText(id) ?? '')].join(' ').toLowerCase()
+      return terms.every((t) => hay.includes(t))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupFilter, bim.groups, bim.links])
 
   const groupsUi = (
     <div className="panel-body bim-groups">
@@ -1829,14 +1759,54 @@ export default function BimViewer({
         )}
       </div>
 
-      <div className="bim-label">Grupos guardados ({bim.groups.length})</div>
+      {task && (
+        <div className="bim-task-card">
+          <span className="bim-muted">Tarea elegida en el Gantt</span>
+          <b>{taskTitle}</b>
+          <span className="bim-task-total">{taskSet.size === 0 ? 'Sin elementos asignados' : `${plural(taskSet.size, 'elemento', 'elementos')} (se ven en verde)`}</span>
+          <div className="bim-chips">
+            {(link?.guids.length ?? 0) > 0 && (
+              <span className="bim-chip">
+                {plural(link?.guids.length ?? 0, 'elemento suelto', 'elementos sueltos')}
+                <Tooltip label="Quitar los elementos sueltos de la tarea">
+                  <button aria-label="Quitar elementos sueltos" onClick={() => setLinks(removeElementsFromTask(links, task.id, link?.guids ?? []))}>
+                    ×
+                  </button>
+                </Tooltip>
+              </span>
+            )}
+            {taskSet.size > 0 && (
+              <button onClick={() => selectGuids(taskSet, `«${taskTitle}»`)}>
+                <Eye size={13} /> Ver en el visor
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="bim-label">
+        Grupos guardados ({filteredGroups.length === bim.groups.length ? bim.groups.length : `${filteredGroups.length} de ${bim.groups.length}`})
+      </div>
+      {bim.groups.length > 0 && (
+        <div className="bim-group-filter">
+          <input type="search" value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} placeholder="Filtrar por código, nombre o tarea…" aria-label="Filtrar grupos" />
+        </div>
+      )}
       {bim.groups.length === 0 && <div className="bim-muted">Aún no hay grupos.</div>}
-      {bim.groups.map((group) => {
+      {bim.groups.length > 0 && filteredGroups.length === 0 && <div className="bim-muted">Ningún grupo coincide con «{groupFilter}».</div>}
+      {filteredGroups.map((group) => {
         const count = resolveGroup(group, elements).size
         const assigned = !!link?.groupIds.includes(group.id)
         const shown = viewed.has(group.id)
         return (
-          <div key={group.id} className="bim-group-card">
+          <div
+            key={group.id}
+            ref={(el) => {
+              if (el) groupCardRefs.current.set(group.id, el)
+              else groupCardRefs.current.delete(group.id)
+            }}
+            className={`bim-group-card${assigned ? ' task-assigned' : ''}`}
+          >
             <div className="bim-group-top">
               <span className="bim-swatch" style={{ background: group.color }} />
               <b className="bim-code">{group.code}</b>
@@ -1950,7 +1920,7 @@ export default function BimViewer({
                       <X size={14} />
                     </button>
                   </div>
-                  <div className="bim-tool-body">{{ search: searchUi, task: taskUi, groups: groupsUi, props: propsUi, models: modelsUi }[id]}</div>
+                  <div className="bim-tool-body">{{ search: searchUi, groups: groupsUi, props: propsUi, models: modelsUi }[id]}</div>
                 </div>
               )
             })}

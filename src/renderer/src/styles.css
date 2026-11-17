@@ -799,9 +799,111 @@ kbd {
   overflow: hidden;
 }
 
-.calendar-panel {
-  padding: 12px;
+.modal.calendar-dialog {
+  width: min(560px, calc(100vw - 32px));
+  padding: 20px 24px;
+}
+.cal-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.cal-head > div {
+  flex: 1;
+}
+.cal-head h2 {
+  margin: 0 0 2px;
+}
+.cal-head p {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+.cal-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  background: rgb(139 92 246 / 0.12);
+  color: var(--brand);
+}
+.calendar-form {
+  display: grid;
+  gap: 12px;
   font-size: 13px;
+}
+.cal-card {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 2px);
+  background: var(--muted);
+}
+.cal-card h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.cal-count {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--background);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+.cal-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.cal-presets button {
+  padding: 3px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+}
+.cal-presets button.on {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+.cal-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.cal-dates label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.cal-dates input[type='date'] {
+  width: 100%;
+  color: var(--foreground);
+}
+.cal-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+.cal-check input {
+  margin-top: 3px;
+}
+.cal-check small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
 }
 .weekdays {
   display: flex;
@@ -811,11 +913,15 @@ kbd {
 .weekdays label {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 52px;
   gap: 4px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
+  background: var(--background);
   border-radius: 999px;
   cursor: pointer;
+  user-select: none;
 }
 .weekdays label.on {
   border-color: var(--primary);
@@ -825,27 +931,19 @@ kbd {
 .weekdays input {
   display: none;
 }
-.calendar-panel .plan-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 6px;
-}
-.calendar-panel .plan-row input[type='date'] {
-  margin-left: auto;
-}
-.calendar-panel .plan-row.check {
-  margin-top: 8px;
-}
-.calendar-panel .hint {
-  margin: 2px 0 0;
+.calendar-form .hint {
+  margin: 6px 0 0;
   font-size: 11px;
   line-height: 1.4;
   color: var(--muted-foreground);
 }
-.calendar-panel textarea {
+.calendar-form .hint.bad {
+  color: var(--destructive);
+}
+.calendar-form textarea {
   font-family: ui-monospace, monospace;
   width: 100%;
+  resize: vertical;
 }
 
 /* ---------- projects ---------- */
@@ -2946,4 +3044,144 @@ kbd {
 .sim-chip.pending i {
   background: #cbd5e1;
   border: 1px dashed #64748b;
+}
+
+/* ---------- groups window: filter and the groups of the chosen task ---------- */
+.bim-group-filter {
+  margin: 0 0 8px;
+}
+.bim-group-filter input {
+  width: 100%;
+}
+.bim-group-card.task-assigned {
+  border-color: #22c55e;
+  background: rgb(34 197 94 / 0.08);
+  box-shadow: inset 3px 0 0 #22c55e;
+}
+.bim-groups > .bim-task-card {
+  margin-bottom: 12px;
+}
+
+/* ---------- table cells: selection and fill handle (gantt/cellNav.ts) ---------- */
+.gantt_container:focus {
+  outline: none;
+}
+.gantt_grid_data .gantt_cell.cn-sel {
+  --cn: var(--brand);
+  background-color: rgb(139 92 246 / 0.12);
+  box-shadow: inset 2px 0 0 var(--cn), inset -2px 0 0 var(--cn), inset 0 var(--cn-t, 0px) 0 var(--cn), inset 0 var(--cn-b, 0px) 0 var(--cn);
+}
+.gantt_grid_data .gantt_cell.cn-first {
+  --cn-t: 2px;
+}
+.gantt_grid_data .gantt_cell.cn-last {
+  --cn-b: -2px;
+}
+.gantt_grid_data .gantt_cell.cn-active {
+  background-color: transparent;
+}
+.gantt_grid_data .gantt_cell.cn-fill {
+  background-image: repeating-linear-gradient(135deg, rgb(139 92 246 / 0.18) 0 4px, transparent 4px 8px);
+}
+.gantt_grid_data .gantt_cell.cn-handle {
+  position: relative;
+  overflow: visible;
+}
+.gantt_grid_data .gantt_cell.cn-handle::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 9px;
+  height: 9px;
+  background: var(--brand);
+  border: 1px solid var(--background);
+  cursor: crosshair;
+  z-index: 2;
+}
+
+/* ---------- panning the gantt with the middle button (gantt/panDrag.ts) ---------- */
+.gantt_container.panning,
+.gantt_container.panning * {
+  cursor: grabbing !important;
+  user-select: none;
+}
+
+/* A disabled button swallows the mouse, so its tooltip (which says why it is disabled) never showed: let the wrapper get the hover. */
+.tt > button:disabled {
+  pointer-events: none;
+}
+
+/* ---------- the label that follows the mouse while creating a link (gantt/linkDrag.ts) ---------- */
+.gantt_link_tooltip {
+  min-width: 210px;
+  max-width: 320px;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--foreground);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--brand);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.gantt_link_tooltip.gantt_link_allow {
+  border-left-color: var(--ok);
+}
+.gantt_link_tooltip.gantt_link_deny {
+  border-left-color: var(--destructive);
+}
+.gantt_link_tooltip .lk-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.gantt_link_tooltip .lk-key {
+  width: 38px;
+  flex: none;
+  color: var(--muted-foreground);
+}
+.gantt_link_tooltip .lk-row b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gantt_link_tooltip .lk-side {
+  margin-left: auto;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.gantt_link_tooltip .lk-hint {
+  margin-top: 4px;
+  color: var(--muted-foreground);
+}
+.gantt_link_tooltip .lk-kind {
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--ok);
+}
+.gantt_link_tooltip .lk-deny {
+  margin-top: 4px;
+  font-weight: 600;
+  color: var(--destructive);
+}
+
+/* More view modes than fit on one row. */
+.bim-seg.wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+.bim-seg.wrap button {
+  flex: 1 1 30%;
+}
+
+/* The settings windows can be taller than the screen: they scroll. */
+.viewer-settings-pop,
+.gantt-settings-pop {
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
