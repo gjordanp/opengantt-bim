@@ -286,7 +286,6 @@ export default function App(): React.JSX.Element {
   )
 
   const getSpans = useCallback(() => ganttRef.current?.spans() ?? [], [])
-  const getTasks = useCallback(() => ganttRef.current?.taskList() ?? [], [])
 
   // The group codes of each task, for the Grupos column of the gantt.
   const bimGroupCodes = useMemo(() => {
@@ -861,7 +860,6 @@ export default function App(): React.JSX.Element {
         taskText={(id) => ganttRef.current?.taskText(id)}
         taskLabel={(id) => ganttRef.current?.taskLabel(id)}
         getSpans={getSpans}
-        getTasks={getTasks}
         scheduleVersion={scheduleVersion}
         projectId={api ? projectId : null}
       />
