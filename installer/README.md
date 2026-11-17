@@ -9,7 +9,13 @@ npx openganttbim
 It looks up the latest release on GitHub, downloads the installer, checks its **size and SHA-512** against the
 values published in the release (`latest.yml`), and runs it. A corrupt or truncated download is deleted and never run.
 
-Options:
+Without Node, the same thing in PowerShell (it comes with Windows):
+
+```powershell
+irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.ps1 | iex
+```
+
+Options (`npx`; the script takes `-Version`, `-Silent`, `-Check` when saved and run as a file):
 
 | Option | What it does |
 |---|---|

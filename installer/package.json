@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": { "openganttbim": "bin/install.mjs" },
-  "files": ["bin", "src", "README.md"],
+  "files": ["bin", "src", "install.ps1", "README.md"],
   "engines": { "node": ">=18" },
   "os": ["win32"],
   "repository": { "type": "git", "url": "git+https://github.com/gjordanp/opengantt-bim.git", "directory": "installer" },
