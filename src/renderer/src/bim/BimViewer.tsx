@@ -976,12 +976,12 @@ export default function BimViewer({
           prev.set(id, code)
         }
         if (toDone.length + toBuilding.length + toPending.length === 0) continue
-        // Elements that stop being pending leave the ghost first, so their new color is not washed out.
-        if (!hidePending && toPending.length === 0 && leavePending.length > 0) await model.unsetGhostItems(leavePending)
-        if (hidePending && leavePending.length > 0) await model.setVisible(leavePending, true)
+        // Color first, reveal after: an element that appears must never be seen for a moment in the model's own color.
         if (toDone.length > 0) await model.highlight(toDone, highlightMaterial(DONE_COLOR))
         if (toBuilding.length > 0) await model.highlight(toBuilding, highlightMaterial(BUILDING_COLOR))
         if (toPending.length > 0) await model.resetHighlight(toPending)
+        if (hidePending && leavePending.length > 0) await model.setVisible(leavePending, true)
+        else if (!hidePending && toPending.length === 0 && leavePending.length > 0) await model.unsetGhostItems(leavePending)
         if (hidePending) {
           if (toPending.length > 0) await model.setVisible(toPending, false)
         } else if (toPending.length > 0) {
