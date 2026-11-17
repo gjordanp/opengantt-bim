@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { SlidersHorizontal } from 'lucide-react'
 import Tooltip from '../Tooltip'
 import { SwitchRow } from '../gantt/GanttSettingsMenu'
-import { EDGE_COLORS, ELEMENT_COLORS, type ViewerSettings } from './viewerSettings'
+import { EDGE_COLORS, ELEMENT_COLORS, VIEW_MODES, type ViewMode, type ViewerSettings } from './viewerSettings'
 
 /** A row of color swatches plus a free color picker. */
 function ColorRow({ label, value, colors, onPick }: { label: string; value: string; colors: string[]; onPick: (hex: string) => void }): React.JSX.Element {
@@ -21,6 +21,8 @@ function ColorRow({ label, value, colors, onPick }: { label: string; value: stri
     </div>
   )
 }
+
+const MODE_LABELS: Record<ViewMode, string> = { normal: 'Sólido', lines: 'Solo líneas', xray: 'Rayos X' }
 
 /** The "Configuración" button of the 3D view: edges, colors, hover outline and quality. */
 export default function ViewerSettingsMenu({ settings, onChange }: { settings: ViewerSettings; onChange: (next: ViewerSettings) => void }): React.JSX.Element {
@@ -65,6 +67,25 @@ export default function ViewerSettingsMenu({ settings, onChange }: { settings: V
         pos &&
         createPortal(
           <div className="menu-pop viewer-settings-pop" role="dialog" aria-label="Configuración del visor" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto' }}>
+            <div className="menu-title">Vista</div>
+            <div className="viewer-choice">
+              <span className="switch-label">Modo</span>
+              <div className="bim-seg" role="radiogroup" aria-label="Modo de vista">
+                {VIEW_MODES.map((m) => (
+                  <button key={m} role="radio" aria-checked={settings.mode === m} className={settings.mode === m ? 'on' : ''} onClick={() => onChange({ ...settings, mode: m })}>
+                    {MODE_LABELS[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="viewer-choice">
+              <span className="switch-label">Transparencia del modelo</span>
+              <div className="viewer-opacity">
+                <input type="range" min={10} max={100} step={5} value={Math.round(settings.opacity * 100)} aria-label="Opacidad del modelo" onChange={(e) => onChange({ ...settings, opacity: Number(e.target.value) / 100 })} />
+                <span>{Math.round(settings.opacity * 100)}%</span>
+              </div>
+            </div>
+            <div className="menu-sep" />
             <div className="menu-title">Apariencia</div>
             <SwitchRow label="Bordes de los elementos" hint="Líneas que marcan las aristas, como un dibujo" on={settings.edges} onToggle={() => onChange({ ...settings, edges: !settings.edges })} />
             <SwitchRow label="Resaltar al pasar el mouse" hint="Marca el contorno del elemento bajo el cursor" on={settings.hover} onToggle={() => onChange({ ...settings, hover: !settings.hover })} />

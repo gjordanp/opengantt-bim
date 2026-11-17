@@ -278,7 +278,7 @@ export default function BimViewer({
     setViewerState(next)
     saveViewerSettings(next)
   }
-  const { modelColors, elementColor } = viewer
+  const { modelColors, elementColor, mode: viewMode, opacity: viewOpacity } = viewer
   const outlinerRef = useRef<OBF.Outliner | null>(null)
   const clearHoverRef = useRef<() => void>(() => undefined)
 
@@ -291,7 +291,7 @@ export default function BimViewer({
     if (!world || !renderer || !pp) return
     const v = viewerRef.current
     const A = OBF.PostproductionAspect
-    pp.style = v.edges ? A.COLOR_PEN : A.COLOR
+    pp.style = v.mode === 'lines' ? A.PEN : v.edges ? A.COLOR_PEN : A.COLOR
     pp.smaaEnabled = v.antialiasing
     pp.msaaEnabled = false
     // Native resolution: one drawing pixel per screen pixel (up to 2x on high-density screens), so lines stay sharp.
@@ -307,7 +307,7 @@ export default function BimViewer({
   useEffect(() => {
     applyLook()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer.edges, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
+  }, [viewer.edges, viewer.mode, viewer.antialiasing, viewer.adaptive, viewer.edgeColor])
   useEffect(() => {
     if (!viewer.hover) clearHoverRef.current()
   }, [viewer.hover])
@@ -814,6 +814,11 @@ export default function BimViewer({
         const pickedIds = picked.filter((p) => p.modelId === modelId).map((p) => p.localId)
         await model.resetHighlight()
         await model.resetVisible()
+        // Whole-model look: x-ray (everything ghosted) and transparency.
+        if (viewMode === 'xray') await model.setGhostItems([], true)
+        else model.clearGhost()
+        if (viewOpacity < 1) await model.setOpacity(undefined, viewOpacity)
+        else await model.resetOpacity(undefined)
         // One uniform color for every element, under everything painted below.
         if (!modelColors) {
           const all = elements.filter((e) => e.modelId === modelId).map((e) => e.localId)
@@ -851,7 +856,7 @@ export default function BimViewer({
       }
       manager.core.update(true)
     })()
-  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked, modelColors, elementColor])
+  }, [results, isolate, taskSet, picked, elements, phases, hideUnlinked, modelColors, elementColor, viewMode, viewOpacity])
 
   // ---- actions ----
   const links = bim.links

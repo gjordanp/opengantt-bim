@@ -1,7 +1,14 @@
+export type ViewMode = 'normal' | 'lines' | 'xray'
+export const VIEW_MODES: ViewMode[] = ['normal', 'lines', 'xray']
+
 /** How the 3D view looks, kept on this computer (not part of the project). Every option is on or off. */
 export interface ViewerSettings {
   /** Draw the edges of every element (pen lines over the colors). */
   edges: boolean
+  /** How the model is drawn: with its colors, as lines only, or as a ghost (x-ray). */
+  mode: ViewMode
+  /** Opacity of the whole model, 0.1 to 1. */
+  opacity: number
   /** Outline the element under the cursor. */
   hover: boolean
   /** Smoothing of jagged edges (SMAA). */
@@ -22,7 +29,7 @@ export const ELEMENT_COLORS = ['#e5e7eb', '#cbd5e1', '#fde68a', '#bbf7d0', '#bae
 
 export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
 
-export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, hover: true, antialiasing: true, adaptive: false, edgeColor: '#7a7a7a', modelColors: true, elementColor: '#e5e7eb' }
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = { edges: true, mode: 'normal', opacity: 1, hover: true, antialiasing: true, adaptive: false, edgeColor: '#7a7a7a', modelColors: true, elementColor: '#e5e7eb' }
 
 
 /** Camera-controls smoothing, in seconds: almost direct, so orbiting follows the mouse without lag. */
@@ -45,6 +52,8 @@ export function loadViewerSettings(): ViewerSettings {
     const d = DEFAULT_VIEWER_SETTINGS
     return {
       edges: flag(raw.edges, d.edges),
+      mode: VIEW_MODES.includes(raw.mode as ViewMode) ? (raw.mode as ViewMode) : d.mode,
+      opacity: typeof raw.opacity === 'number' && raw.opacity >= 0.1 && raw.opacity <= 1 ? raw.opacity : d.opacity,
       hover: flag(raw.hover, d.hover),
       antialiasing: flag(raw.antialiasing, d.antialiasing),
       adaptive: flag(raw.adaptive, d.adaptive),

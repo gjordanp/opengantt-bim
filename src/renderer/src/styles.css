@@ -2857,3 +2857,17 @@ kbd {
   margin: 4px -4px;
   background: var(--border);
 }
+.viewer-opacity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.viewer-opacity input[type='range'] {
+  flex: 1;
+}
+.viewer-opacity span {
+  width: 38px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-foreground);
+}
