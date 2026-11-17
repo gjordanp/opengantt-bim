@@ -6,6 +6,16 @@ Free, open-source (MIT) desktop app for construction scheduling: a Gantt chart, 
 
 ![4D simulation: finished, under construction and pending elements](docs/images/4d-70.png)
 
+## Quick install
+
+On Windows 10 or 11, open **PowerShell** and paste:
+
+```powershell
+irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.ps1 | iex
+```
+
+It downloads the latest installer, checks it is not damaged, and runs it. To do it by hand, or to see what Windows says (the installer is not signed yet), see [Install](#install).
+
 ## What it does
 
 - **Gantt** with its own scheduling engine: dependencies (FS/SS/FF/SF + lag), project calendar and holidays, auto-schedule, float and critical path, undo/redo, today line.

@@ -6,6 +6,16 @@ Aplicación de escritorio gratuita y de código abierto (MIT) para planificar ob
 
 ![Simulación 4D: elementos terminados, en construcción y pendientes](docs/images/4d-70.png)
 
+## Instalación rápida
+
+En Windows 10 u 11, abre **PowerShell** y pega este comando:
+
+```powershell
+irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.ps1 | iex
+```
+
+Descarga el instalador de la última versión, comprueba que no esté dañado y lo ejecuta. Si prefieres hacerlo a mano, o quieres saber qué avisa Windows (el instalador aún no está firmado), mira [Instalación](#instalación).
+
 ## Qué hace
 
 - **Gantt** con motor de programación propio: dependencias (FC/CC/FF/CF con desfase), calendario laboral y feriados, programación automática, holguras y ruta crítica, deshacer/rehacer, línea de hoy.
