@@ -219,7 +219,7 @@ const TOPICS: Topic[] = [
           </div>
           <div className="help-card">
             <b>Más opciones de una tarea</b>
-            <span>Doble clic abre la ficha con restricción, línea base y plazo.</span>
+            <span>Doble clic abre la ficha con restricción y línea base.</span>
           </div>
         </div>
         <Tip>

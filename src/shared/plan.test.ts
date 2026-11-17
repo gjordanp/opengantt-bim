@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deadlineLimit, lateness, overdueDays } from './plan'
+import { lateness, overdueDays } from './plan'
 
 const d = (y: number, m: number, day: number): Date => new Date(y, m - 1, day)
 
@@ -24,17 +24,11 @@ describe('overdueDays', () => {
 
 describe('lateness', () => {
   const end = d(2026, 3, 11) // exclusive: the task works through the 10th
-  it('lets a task end on its deadline day', () => {
-    expect(deadlineLimit(d(2026, 3, 10))).toEqual(end)
-    expect(lateness({ end_date: end, deadline: d(2026, 3, 10) })).toBeNull()
-  })
-  it('flags a task that ends after its deadline', () => {
-    expect(lateness({ end_date: end, deadline: d(2026, 3, 8) })).toEqual({ kind: 'deadline', days: 2 })
+  it('is on time when the task ends on its baseline end', () => {
+    expect(lateness({ end_date: end, baseline_end: end })).toBeNull()
+    expect(lateness({ end_date: end })).toBeNull()
   })
   it('flags a task that ends after its baseline', () => {
     expect(lateness({ end_date: end, baseline_end: d(2026, 3, 9) })).toEqual({ kind: 'baseline', days: 2 })
-  })
-  it('prefers the deadline when both are late', () => {
-    expect(lateness({ end_date: end, baseline_end: d(2026, 3, 9), deadline: d(2026, 3, 5) })?.kind).toBe('deadline')
   })
 })

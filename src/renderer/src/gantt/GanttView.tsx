@@ -12,7 +12,7 @@ import { TodayLine } from './todayLine'
 import { installWorkTime } from './workTime'
 import { installDragDurations, installMultiSelect, type MultiSelect } from './multiSelect'
 import { PlanOverlay, parsePlanDates, planSideText, planTaskClasses } from './planLayer'
-import { lateness, previousDay } from '@shared/plan'
+import { previousDay } from '@shared/plan'
 import { CONSTRAINT_TYPES, constraintNeedsDate, constraintShort } from '@shared/constraints'
 import { isoToDate } from './localDates'
 import { fromDay, nextWorkingDay, toDay, weekCalendar } from '@shared/scheduling'
@@ -268,7 +268,6 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         ...(t.open !== undefined ? { open: Boolean(t.open) } : {}),
         ...(Number(t.location_surface) ? { location_surface: Number(t.location_surface) } : {}),
         ...(t.baseline_start && t.baseline_end ? { baseline_start: String(t.baseline_start), baseline_end: String(t.baseline_end) } : {}),
-        ...(t.deadline ? { deadline: String(t.deadline) } : {}),
         ...(t.constraint_type && t.constraint_type !== 'asap'
           ? { constraint_type: String(t.constraint_type), ...(t.constraint_date ? { constraint_date: String(t.constraint_date) } : {}) }
           : {})
@@ -536,18 +535,6 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         template: (task: any) => (task.type === 'placeholder' ? '' : predecessorsText(gantt, task.id))
       },
       {
-        name: 'deadline',
-        label: 'Plazo',
-        align: 'center',
-        width: 90,
-        resize: true,
-        template: (task: any) => {
-          if (!task.deadline) return ''
-          const late = lateness(task)?.kind === 'deadline'
-          return `${late ? '<span class="overdue-mark" title="Fuera de plazo">!</span> ' : ''}${dateToIso(task.deadline)}`
-        }
-      },
-      {
         name: 'constraint',
         label: 'Restricción',
         align: 'center',
@@ -586,7 +573,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     // The text inside the bars can be switched off (the name is in the table anyway).
     gantt.templates.task_text = (_start: Date, _end: Date, task: any) => (ganttSettingsRef.current.barText ? String(task.text ?? '') : '')
 
-    // Dates the gantt does not know about (baseline, deadline) arrive as text: turn them into dates.
+    // Dates the gantt does not know about (baseline, constraint) arrive as text: turn them into dates.
     gantt.attachEvent('onTaskLoading', (task: any) => {
       parsePlanDates(gantt, task)
       return true
@@ -598,13 +585,10 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       return classes.join(' ')
     }
     gantt.templates.rightside_text = (_start: Date, end: Date, task: any) => planSideText(end, task)
-    // Sections of the edit window for the baseline and the deadline (each can be set or removed).
+    // Sections of the edit window for the baseline (it can be set or removed).
     gantt.locale.labels.section_baseline = 'Línea base'
-    gantt.locale.labels.section_deadline = 'Plazo'
     gantt.locale.labels.baseline_enable_button = 'Fijar'
     gantt.locale.labels.baseline_disable_button = 'Quitar'
-    gantt.locale.labels.deadline_enable_button = 'Fijar'
-    gantt.locale.labels.deadline_disable_button = 'Quitar'
     gantt.locale.labels.section_constraint = 'Restricción'
     // The rest of the edit window and the dates of the timeline, in Spanish.
     Object.assign(gantt.locale.labels, {
@@ -664,8 +648,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       { name: 'description', height: 70, map_to: 'text', type: 'textarea', focus: true },
       { name: 'time', map_to: 'auto', type: 'duration' },
       { name: 'constraint', height: 42, map_to: 'constraint_type', type: 'constraint' },
-      { name: 'baseline', map_to: { start_date: 'baseline_start', end_date: 'baseline_end' }, button: true, type: 'duration_optional' },
-      { name: 'deadline', map_to: { start_date: 'deadline' }, button: true, type: 'duration_optional', single_date: true }
+      { name: 'baseline', map_to: { start_date: 'baseline_start', end_date: 'baseline_end' }, button: true, type: 'duration_optional' }
     ] as unknown as typeof gantt.config.lightbox.sections
 
     let stopEditors = (): void => undefined

@@ -66,20 +66,7 @@
   pointer-events: auto;
 }
 
-/* Deadline: a ring centred on the end of the last day the task may work. */
-.plan-overlay .deadline {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  margin-left: -9px;
-  box-sizing: border-box;
-  border: 2px solid #585858;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  pointer-events: auto;
-}
-
-/* A task past its baseline or deadline. */
+/* A task past its baseline. */
 .gantt_task_line.overdue {
   background-color: #e5484d;
   border-color: #b4272c;

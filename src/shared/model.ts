@@ -19,8 +19,6 @@ export interface ProjectTask {
   /** Planned dates (baseline), `YYYY-MM-DD`; the end is exclusive like the task's own end. Both or neither. */
   baseline_start?: string
   baseline_end?: string
-  /** Last day the task may work, `YYYY-MM-DD`. */
-  deadline?: string
   /** `asap` (default, not stored), `alap`, `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo`. */
   constraint_type?: string
   /** `YYYY-MM-DD`; for the finish constraints (`fnet`, `fnlt`, `mfo`) it is the last day of work. */
