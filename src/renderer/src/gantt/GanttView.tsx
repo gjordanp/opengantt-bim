@@ -3,6 +3,7 @@ import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
 import { showRowMenu } from './rowMenu'
+import { installLightboxSelects } from './lightboxSelects'
 
 // Icons of the row menu (lucide shapes).
 const ICON_ABOVE = '<path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/>'
@@ -380,6 +381,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
         ref.type = gantt.config.types.project
         ref.open = true
         gantt.updateTask(ref.id)
+        gantt.open(ref.id)
       }
     })
     const newId = gantt.addTask(
@@ -387,6 +389,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       parent,
       index
     )
+    // The summary shows its subtasks: the new one must be in sight.
+    if (where === 'child') gantt.open(ref.id)
     gantt.showTask(newId)
     multiRef.current?.set([String(newId)])
     // Typing the name right away, once the row has been drawn.
@@ -674,6 +678,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.init(host)
     installIgnoreTime(gantt)
     stopEditors = installInlineEditors(gantt, () => groupsBridgeRef.current)
+    const stopSelects = installLightboxSelects(gantt)
     // Right-click on the table header: choose which columns stay visible.
     const onHeaderMenu = (e: MouseEvent): void => {
       if (!(e.target as HTMLElement).closest?.('.gantt_grid_head_cell')) return
@@ -777,6 +782,34 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
           progress: 0
         }
       }
+    })
+    // A task with no duration is a milestone, and a milestone given a duration is a task again.
+    gantt.attachEvent('onAfterTaskUpdate', (id: string | number) => {
+      if (!gantt.isTaskExists(id)) return true
+      const task: any = gantt.getTask(id)
+      if (isPlaceholder(task)) return true
+      const zero = (Number(task.duration) || 0) === 0
+      let next: any = null
+      // An ordinary task has no `type` at all (it is the default).
+      const kind = task.type || gantt.config.types.task
+      if (kind === gantt.config.types.task && zero) next = gantt.config.types.milestone
+      else if (kind === gantt.config.types.milestone && !zero) next = gantt.config.types.task
+      if (next) {
+        task.type = next
+        gantt.updateTask(id)
+      }
+      return true
+    })
+    // The same rule when the edit window is saved (its duration field is the one that matters, unless the kind was chosen).
+    gantt.attachEvent('onLightboxSave', (id: string | number, task: any) => {
+      if (isPlaceholder(task) || !gantt.isTaskExists(id)) return true
+      const before: any = gantt.getTask(id)
+      if (task.type !== before.type) return true // the user picked the kind: respect it
+      const kind = task.type || gantt.config.types.task
+      const zero = (Number(task.duration) || 0) === 0
+      if (kind === gantt.config.types.task && zero) task.type = gantt.config.types.milestone
+      else if (kind === gantt.config.types.milestone && !zero) task.type = gantt.config.types.task
+      return true
     })
     // A summary that loses its last subtask (deleted or moved away) goes back to being a plain task, as in MS Project.
     const demoteEmptyParents = (): boolean => {
@@ -901,6 +934,7 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       stopDrag()
       multiRef.current?.destroy()
       stopEditors()
+      stopSelects()
       host.removeEventListener('contextmenu', onHeaderMenu)
       host.removeEventListener('contextmenu', onRowMenu)
       window.removeEventListener('keydown', onInsertKey)

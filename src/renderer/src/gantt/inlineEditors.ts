@@ -157,6 +157,11 @@ export function installInlineEditors(gantt: GanttStatic, groups?: () => GroupsBr
   })
   // The column holds no field of the task: apply the typed text to the links instead of storing it.
   const save = editors.attachEvent('onBeforeSave', (state: { id: string | number; columnName: string; newValue: unknown }) => {
+    // A milestone given a duration becomes a task first, so the duration is not forced back to zero.
+    if (state.columnName === 'duration' && Number(state.newValue) > 0) {
+      const task = g.getTask(state.id)
+      if (task?.type === g.config.types.milestone) task.type = g.config.types.task
+    }
     if (state.columnName === 'groups') {
       const bridge = groups?.()
       const typed = String(state.newValue ?? '')
