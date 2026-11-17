@@ -2809,3 +2809,19 @@ kbd {
 .bim-task-chip:hover {
   background: var(--muted);
 }
+
+/* Right-click menu of a gantt row */
+.row-menu {
+  width: 230px;
+}
+.row-menu-item {
+  justify-content: space-between;
+  gap: 12px;
+}
+.row-menu-item.danger {
+  color: #dc2626;
+}
+.row-menu-item kbd {
+  font-size: 10px;
+  color: var(--muted-foreground);
+}

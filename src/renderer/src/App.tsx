@@ -28,7 +28,7 @@ import { buildMspdi, parseMspdi } from '@shared/mspdi'
 import { nextThemePref, setThemePref, useTheme, type ThemePref } from './theme'
 import { splitVolumes } from '@shared/bimVolume'
 import { countWorkDays, weekCalendar } from '@shared/scheduling'
-import { Activity, Box, CalendarDays, CircleHelp, Flame, FolderKanban, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
+import { Activity, Box, CalendarDays, CircleHelp, Flame, FolderKanban, ListPlus, Monitor, Moon, Redo2, Search, Sun, Undo2, Zap } from 'lucide-react'
 import SCurvePanel from './SCurvePanel'
 import SCurveIcon from './SCurveIcon'
 import GanttSettingsMenu from './gantt/GanttSettingsMenu'
@@ -529,6 +529,11 @@ export default function App(): React.JSX.Element {
       <Tooltip label="Rehacer" shortcut="Ctrl+Y">
         <button className="icon-btn" disabled={!history.canRedo} onClick={() => ganttRef.current?.redo()} aria-label="Rehacer">
           <Redo2 size={16} />
+        </button>
+      </Tooltip>
+      <Tooltip label="Insertar una tarea debajo de la seleccionada (clic derecho en una fila para más opciones)" shortcut="Insert">
+        <button className="icon-btn" onClick={() => ganttRef.current?.insertTask('below')} aria-label="Insertar tarea">
+          <ListPlus size={16} />
         </button>
       </Tooltip>
       <span className="sep" />

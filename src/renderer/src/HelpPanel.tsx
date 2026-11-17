@@ -199,7 +199,7 @@ const TOPICS: Topic[] = [
         <div className="help-grid">
           <div className="help-card">
             <b>Crear una tarea</b>
-            <span>Escribe en la fila gris «Nueva tarea…» al final de la tabla. Se crea después de la última, en el mismo grupo.</span>
+            <span>Escribe en la fila gris «Nueva tarea…» al final de la tabla. Para intercalar una, haz <b>clic derecho</b> en una fila: «Insertar tarea arriba», «abajo» o «Agregar subtarea». También sirve la tecla <Kbd>Insert</Kbd> (abajo de la seleccionada) o el botón de la barra.</span>
           </div>
           <div className="help-card">
             <b>Editar en la tabla</b>

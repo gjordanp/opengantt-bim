@@ -2,6 +2,7 @@ import { useEffect, useImperativeHandle, useRef, type Ref } from 'react'
 import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
+import { showRowMenu } from './rowMenu'
 import { installPlaceholder, isPlaceholder, type Placeholder } from './placeholder'
 import { installInlineEditors, predecessorsText, rowNumbers, type GroupsBridge } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
@@ -77,6 +78,8 @@ export interface GanttHandle {
   taskText(id: string): string | undefined
   /** Row number and name, as in the Nº column: "T28-Ciclo 8". */
   taskLabel(id: string): string | undefined
+  /** Adds a task above or below the selected one, or inside it as a subtask, and starts typing its name. */
+  insertTask(where: 'above' | 'below' | 'child'): void
   /** Start and (exclusive) end of every task, in days since the epoch. */
   spans(): TaskSpan[]
   /** The detail tasks (no summaries or milestones) with their span and progress, for the S-curve. */
@@ -341,7 +344,62 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
   const collectRef = useRef(collectProgressTasks)
   collectRef.current = collectProgressTasks
 
+  /** Adds a task next to `refId` (the selected one by default) and starts typing its name: nothing selected adds it at the end. */
+  const insertTask = (where: 'above' | 'below' | 'child', refId?: string): void => {
+    const gantt = ganttRef.current as any
+    if (!gantt) return
+    const id = refId ?? gantt.getLastSelectedTask?.()
+    const ref = id && gantt.isTaskExists(id) ? gantt.getTask(id) : null
+    if (!ref || isPlaceholder(ref)) {
+      placeholderRef.current?.edit()
+      return
+    }
+    const cal = calendarRef.current
+    const dayAfter = (d: Date): Date => isoToDate(fromDay(nextWorkingDay(cal, toDay(dateToIso(d)))))
+    let parent: string | number = ref.parent
+    let index = gantt.getTaskIndex(ref.id) + (where === 'below' ? 1 : 0)
+    let start: Date = ref.start_date
+    if (where === 'below' && ref.end_date) start = dayAfter(ref.end_date)
+    if (where === 'child') {
+      parent = ref.id
+      const kids = gantt.getChildren(ref.id) as (string | number)[]
+      index = kids.length
+      const last = kids.length > 0 ? gantt.getTask(kids[kids.length - 1]) : null
+      start = last?.end_date ? dayAfter(last.end_date) : ref.start_date
+    }
+    gantt.batchUpdate(() => {
+      // A task that gets a subtask becomes a summary, like the ones that come from an import.
+      if (where === 'child' && ref.type !== gantt.config.types.project) {
+        ref.type = gantt.config.types.project
+        ref.open = true
+        gantt.updateTask(ref.id)
+      }
+    })
+    const newId = gantt.addTask(
+      { text: 'Nueva tarea', start_date: start, end_date: gantt.calculateEndDate({ start_date: start, duration: 1, task: {} as any }), duration: 1, progress: 0 },
+      parent,
+      index
+    )
+    gantt.showTask(newId)
+    multiRef.current?.set([String(newId)])
+    // Typing the name right away, once the row has been drawn.
+    window.setTimeout(() => gantt.ext?.inlineEditors?.startEdit(newId, 'text'), 60)
+  }
+  const insertTaskRef = useRef(insertTask)
+  insertTaskRef.current = insertTask
+  const removeTasksRef = useRef<(ids: string[]) => void>(() => undefined)
+  const removeTasks = (ids: string[]): void => {
+    const gantt = ganttRef.current
+    if (!gantt) return
+    gantt.batchUpdate(() => {
+      for (const id of ids) if (gantt.isTaskExists(id) && !isPlaceholder(gantt.getTask(id))) gantt.deleteTask(id)
+    })
+  }
+
+  removeTasksRef.current = removeTasks
+
   useImperativeHandle(ref, () => ({
+    insertTask: (where) => insertTaskRef.current(where),
     undo: () => restore(historyRef.current.undo()),
     redo: () => restore(historyRef.current.redo()),
     taskLabel: (id) => {
@@ -679,6 +737,35 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       window.addEventListener('keydown', esc, true)
     }
     host.addEventListener('contextmenu', onHeaderMenu)
+    // Right-click on a task of the table: add rows around it, add a subtask, or delete.
+    const onRowMenu = (e: MouseEvent): void => {
+      const row = (e.target as HTMLElement).closest?.('.gantt_grid_data .gantt_row') as HTMLElement | null
+      const id = row?.getAttribute('data-task-id')
+      if (!row || !id || !gantt.isTaskExists(id) || isPlaceholder(gantt.getTask(id))) return
+      e.preventDefault()
+      document.getElementById('gantt-columns-menu')?.remove()
+      const anyG = gantt as any
+      if (!anyG.isSelectedTask?.(id)) multiRef.current?.set([id])
+      const picked: string[] = anyG.getSelectedTasks?.() ?? [id]
+      showRowMenu(e, [
+        { label: 'Insertar tarea arriba', run: () => insertTaskRef.current('above', id) },
+        { label: 'Insertar tarea abajo', hint: 'Insert', run: () => insertTaskRef.current('below', id) },
+        { label: 'Agregar subtarea', run: () => insertTaskRef.current('child', id) },
+        null,
+        { label: picked.length > 1 ? `Eliminar ${picked.length} tareas` : 'Eliminar tarea', danger: true, run: () => removeTasksRef.current(picked) }
+      ])
+    }
+    host.addEventListener('contextmenu', onRowMenu)
+    // The Insert key adds a task below the selected one (not while typing in a field).
+    const onInsertKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Insert' || e.ctrlKey || e.altKey || e.metaKey) return
+      const el = document.activeElement as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return
+      if (!(gantt as any).getLastSelectedTask?.()) return
+      e.preventDefault()
+      insertTaskRef.current(e.shiftKey ? 'above' : 'below')
+    }
+    window.addEventListener('keydown', onInsertKey)
     mountTableHandle(gantt, appliedCollapsedRef.current, () => onToggleTableRef.current?.())
     installWorkTime(gantt, () => calendarRef.current)
     multiRef.current = installMultiSelect(gantt)
@@ -800,6 +887,8 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       multiRef.current?.destroy()
       stopEditors()
       host.removeEventListener('contextmenu', onHeaderMenu)
+      host.removeEventListener('contextmenu', onRowMenu)
+      window.removeEventListener('keydown', onInsertKey)
       document.getElementById('gantt-columns-menu')?.remove()
       placeholderRef.current?.destroy()
       placeholderRef.current = null
