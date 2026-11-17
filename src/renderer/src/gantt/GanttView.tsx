@@ -3,6 +3,12 @@ import { Gantt, type GanttStatic } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { installIgnoreTime } from './hideTime'
 import { showRowMenu } from './rowMenu'
+
+// Icons of the row menu (lucide shapes).
+const ICON_ABOVE = '<path d="M5 3h14"/><path d="m18 13-6-6-6 6"/><path d="M12 7v14"/>'
+const ICON_BELOW = '<path d="M12 17V3"/><path d="m6 11 6 6 6-6"/><path d="M19 21H5"/>'
+const ICON_CHILD = '<polyline points="15 10 20 15 15 20"/><path d="M4 4v7a4 4 0 0 0 4 4h12"/>'
+const ICON_TRASH = '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/>'
 import { installPlaceholder, isPlaceholder, type Placeholder } from './placeholder'
 import { installInlineEditors, predecessorsText, rowNumbers, type GroupsBridge } from './inlineEditors'
 import type { ProjectData } from '@shared/model'
@@ -721,11 +727,11 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
       if (!anyG.isSelectedTask?.(id)) multiRef.current?.set([id])
       const picked: string[] = anyG.getSelectedTasks?.() ?? [id]
       showRowMenu(e, [
-        { label: 'Insertar tarea arriba', run: () => insertTaskRef.current('above', id) },
-        { label: 'Insertar tarea abajo', hint: 'Insert', run: () => insertTaskRef.current('below', id) },
-        { label: 'Agregar subtarea', run: () => insertTaskRef.current('child', id) },
+        { label: 'Insertar tarea arriba', icon: ICON_ABOVE, run: () => insertTaskRef.current('above', id) },
+        { label: 'Insertar tarea abajo', hint: 'Insert', icon: ICON_BELOW, run: () => insertTaskRef.current('below', id) },
+        { label: 'Agregar subtarea', icon: ICON_CHILD, run: () => insertTaskRef.current('child', id) },
         null,
-        { label: picked.length > 1 ? `Eliminar ${picked.length} tareas` : 'Eliminar tarea', danger: true, run: () => removeTasksRef.current(picked) }
+        { label: picked.length > 1 ? `Eliminar ${picked.length} tareas` : 'Eliminar tarea', danger: true, icon: ICON_TRASH, run: () => removeTasksRef.current(picked) }
       ])
     }
     host.addEventListener('contextmenu', onRowMenu)

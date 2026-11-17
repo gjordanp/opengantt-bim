@@ -3,6 +3,8 @@ export interface RowMenuItem {
   /** Shortcut shown on the right, e.g. "Insert". */
   hint?: string
   danger?: boolean
+  /** Inner markup of a 24x24 stroke icon (lucide style). */
+  icon?: string
   disabled?: boolean
   run: () => void
 }
@@ -39,10 +41,25 @@ export function showRowMenu(e: MouseEvent, items: (RowMenuItem | null)[]): void 
     }
     const b = document.createElement('button')
     b.type = 'button'
-    b.className = `menu-item row-menu-item${item.danger ? ' danger' : ''}`
+    b.className = `menu-item row-menu-item${item.danger ? ' row-menu-danger' : ''}`
     b.setAttribute('role', 'menuitem')
     b.disabled = !!item.disabled
+    if (item.icon) {
+      const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+      icon.setAttribute('viewBox', '0 0 24 24')
+      icon.setAttribute('width', '15')
+      icon.setAttribute('height', '15')
+      icon.setAttribute('fill', 'none')
+      icon.setAttribute('stroke', 'currentColor')
+      icon.setAttribute('stroke-width', '2')
+      icon.setAttribute('stroke-linecap', 'round')
+      icon.setAttribute('stroke-linejoin', 'round')
+      icon.setAttribute('aria-hidden', 'true')
+      icon.innerHTML = item.icon
+      b.appendChild(icon)
+    }
     const label = document.createElement('span')
+    label.className = 'row-menu-label'
     label.textContent = item.label
     b.appendChild(label)
     if (item.hint) {
