@@ -601,6 +601,11 @@ export default function GanttView({ project, lobMode, autoScheduling, showCritic
     gantt.locale.labels.baseline_enable_button = 'Fijar'
     gantt.locale.labels.baseline_disable_button = 'Quitar'
     gantt.locale.labels.section_constraint = 'Restricción'
+    // The task type selector of the edit window of a summary task.
+    gantt.locale.labels.section_type = 'Tipo'
+    gantt.locale.labels.type_task = 'Tarea'
+    gantt.locale.labels.type_project = 'Proyecto'
+    gantt.locale.labels.type_milestone = 'Hito'
     // The rest of the edit window and the dates of the timeline, in Spanish.
     Object.assign(gantt.locale.labels, {
       section_description: 'Descripción',

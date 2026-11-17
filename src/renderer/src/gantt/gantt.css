@@ -188,3 +188,8 @@
 .gantt_grid_editor_placeholder select {
   text-align: center;
 }
+
+/* The edit window covers the whole app, splitter lines included (the splitter sits at z-index 99). */
+.gantt_cal_cover {
+  z-index: 1000 !important;
+}
