@@ -1,0 +1,15 @@
+{
+  "name": "openganttbim",
+  "version": "0.1.0",
+  "description": "Downloads and runs the Opengantt BIM installer for Windows, checking its size and SHA-512 first.",
+  "license": "MIT",
+  "type": "module",
+  "bin": { "openganttbim": "bin/install.mjs" },
+  "files": ["bin", "src", "README.md"],
+  "engines": { "node": ">=18" },
+  "os": ["win32"],
+  "repository": { "type": "git", "url": "git+https://github.com/gjordanp/opengantt-bim.git", "directory": "installer" },
+  "homepage": "https://github.com/gjordanp/opengantt-bim",
+  "keywords": ["bim", "ifc", "gantt", "4d", "installer"],
+  "scripts": { "test": "node --test" }
+}
