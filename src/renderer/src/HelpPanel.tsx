@@ -175,7 +175,7 @@ const TOPICS: Topic[] = [
         <p className="help-lead">Opengantt BIM une dos cosas: el cronograma de la obra (Gantt) y el modelo 3D del edificio (BIM). Cada tarea puede tener elementos del modelo y así ves la obra construirse en el tiempo.</p>
         <Steps
           items={[
-            { title: 'Crea o abre un proyecto', text: 'En la pantalla de proyectos, «Nuevo», importa uno de MS Project, o usa «Importar con IA»: copias las instrucciones, se las das a ChatGPT, Claude o Gemini junto con la descripción de tu obra, y pegas su respuesta.' },
+            { title: 'Crea o abre un proyecto', text: 'En la pantalla de proyectos, «Nuevo», importa uno de MS Project, o usa «Importar con IA»: copias las instrucciones, se las das a ChatGPT, Claude o Gemini junto con la descripción de tu obra, y pegas su respuesta. Para llevar un proyecto a otro equipo (o guardar una copia), usa «Exportar» en su tarjeta: crea un archivo .ogbim con el cronograma, los grupos y los modelos 3D, y «Abrir archivo…» lo recibe.' },
             { title: 'Arma el cronograma', text: 'Agrega tareas, duraciones y vínculos en el Gantt.' },
             { title: 'Importa el modelo', text: 'En el Visor 3D, el botón de subir carga un archivo .ifc.' },
             { title: 'Asigna elementos', text: 'Selecciona piezas del modelo y asígnalas a la tarea.' },
@@ -273,8 +273,6 @@ const TOPICS: Topic[] = [
         <Tip>
           Si una restricción choca con los vínculos, la tarea queda marcada con un borde rojo y un «!» en la columna Restricción: algo tiene que ceder. Las restricciones se eligen en la ficha de la tarea (doble clic).
         </Tip>
-        <h3>Fechas del proyecto</h3>
-        <p>En el Calendario laboral puedes fijar el inicio y el término del proyecto, o programar «desde el final»: la obra se calcula hacia atrás desde la fecha de entrega.</p>
       </>
     )
   },

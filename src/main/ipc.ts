@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain } from 'electron'
 import { IPC } from '../shared/api'
 import { openTextFile, saveTextFile } from './files'
 import { configureDatabase, getRepository, getStatus } from './database'
+import { exportProjectFile, importProjectFile } from './projectFile'
 import { copyProjectModels, loadModel, removeModel, removeProjectModels, saveModel } from './modelStore'
 
 /** Window chrome colours per theme; keep in step with --background in styles.css. */
@@ -40,6 +41,9 @@ export function registerIpc(): void {
     if (copyId) await copyProjectModels(id, copyId)
     return copyId
   })
+
+  ipcMain.handle(IPC.projectsExportFile, (e, id: string, defaultName: string) => exportProjectFile(e.sender, id, defaultName))
+  ipcMain.handle(IPC.projectsImportFile, (e) => importProjectFile(e.sender))
 
   ipcMain.handle(IPC.modelsSave, (_e, projectId: string, modelId: string, name: string, bytes: Uint8Array) =>
     saveModel(projectId, modelId, name, bytes)

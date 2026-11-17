@@ -13,6 +13,10 @@ interface Props {
   onImportMsProject?: () => void | Promise<void>
   /** Opens the dialog that creates a project from an AI assistant's answer. */
   onImportAi?: () => void
+  /** Saves a project, models included, in a .ogbim file. */
+  onExport?: (id: string) => void | Promise<void>
+  /** Creates a project from a .ogbim file the user picks. */
+  onImportFile?: () => void | Promise<void>
   onRename: (id: string, name: string) => void | Promise<void>
   onDuplicate: (id: string) => void | Promise<void>
   onDelete: (id: string) => void | Promise<void>
@@ -108,11 +112,12 @@ function Card({
   onOpen,
   onRename,
   onDuplicate,
+  onExport,
   onDelete
 }: {
   project: ProjectSummary
   current: boolean
-} & Pick<Props, 'onRename' | 'onDuplicate' | 'onDelete'> & { onOpen: () => void }): React.JSX.Element {
+} & Pick<Props, 'onRename' | 'onDuplicate' | 'onExport' | 'onDelete'> & { onOpen: () => void }): React.JSX.Element {
   const [renaming, setRenaming] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const input = useRef<HTMLInputElement>(null)
@@ -167,6 +172,11 @@ function Card({
           </button>
           <button onClick={() => setRenaming(project.name)}>Renombrar</button>
           <button onClick={() => void onDuplicate(project.id)}>Duplicar</button>
+          {onExport && (
+            <Tooltip label="Guarda el proyecto y sus modelos en un archivo .ogbim para abrirlo en otro equipo">
+              <button onClick={() => void onExport(project.id)}>Exportar</button>
+            </Tooltip>
+          )}
           <button onClick={() => setConfirming(true)}>Eliminar</button>
         </div>
       )}
@@ -174,7 +184,7 @@ function Card({
   )
 }
 
-export default function ProjectsHome({ projects, currentId, onOpen, onCreate, onImportMsProject, onImportAi, onRename, onDuplicate, onDelete }: Props): React.JSX.Element {
+export default function ProjectsHome({ projects, currentId, onOpen, onCreate, onImportMsProject, onImportAi, onImportFile, onExport, onRename, onDuplicate, onDelete }: Props): React.JSX.Element {
   const [creating, setCreating] = useState(false)
   const [filter, setFilter] = useState('')
   const shown = projects.filter((p) => p.name.toLowerCase().includes(filter.trim().toLowerCase()))
@@ -193,6 +203,11 @@ export default function ProjectsHome({ projects, currentId, onOpen, onCreate, on
           {onImportAi && (
             <Tooltip label="Crea un proyecto con la respuesta de una IA (ChatGPT, Claude, Gemini…)">
               <button onClick={onImportAi}>Importar con IA…</button>
+            </Tooltip>
+          )}
+          {onImportFile && (
+            <Tooltip label="Abre un proyecto guardado con «Exportar» (.ogbim), con sus modelos 3D">
+              <button onClick={() => void onImportFile()}>Abrir archivo…</button>
             </Tooltip>
           )}
           {onImportMsProject && (
@@ -224,6 +239,7 @@ export default function ProjectsHome({ projects, currentId, onOpen, onCreate, on
               onOpen={() => onOpen(p.id)}
               onRename={onRename}
               onDuplicate={onDuplicate}
+              onExport={onExport}
               onDelete={onDelete}
             />
           ))}

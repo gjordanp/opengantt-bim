@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { CalendarDays, X } from 'lucide-react'
 import type { ProjectData } from '@shared/model'
 
+/**
+ * The project start and end and "schedule from the end" are still part of the data and of the scheduler, but the dialog
+ * does not offer them for now (see src/shared/scheduling/schedule.ts: projectStart, projectEnd, scheduleFromEnd).
+ */
 export interface CalendarValue {
   holidays: string[]
   workWeek: number[]
@@ -106,28 +110,6 @@ export function CalendarForm({ value, onChange, flushRef }: FormProps): React.JS
             ? `No se entiende (se ignora): ${invalid.slice(0, 3).join(', ')}${invalid.length > 3 ? '…' : ''}. Usa AAAA-MM-DD.`
             : 'Uno por línea, con formato AAAA-MM-DD. Esos días no se trabajan.'}
         </p>
-      </section>
-
-      <section className="cal-card">
-        <h3>Fechas del proyecto</h3>
-        <div className="cal-dates">
-          <label>
-            Inicio
-            <input type="date" value={value.projectStart ?? ''} onChange={(e) => onChange({ ...value, projectStart: e.target.value || undefined })} />
-          </label>
-          <label>
-            Fin
-            <input type="date" value={value.projectEnd ?? ''} onChange={(e) => onChange({ ...value, projectEnd: e.target.value || undefined })} />
-          </label>
-        </div>
-        <p className="hint">Inicio: las tareas sin predecesora que empiezan antes se mueven a esta fecha. Fin: último día de trabajo.</p>
-        <label className="cal-check">
-          <input type="checkbox" checked={value.scheduleFromEnd === true} onChange={(e) => onChange({ ...value, scheduleFromEnd: e.target.checked || undefined })} />
-          <span>
-            Programar desde el fin
-            <small>Las tareas sin restricción van lo más tarde posible: se alinean contra sus sucesoras y el fin del proyecto.</small>
-          </span>
-        </label>
       </section>
     </div>
   )

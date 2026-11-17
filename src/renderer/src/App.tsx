@@ -415,6 +415,38 @@ export default function App(): React.JSX.Element {
     }
   }
 
+  /** Saves a project, with its 3D models, in one file. */
+  const exportProjectFile = async (id: string): Promise<void> => {
+    if (!api) return
+    try {
+      if (id === projectIdRef.current) await flush()
+      const name = projects.find((p) => p.id === id)?.name ?? (id === projectIdRef.current ? nameRef.current : 'Proyecto')
+      const result = await api.projects.exportFile(id, name)
+      if (!result) return
+      const models = result.models === 0 ? 'sin modelos 3D' : `con ${result.models} ${result.models === 1 ? 'modelo 3D' : 'modelos 3D'}`
+      const missing = result.missing > 0 ? `\n\nNo se encontró el archivo de ${result.missing} ${result.missing === 1 ? 'modelo' : 'modelos'} y no se incluyó.` : ''
+      setNotice({ title: 'Proyecto exportado', message: `Guardado en ${result.path}, ${models}.\n\nPara abrirlo en otro equipo: Proyectos → Abrir archivo….${missing}` })
+    } catch (error) {
+      setNotice({ title: 'No se pudo exportar', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
+  /** Creates a new project from a .ogbim file (a copy: it never replaces an existing project). */
+  const importProjectFile = async (): Promise<void> => {
+    if (!api) return
+    try {
+      await flush()
+      const result = await api.projects.importFile()
+      if (!result) return
+      await refreshList()
+      await openProject(result.id)
+      const withModels = result.models > 0 ? ` con ${result.models} ${result.models === 1 ? 'modelo 3D' : 'modelos 3D'}` : ''
+      setNotice({ title: 'Proyecto abierto desde archivo', message: `«${result.name}» se agregó a tus proyectos${withModels}.` })
+    } catch (error) {
+      setNotice({ title: 'No se pudo abrir el archivo', message: error instanceof Error ? error.message : String(error) })
+    }
+  }
+
   const renameProject = async (id: string, name: string): Promise<void> => {
     if (!api) return
     if (id === projectIdRef.current) {
@@ -615,6 +647,8 @@ export default function App(): React.JSX.Element {
           { id: 'home', section: 'Proyectos', label: 'Ir a proyectos', run: goHome },
           { id: 'help', section: 'Aplicación', label: 'Ayuda: guía de uso con dibujos', keywords: 'ayuda guia manual tutorial como se usa documentacion', run: () => setHelp('start') },
           { id: 'ai-import', section: 'Proyectos', label: 'Importar con IA: crear un proyecto desde una respuesta de ChatGPT, Claude…', keywords: 'inteligencia artificial chatgpt claude gemini json prompt crear cronograma', run: () => setAiImporting('new') },
+          { id: 'file-import', section: 'Proyectos', label: 'Abrir un proyecto desde archivo (.ogbim)…', keywords: 'importar exportar archivo ogbim abrir proyecto modelos ifc', run: () => void importProjectFile() },
+          ...(projectId ? [{ id: 'file-export', section: 'Proyectos', label: 'Exportar el proyecto a archivo (.ogbim, con sus modelos 3D)…', keywords: 'guardar archivo ogbim exportar respaldo ifc compartir', run: () => void exportProjectFile(projectId) }] : []),
           { id: 'msp-import', section: 'Proyectos', label: 'Importar de MS Project como proyecto nuevo (.mpp o XML)…', keywords: 'microsoft project mpp xml abrir', run: () => void importMsProject() },
           ...(projectId ? [{ id: 'ai-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con una respuesta de IA…', keywords: 'inteligencia artificial chatgpt claude gemini json importar sobrescribir', run: () => setAiImporting('replace') }] : []),
           ...(projectId ? [{ id: 'msp-replace', section: 'Proyectos', label: 'Reemplazar el Gantt actual con MS Project (.mpp o XML)…', keywords: 'microsoft project mpp xml importar sobrescribir', run: () => void replaceWithMsProject() }] : []),
@@ -754,6 +788,8 @@ export default function App(): React.JSX.Element {
               onCreate={createProject}
               onImportMsProject={importMsProject}
               onImportAi={() => setAiImporting('new')}
+              onImportFile={importProjectFile}
+              onExport={exportProjectFile}
               onRename={renameProject}
               onDuplicate={duplicateProject}
               onDelete={deleteProject}

@@ -68,6 +68,10 @@ export interface AppApi {
     remove(id: string): Promise<void>
     rename(id: string, name: string): Promise<void>
     duplicate(id: string, name: string): Promise<string | null>
+    /** Saves a project and its models in one .ogbim file the user picks. Null if they cancel. */
+    exportFile(id: string, defaultName: string): Promise<{ path: string; models: number; missing: number } | null>
+    /** Creates a new project from a .ogbim file the user picks, models included. Null if they cancel. */
+    importFile(): Promise<{ id: string; name: string; models: number } | null>
   }
 }
 
@@ -81,6 +85,8 @@ export const IPC = {
   projectsRemove: 'projects:remove',
   projectsRename: 'projects:rename',
   projectsDuplicate: 'projects:duplicate',
+  projectsExportFile: 'projects:exportFile',
+  projectsImportFile: 'projects:importFile',
   modelsSave: 'models:save',
   modelsLoad: 'models:load',
   modelsRemove: 'models:remove',
