@@ -1,4 +1,5 @@
 import Tooltip from '../Tooltip'
+import { ArrowLeft, Bot, Copy, FileDown, FileSpreadsheet, FolderInput, FolderOpen, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { ProjectSummary } from '@shared/repository'
 import { TEMPLATES, type TemplateId } from './templates'
@@ -121,9 +122,11 @@ function Card({
   const [renaming, setRenaming] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
   const input = useRef<HTMLInputElement>(null)
+  // Select the name once, when renaming starts (not on every letter typed, which would replace what was typed).
+  const isRenaming = renaming !== null
   useEffect(() => {
-    if (renaming !== null) input.current?.select()
-  }, [renaming])
+    if (isRenaming) input.current?.select()
+  }, [isRenaming])
 
   const commitRename = (): void => {
     const name = renaming?.trim()
@@ -167,17 +170,36 @@ function Card({
         </div>
       ) : (
         <div className="project-card-actions">
-          <button className="primary" onClick={onOpen}>
-            {current ? 'Volver' : 'Abrir'}
-          </button>
-          <button onClick={() => setRenaming(project.name)}>Renombrar</button>
-          <button onClick={() => void onDuplicate(project.id)}>Duplicar</button>
-          {onExport && (
-            <Tooltip label="Guarda el proyecto y sus modelos en un archivo .ogbim para abrirlo en otro equipo">
-              <button onClick={() => void onExport(project.id)}>Exportar</button>
+          <Tooltip label={current ? 'Volver al proyecto que tienes abierto' : 'Abrir el proyecto'}>
+            <button className="primary with-icon" onClick={onOpen}>
+              {current ? <ArrowLeft size={14} /> : <FolderOpen size={14} />}
+              {current ? 'Volver' : 'Abrir'}
+            </button>
+          </Tooltip>
+          <span className="card-icons">
+            <Tooltip label="Cambiar el nombre del proyecto">
+              <button className="icon-btn" aria-label={`Renombrar ${project.name}`} onClick={() => setRenaming(project.name)}>
+                <Pencil size={15} />
+              </button>
             </Tooltip>
-          )}
-          <button onClick={() => setConfirming(true)}>Eliminar</button>
+            <Tooltip label="Hacer una copia del proyecto, con sus modelos">
+              <button className="icon-btn" aria-label={`Duplicar ${project.name}`} onClick={() => void onDuplicate(project.id)}>
+                <Copy size={15} />
+              </button>
+            </Tooltip>
+            {onExport && (
+              <Tooltip label="Exportar a un archivo .ogbim (con los modelos 3D) para abrirlo en otro equipo">
+                <button className="icon-btn" aria-label={`Exportar ${project.name}`} onClick={() => void onExport(project.id)}>
+                  <FileDown size={15} />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip label="Eliminar el proyecto">
+              <button className="icon-btn danger-icon" aria-label={`Eliminar ${project.name}`} onClick={() => setConfirming(true)}>
+                <Trash2 size={15} />
+              </button>
+            </Tooltip>
+          </span>
         </div>
       )}
     </div>
@@ -202,21 +224,27 @@ export default function ProjectsHome({ projects, currentId, onOpen, onCreate, on
           )}
           {onImportAi && (
             <Tooltip label="Crea un proyecto con la respuesta de una IA (ChatGPT, Claude, Gemini…)">
-              <button onClick={onImportAi}>Importar con IA…</button>
+              <button className="with-icon" onClick={onImportAi}>
+                <Bot size={14} /> Importar con IA…
+              </button>
             </Tooltip>
           )}
           {onImportFile && (
             <Tooltip label="Abre un proyecto guardado con «Exportar» (.ogbim), con sus modelos 3D">
-              <button onClick={() => void onImportFile()}>Abrir archivo…</button>
+              <button className="with-icon" onClick={() => void onImportFile()}>
+                <FolderInput size={14} /> Abrir archivo…
+              </button>
             </Tooltip>
           )}
           {onImportMsProject && (
             <Tooltip label="Crea un proyecto desde un archivo de MS Project (.mpp o XML)">
-              <button onClick={() => void onImportMsProject()}>Importar de MS Project…</button>
+              <button className="with-icon" onClick={() => void onImportMsProject()}>
+                <FileSpreadsheet size={14} /> Importar de MS Project…
+              </button>
             </Tooltip>
           )}
-          <button className="primary" onClick={() => setCreating(true)}>
-            + Nuevo proyecto
+          <button className="primary with-icon" onClick={() => setCreating(true)}>
+            <Plus size={14} /> Nuevo proyecto
           </button>
         </div>
       </div>

@@ -3185,3 +3185,38 @@ kbd {
   overflow-y: auto;
   overscroll-behavior: contain;
 }
+
+/* ---------- projects: buttons with icons ---------- */
+button.with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.card-icons {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.project-card-actions .card-icons .icon-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+}
+.icon-btn.danger-icon:hover:not(:disabled) {
+  color: var(--destructive);
+}
+
+/* The viewer settings live in a floating window now: it scrolls and can be dragged and resized like the others. */
+.viewer-settings-body {
+  padding: 8px;
+}
+.viewer-settings-body .menu-title {
+  padding: 6px 8px 4px;
+}
+.viewer-settings-body .switch-text {
+  min-width: 0;
+}
+.viewer-settings-body .switch-hint {
+  white-space: normal;
+}

@@ -684,10 +684,10 @@ export default function App(): React.JSX.Element {
                   keywords: 'abrir ventana panel',
                   run: () => openPanel(dock, pn.id)
                 })),
-                ...(['groups', 'props', 'models'] as const).map((t, i) => ({
+                ...(['groups', 'props', 'models', 'settings'] as const).map((t, i) => ({
                   id: `tool-${t}`,
                   section: 'BIM',
-                  label: `Herramienta: ${['Grupos guardados', 'Propiedades', 'Modelos'][i]}`,
+                  label: `Herramienta: ${['Grupos guardados', 'Propiedades', 'Modelos', 'Configuración del visor'][i]}`,
                   keywords: 'bim visor panel',
                   run: () => {
                     openPanel(dock, 'viewer')

@@ -1,7 +1,3 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
-import { SlidersHorizontal } from 'lucide-react'
-import Tooltip from '../Tooltip'
 import { SwitchRow } from '../gantt/GanttSettingsMenu'
 import { EDGE_COLORS, ELEMENT_COLORS, VIEW_MODES, type ViewMode, type ViewerSettings } from './viewerSettings'
 
@@ -24,92 +20,50 @@ function ColorRow({ label, value, colors, onPick }: { label: string; value: stri
 
 const MODE_LABELS: Record<ViewMode, string> = { normal: 'Sólido', shaded: 'Sombreado', lines: 'Solo líneas', xray: 'Rayos X' }
 
-/** The "Configuración" button of the 3D view: edges, colors, hover outline and quality. */
-export default function ViewerSettingsMenu({ settings, onChange }: { settings: ViewerSettings; onChange: (next: ViewerSettings) => void }): React.JSX.Element {
-  const [open, setOpen] = useState(false)
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null)
-  const button = useRef<HTMLButtonElement>(null)
-
-  useLayoutEffect(() => {
-    if (!open) return setPos(null)
-    const r = button.current?.getBoundingClientRect()
-    if (r) setPos({ x: Math.min(r.left, window.innerWidth - 350), y: r.bottom + 6 })
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const close = (): void => setOpen(false)
-    const onDown = (e: MouseEvent): void => {
-      const t = e.target as HTMLElement
-      if (!button.current?.contains(t) && !t.closest('.viewer-settings-pop')) close()
-    }
-    const onKey = (e: KeyboardEvent): void => {
-      if (e.key === 'Escape') close()
-    }
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    window.addEventListener('resize', close)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-      window.removeEventListener('resize', close)
-    }
-  }, [open])
-
+/** The settings of the 3D view (modes, transparency, edges, colors and quality), the content of its floating window. */
+export default function ViewerSettingsPanel({ settings, onChange }: { settings: ViewerSettings; onChange: (next: ViewerSettings) => void }): React.JSX.Element {
   return (
-    <>
-      <Tooltip label="Configuración del visor 3D" side="bottom">
-        <button ref={button} className={`icon-btn${open ? ' active' : ''}`} onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} aria-label="Configuración del visor">
-          <SlidersHorizontal size={16} />
-        </button>
-      </Tooltip>
-      {open &&
-        pos &&
-        createPortal(
-          <div className="menu-pop viewer-settings-pop" role="dialog" aria-label="Configuración del visor" style={{ position: 'fixed', left: pos.x, top: pos.y, right: 'auto', maxHeight: Math.max(160, window.innerHeight - pos.y - 12) }}>
-            <div className="menu-title">Vista</div>
-            <div className="viewer-choice">
-              <span className="switch-label">Modo</span>
-              <div className="bim-seg wrap" role="radiogroup" aria-label="Modo de vista">
-                {VIEW_MODES.map((m) => (
-                  <button key={m} role="radio" aria-checked={settings.mode === m} className={settings.mode === m ? 'on' : ''} onClick={() => onChange({ ...settings, mode: m })}>
-                    {MODE_LABELS[m]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="viewer-choice">
-              <span className="switch-label">Transparencia del modelo</span>
-              <div className="viewer-opacity">
-                {/* The slider shows transparency (0 % solid, the right end almost see-through); the setting stores the opacity. */}
-                <input
-                  type="range"
-                  min={0}
-                  max={90}
-                  step={5}
-                  value={Math.round((1 - settings.opacity) * 100)}
-                  aria-label="Transparencia del modelo"
-                  onChange={(e) => onChange({ ...settings, opacity: Math.round((1 - Number(e.target.value) / 100) * 100) / 100 })}
-                />
-                <span>{Math.round((1 - settings.opacity) * 100)}%</span>
-              </div>
-            </div>
-            <div className="menu-sep" />
-            <div className="menu-title">Apariencia</div>
-            <SwitchRow label="Bordes de los elementos" hint="Líneas que marcan las aristas, como un dibujo" on={settings.edges} onToggle={() => onChange({ ...settings, edges: !settings.edges })} />
-            <SwitchRow label="Resaltar al pasar el mouse" hint="Marca el contorno del elemento bajo el cursor" on={settings.hover} onToggle={() => onChange({ ...settings, hover: !settings.hover })} />
-            <div className="menu-sep" />
-            <div className="menu-title">Colores</div>
-            <ColorRow label="Color de los bordes" value={settings.edgeColor} colors={EDGE_COLORS} onPick={(edgeColor) => onChange({ ...settings, edgeColor })} />
-            <SwitchRow label="Colores del modelo" hint="Apagado, todos los elementos se pintan de un solo color" on={settings.modelColors} onToggle={() => onChange({ ...settings, modelColors: !settings.modelColors })} />
-            {!settings.modelColors && <ColorRow label="Color de los elementos" value={settings.elementColor} colors={ELEMENT_COLORS} onPick={(elementColor) => onChange({ ...settings, elementColor })} />}
-            <div className="menu-sep" />
-            <div className="menu-title">Calidad</div>
-            <SwitchRow label="Suavizado de bordes" hint="Quita los dientes de sierra en líneas y aristas" on={settings.antialiasing} onToggle={() => onChange({ ...settings, antialiasing: !settings.antialiasing })} />
-            <SwitchRow label="Mantener la fluidez" hint="Baja la resolución sola cuando el modelo es pesado y se entrecorta" on={settings.adaptive} onToggle={() => onChange({ ...settings, adaptive: !settings.adaptive })} />
-          </div>,
-          document.body
-        )}
-    </>
+    <div className="viewer-settings-body">
+      <div className="menu-title">Vista</div>
+      <div className="viewer-choice">
+        <span className="switch-label">Modo</span>
+        <div className="bim-seg wrap" role="radiogroup" aria-label="Modo de vista">
+          {VIEW_MODES.map((m) => (
+            <button key={m} role="radio" aria-checked={settings.mode === m} className={settings.mode === m ? 'on' : ''} onClick={() => onChange({ ...settings, mode: m })}>
+              {MODE_LABELS[m]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="viewer-choice">
+        <span className="switch-label">Transparencia del modelo</span>
+        <div className="viewer-opacity">
+          {/* The slider shows transparency (0 % solid, the right end almost see-through); the setting stores the opacity. */}
+          <input
+            type="range"
+            min={0}
+            max={90}
+            step={5}
+            value={Math.round((1 - settings.opacity) * 100)}
+            aria-label="Transparencia del modelo"
+            onChange={(e) => onChange({ ...settings, opacity: Math.round((1 - Number(e.target.value) / 100) * 100) / 100 })}
+          />
+          <span>{Math.round((1 - settings.opacity) * 100)}%</span>
+        </div>
+      </div>
+      <div className="menu-sep" />
+      <div className="menu-title">Apariencia</div>
+      <SwitchRow label="Bordes de los elementos" hint="Líneas que marcan las aristas, como un dibujo" on={settings.edges} onToggle={() => onChange({ ...settings, edges: !settings.edges })} />
+      <SwitchRow label="Resaltar al pasar el mouse" hint="Marca el contorno del elemento bajo el cursor" on={settings.hover} onToggle={() => onChange({ ...settings, hover: !settings.hover })} />
+      <div className="menu-sep" />
+      <div className="menu-title">Colores</div>
+      <ColorRow label="Color de los bordes" value={settings.edgeColor} colors={EDGE_COLORS} onPick={(edgeColor) => onChange({ ...settings, edgeColor })} />
+      <SwitchRow label="Colores del modelo" hint="Apagado, todos los elementos se pintan de un solo color" on={settings.modelColors} onToggle={() => onChange({ ...settings, modelColors: !settings.modelColors })} />
+      {!settings.modelColors && <ColorRow label="Color de los elementos" value={settings.elementColor} colors={ELEMENT_COLORS} onPick={(elementColor) => onChange({ ...settings, elementColor })} />}
+      <div className="menu-sep" />
+      <div className="menu-title">Calidad</div>
+      <SwitchRow label="Suavizado de bordes" hint="Quita los dientes de sierra en líneas y aristas" on={settings.antialiasing} onToggle={() => onChange({ ...settings, antialiasing: !settings.antialiasing })} />
+      <SwitchRow label="Mantener la fluidez" hint="Baja la resolución sola cuando el modelo es pesado y se entrecorta" on={settings.adaptive} onToggle={() => onChange({ ...settings, adaptive: !settings.adaptive })} />
+    </div>
   )
 }

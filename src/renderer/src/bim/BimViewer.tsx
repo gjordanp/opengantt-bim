@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Layers, Pause, Play, Plus, Search, SkipBack, SkipForward, Trash2, Upload, X } from 'lucide-react'
+import { Box, Check, ChevronLeft, ChevronRight, Eye, EyeOff, Info, Layers, Pause, Play, Plus, Search, SkipBack, SkipForward, SlidersHorizontal, Trash2, Upload, X } from 'lucide-react'
 import Tooltip from '../Tooltip'
 import EllipsisText from '../EllipsisText'
 import { roundValue } from '@shared/formatValue'
@@ -10,7 +10,7 @@ import SuggestInput from '../SuggestInput'
 import Dropdown, { type DropdownOption } from '../Dropdown'
 import * as OBC from '@thatopen/components'
 import * as OBF from '@thatopen/components-front'
-import ViewerSettingsMenu from './ViewerSettingsMenu'
+import ViewerSettingsPanel from './ViewerSettingsMenu'
 import { CAMERA_FEEL, loadViewerSettings, saveViewerSettings, type ViewerSettings } from './viewerSettings'
 import * as FRAGS from '@thatopen/fragments'
 import * as THREE from 'three'
@@ -45,13 +45,14 @@ export interface BimSlots {
   viewer: HTMLElement | null
 }
 
-export type BimTool = 'search' | 'groups' | 'props' | 'models'
+export type BimTool = 'search' | 'groups' | 'props' | 'models' | 'settings'
 
 const TOOLS: { id: BimTool; label: string; icon: React.ReactNode }[] = [
   { id: 'search', label: 'Buscar elementos', icon: <Search size={16} /> },
   { id: 'groups', label: 'Grupos guardados', icon: <Layers size={16} /> },
   { id: 'props', label: 'Propiedades del elemento', icon: <Info size={16} /> },
-  { id: 'models', label: 'Modelos del proyecto', icon: <Box size={16} /> }
+  { id: 'models', label: 'Modelos del proyecto', icon: <Box size={16} /> },
+  { id: 'settings', label: 'Configuración del visor', icon: <SlidersHorizontal size={16} /> }
 ]
 const PANEL_W = 320
 const PANEL_GAP = 12
@@ -1275,7 +1276,6 @@ export default function BimViewer({
             </Tooltip>
           ))}
         </div>
-        <ViewerSettingsMenu settings={viewer} onChange={changeViewer} />
         {query ? (
           <button className="bim-searchbtn" onClick={() => showTool('search')}>
             <Search size={14} /> <span className="bim-searchbtn-text">{queryText}</span>
@@ -1920,7 +1920,7 @@ export default function BimViewer({
                       <X size={14} />
                     </button>
                   </div>
-                  <div className="bim-tool-body">{{ search: searchUi, groups: groupsUi, props: propsUi, models: modelsUi }[id]}</div>
+                  <div className="bim-tool-body">{{ search: searchUi, groups: groupsUi, props: propsUi, models: modelsUi, settings: <ViewerSettingsPanel settings={viewer} onChange={changeViewer} /> }[id]}</div>
                 </div>
               )
             })}
