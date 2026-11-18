@@ -35,7 +35,17 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+# macOS: a .dmg to drag the app from, and a .zip. Not signed by an Apple developer (there is no certificate): the app is
+# signed ad hoc after packing (scripts/adhoc-sign.cjs), which Apple silicon needs to run it at all. Each architecture is
+# built on its own runner (see .github/workflows/release-mac.yml), so the bundled mongod and Electron match.
+afterPack: scripts/adhoc-sign.cjs
 mac:
-  target: dmg
+  target:
+    - dmg
+    - zip
+  icon: build/icon.png
+  category: public.app-category.productivity
+  identity: null
+  artifactName: Opengantt-BIM-${version}-mac-${arch}.${ext}
 linux:
   target: AppImage

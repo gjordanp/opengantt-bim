@@ -8,6 +8,15 @@ const isDev = !app.isPackaged
 // Set once the database is shutting down, so quitting isn't intercepted twice.
 let closing = false
 
+/** The minimal macOS menu: app (about, hide, quit), edit (the clipboard and undo shortcuts) and window. */
+function macMenu(): Menu {
+  return Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { role: 'editMenu' },
+    { role: 'windowMenu' }
+  ])
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1400,
@@ -21,8 +30,9 @@ function createWindow(): void {
     ...(isDev ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     // No native menu bar or title bar: the app draws its own, and the OS only
     // supplies the minimize/maximize/close buttons on top of it.
-    titleBarStyle: 'hidden',
-    titleBarOverlay: { color: '#ffffff', symbolColor: '#0a0a0a', height: 40 },
+    // On macOS the traffic-light buttons sit at the left, inside the bar; on Windows the OS buttons overlay the right.
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden',
+    ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 14, y: 13 } } : { titleBarOverlay: { color: '#ffffff', symbolColor: '#0a0a0a', height: 40 } }),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // The renderer only ever loads our own bundle; keep it fully isolated.
@@ -48,7 +58,9 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  Menu.setApplicationMenu(null)
+  // No menu bar on Windows and Linux (the app draws its own). On macOS the menu bar is always there, and without an
+  // Edit menu Cmd+C, Cmd+V and Cmd+Z do nothing in text fields, so a small one is set.
+  Menu.setApplicationMenu(process.platform === 'darwin' ? macMenu() : null)
   registerIpc()
   initUpdater(async () => {
     // The installer restarts the app: shut the private mongod down cleanly first.

@@ -3220,3 +3220,9 @@ button.with-icon {
 .viewer-settings-body .switch-hint {
   white-space: normal;
 }
+
+/* macOS: the window buttons are at the left of the title bar, not overlaid on the right. */
+[data-platform='darwin'] .topbar {
+  padding-left: 84px;
+  padding-right: 10px;
+}

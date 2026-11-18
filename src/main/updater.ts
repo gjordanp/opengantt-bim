@@ -36,6 +36,9 @@ export function initUpdater(beforeInstall: () => Promise<void>): void {
   })
 
   if (!app.isPackaged) return
+  // macOS only installs updates that are signed by an Apple developer, and these builds are not: there, a new version is
+  // installed again by hand (see the README).
+  if (process.platform === 'darwin') return
 
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = true

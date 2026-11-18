@@ -1,0 +1,110 @@
+# Builds the macOS installers (a .dmg and a .zip, for Apple silicon and for Intel).
+#
+# It is a separate workflow from release.yml so a problem with the Mac build can never block the Windows release:
+#   - On a tag (v*) it builds both and attaches them to the release that release.yml creates (it waits for it).
+#   - By hand (Actions -> "Release (macOS)" -> Run workflow) it only builds and keeps the files as a workflow
+#     artifact, which is how to try it without publishing anything.
+#
+# The app is not signed by an Apple developer (no certificate): it is signed ad hoc (scripts/adhoc-sign.cjs) and
+# Gatekeeper asks the user to allow it once. See the README for how to install it.
+name: Release (macOS)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install the Electron binary
+        run: node node_modules/electron/install.js
+
+      - run: npm run typecheck
+
+      # The MongoDB server binary for this machine's architecture; kept between runs.
+      - uses: actions/cache@v4
+        with:
+          path: resources/mongod
+          key: mongod-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('scripts/fetch-mongod.mjs') }}
+
+      - run: npm run fetch:mongod
+
+      # Java runtime + MPXJ for reading .mpp files; built from a JDK with jlink.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: actions/cache@v4
+        with:
+          path: resources/mpp
+          key: mpp-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('scripts/fetch-mpp-runtime.mjs', 'scripts/mpp/MppToXml.java') }}
+
+      - run: npm run fetch:mpp
+
+      - run: npm run build
+
+      - name: Build the installers
+        run: |
+          npx electron-builder --mac --${{ matrix.arch }} --publish never && exit 0
+          echo "electron-builder failed; retrying once in 60 s"
+          sleep 60
+          npx electron-builder --mac --${{ matrix.arch }} --publish never
+
+      # What the install script checks a download against: "<sha512 in base64> <size> <file name>" per file.
+      - name: Write the checksums
+        run: |
+          cd dist
+          : > mac-checksums-${{ matrix.arch }}.txt
+          for f in Opengantt-BIM-*-mac-${{ matrix.arch }}.dmg Opengantt-BIM-*-mac-${{ matrix.arch }}.zip; do
+            echo "$(openssl dgst -sha512 -binary "$f" | base64 | tr -d '\n') $(stat -f%z "$f") $f" >> mac-checksums-${{ matrix.arch }}.txt
+          done
+          cat mac-checksums-${{ matrix.arch }}.txt
+
+      - name: Keep the files as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: |
+            dist/Opengantt-BIM-*-mac-${{ matrix.arch }}.dmg
+            dist/Opengantt-BIM-*-mac-${{ matrix.arch }}.zip
+            dist/mac-checksums-${{ matrix.arch }}.txt
+
+      # Only on a tag: add them to the release that release.yml creates (it can take a few minutes).
+      - name: Attach them to the release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 60); do
+            gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 && break
+            echo "waiting for the release $GITHUB_REF_NAME ($i/60)"
+            sleep 30
+          done
+          gh release upload "$GITHUB_REF_NAME" \
+            dist/Opengantt-BIM-*-mac-${{ matrix.arch }}.dmg \
+            dist/Opengantt-BIM-*-mac-${{ matrix.arch }}.zip \
+            dist/mac-checksums-${{ matrix.arch }}.txt --clobber

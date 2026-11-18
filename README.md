@@ -8,13 +8,21 @@ Aplicación de escritorio gratuita y de código abierto (MIT) para planificar ob
 
 ## Instalación rápida
 
-En Windows 10 u 11, abre **PowerShell** y pega este comando:
+En **Windows 10 u 11**, abre **PowerShell** y pega este comando:
 
 ```powershell
 irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.ps1 | iex
 ```
 
 Descarga el instalador de la última versión, comprueba que no esté dañado y lo ejecuta. Si prefieres hacerlo a mano, o quieres saber qué avisa Windows (el instalador aún no está firmado), mira [Instalación](#instalación).
+
+En **Mac** (Apple silicon o Intel), abre **Terminal** y pega:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.sh | bash
+```
+
+Elige la versión para tu procesador, comprueba que no esté dañada, la instala en *Aplicaciones* y la abre. Más abajo está la otra forma, con el instalador `.dmg`.
 
 ## Qué hace
 
@@ -33,7 +41,7 @@ La edición Community de la librería de Gantt ([`dhtmlx-gantt`](https://www.npm
 
 ## Instalación
 
-Requisitos: Windows 10 u 11 (64 bits). Por ahora es la única plataforma soportada.
+Requisitos: Windows 10 u 11 (64 bits), o un Mac con macOS 12 o más nuevo (Apple silicon o Intel). Linux no está soportado por ahora.
 
 ### Opción 1: instalador (recomendada)
 
@@ -53,9 +61,24 @@ irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/inst
 
 El script busca la última release, descarga el instalador, **verifica su tamaño y su SHA-512** contra los publicados en la release y recién entonces lo ejecuta. Si el archivo está dañado, lo borra y no lo ejecuta. No oculta ni desactiva ninguna advertencia de Windows, y el instalador sigue sin estar firmado. Si prefieres leer el script antes de ejecutarlo, está en [`installer/install.ps1`](installer/install.ps1). Detalles y opciones (versión, modo silencioso) en [`installer/README.md`](installer/README.md).
 
+### Instalar en Mac
+
+1. Abre la página de [Releases](https://github.com/gjordanp/opengantt-bim/releases/latest).
+2. Descarga el `.dmg` que corresponde a tu Mac: `Opengantt-BIM-x.y.z-mac-arm64.dmg` si tiene chip M1, M2, M3 o M4, o `…-mac-x64.dmg` si es Intel (menú  → *Acerca de esta Mac* muestra el chip).
+3. Ábrelo y arrastra **Opengantt BIM** a la carpeta *Aplicaciones*.
+4. La primera vez, macOS dirá que no puede verificar al desarrollador. Es esperable: la app **aún no está firmada por un desarrollador de Apple**. Para abrirla:
+   - **macOS 15 (Sequoia) o más nuevo:** intenta abrirla, luego entra a *Ajustes del Sistema → Privacidad y seguridad*, baja hasta el aviso de «Opengantt BIM» y pulsa *Abrir de todos modos*.
+   - **macOS 14 o anterior:** haz clic derecho (o Control + clic) sobre la app → *Abrir* → *Abrir*.
+
+   Solo tienes que hacerlo la primera vez, y solo si confías en el origen.
+
+El comando de Terminal de arriba evita ese aviso, porque un archivo descargado con `curl` no queda marcado como «bajado de internet». No oculta ni desactiva ninguna protección de macOS; verifica el tamaño y el SHA-512 del archivo antes de instalarlo. Si prefieres leerlo antes, está en [`installer/install.sh`](installer/install.sh). Para una versión concreta: `… | bash -s -- --version 0.6.0`.
+
 ### Actualizaciones
 
-La app busca una versión nueva al iniciar y cada algunas horas, la descarga en segundo plano y ofrece reiniciar para instalarla.
+En Windows, la app busca una versión nueva al iniciar y cada algunas horas, la descarga en segundo plano y ofrece reiniciar para instalarla.
+
+En Mac **no se actualiza sola** (macOS solo instala actualizaciones de apps firmadas por Apple): para actualizar, ejecuta otra vez el comando de Terminal (reemplaza la versión instalada y no toca tus proyectos) o instala el `.dmg` nuevo.
 
 ## Uso en 5 pasos
 

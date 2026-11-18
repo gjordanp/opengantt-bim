@@ -8,13 +8,21 @@ Free, open-source (MIT) desktop app for construction scheduling: a Gantt chart, 
 
 ## Quick install
 
-On Windows 10 or 11, open **PowerShell** and paste:
+On **Windows 10 or 11**, open **PowerShell** and paste:
 
 ```powershell
 irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.ps1 | iex
 ```
 
 It downloads the latest installer, checks it is not damaged, and runs it. To do it by hand, or to see what Windows says (the installer is not signed yet), see [Install](#install).
+
+On a **Mac** (Apple silicon or Intel), open **Terminal** and paste:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/install.sh | bash
+```
+
+It picks the build for your processor, checks it is not damaged, installs it in *Applications* and opens it. The other way, with the `.dmg` installer, is below.
 
 ## What it does
 
@@ -33,7 +41,7 @@ The Community edition of the gantt library ([`dhtmlx-gantt`](https://www.npmjs.c
 
 ## Install
 
-Requirements: Windows 10 or 11 (64-bit). It is the only supported platform for now.
+Requirements: Windows 10 or 11 (64-bit), or a Mac with macOS 12 or newer (Apple silicon or Intel). Linux is not supported for now.
 
 ### Option 1: installer (recommended)
 
@@ -53,9 +61,24 @@ irm https://raw.githubusercontent.com/gjordanp/opengantt-bim/main/installer/inst
 
 The script finds the latest release, downloads the installer, **checks its size and SHA-512** against the values published in the release, and only then runs it. A damaged file is deleted and never run. It does not hide or disable any Windows warning, and the installer is still unsigned. To read the script before running it, see [`installer/install.ps1`](installer/install.ps1). Details and options (version, silent mode) are in [`installer/README.md`](installer/README.md).
 
+### Install on a Mac
+
+1. Open the [Releases](https://github.com/gjordanp/opengantt-bim/releases/latest) page.
+2. Download the `.dmg` for your Mac: `Opengantt-BIM-x.y.z-mac-arm64.dmg` for an M1, M2, M3 or M4 chip, or `…-mac-x64.dmg` for Intel (Apple menu → *About This Mac* shows the chip).
+3. Open it and drag **Opengantt BIM** to the *Applications* folder.
+4. The first time, macOS says it cannot verify the developer. That is expected: the app is **not signed by an Apple developer yet**. To open it:
+   - **macOS 15 (Sequoia) or newer:** try to open it, then go to *System Settings → Privacy & Security*, scroll to the notice about "Opengantt BIM" and click *Open Anyway*.
+   - **macOS 14 or older:** right-click (or Control-click) the app → *Open* → *Open*.
+
+   You only do this the first time, and only if you trust the source.
+
+The Terminal command above avoids that notice, because a file downloaded with `curl` is not marked as "from the internet". It does not hide or turn off any macOS protection; it checks the file's size and SHA-512 before installing. To read it first, see [`installer/install.sh`](installer/install.sh). For a given version: `… | bash -s -- --version 0.6.0`.
+
 ### Updates
 
-The app checks for a new version on start and every few hours, downloads it in the background, and offers to restart to install it.
+On Windows the app checks for a new version on start and every few hours, downloads it in the background, and offers to restart to install it.
+
+On a Mac it **does not update itself** (macOS only installs updates of apps signed by Apple): to update, run the Terminal command again (it replaces the installed version and leaves your projects alone) or install the new `.dmg`.
 
 ## Use it in 5 steps
 
